@@ -31,6 +31,42 @@ window.MST.Utils = {
     return (value || "").toString().toUpperCase().replace(/^0+/, "");
   },
 
+  normalizeDateInput(value) {
+    if (value instanceof Date && !isNaN(value)) {
+      return value.toISOString().slice(0, 10); // yyyy-mm-dd
+    }
+
+    const str = (value ?? "").toString().trim();
+    if (!str) return "";
+
+    // Already yyyy-mm-dd
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+
+    // yyyymmdd → yyyy-mm-dd
+    if (/^\d{8}$/.test(str)) {
+      const d = window.MST.Utils.yyyymmddToDate(str);
+      return d ? d.toISOString().slice(0, 10) : str;
+    }
+
+    // dd/mm/yyyy → yyyy-mm-dd
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(str)) {
+      const [dd, mm, yyyy] = str.split("/");
+      const d = new Date(+yyyy, +mm - 1, +dd);
+      return isNaN(d) ? str : d.toISOString().slice(0, 10);
+    }
+
+    return str;
+  },
+
+  normalizeNumericField(value) {
+    if (value === null || value === undefined) return "";
+    const str = value.toString().trim();
+    if (!str) return "";
+
+    const num = Number(str.replace(/,/g, ""));
+    return Number.isNaN(num) ? str : num.toString();
+  },
+
   formatDateDMY(value) {
     const U = window.MST.Utils;
     if (!value) return "";

@@ -22,6 +22,33 @@ if (!window.originalProps[mstId]) {
 
 };
 
+// Highlight a day yellow for ~3 seconds
+window.MST.Editor.highlightDay = function(date) {
+  if (!window.calendar) return;
+
+  const highlight = window.calendar.addEvent({
+    start: date,
+    display: "background",
+    backgroundColor: "yellow",
+    id: "goto_highlight"
+  });
+
+  setTimeout(() => {
+    const ev = window.calendar.getEventById("goto_highlight");
+    if (ev) ev.remove();
+  }, 3000);
+};
+
+// Reset all edits and reload the original dataset
+window.MST.Editor.resetAllChanges = function() {
+  const ok = confirm("Are you sure you want to reset all changes and reload the original MST data?");
+  if (!ok) return;
+
+  MST.Editor.loadMSTs(window.originalRows || []);
+  if (window.detailsIntro) window.detailsIntro.style.display = "block";
+  if (window.editForm) window.editForm.style.display = "none";
+};
+
 
 // =============================================
 // NEW MST MODAL LOGIC (with Std Job auto-fill)
@@ -181,13 +208,20 @@ window.protTypeInput = protTypeInput;
 window.protMethodInput = protMethodInput;
 window.detailsIntro = detailsIntro;
 window.editForm = editForm;
-window.changeCount = changeCount;
+    window.changeCount = changeCount;
 
 // ----------------------
     // HOOK EVENTS
     // ----------------------
     window.lastDateInput.addEventListener("input",  E.refreshNextScheduledDisplay);
     window.freqInput.addEventListener("input",       E.refreshNextScheduledDisplay);
+    if (exportBtn && MST?.Export?.exportChanges) {
+      exportBtn.addEventListener("click", MST.Export.exportChanges);
+    }
+
+    if (resetAllBtn) {
+      resetAllBtn.addEventListener('click', MST.Editor.resetAllChanges);
+    }
 
     // ----------------------
     // INITIALIZE FULLCALENDAR
@@ -483,44 +517,6 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
   /* ----------------------------------------
      MARK MSTs AS CHANGED
      ---------------------------------------- */
-
-MST.Editor.markMSTAsChanged = function(mstId) {
-    const row = window.buildChangeExportRow(mstId);
-    if (!row) return;
-
-    const hasDiff =
-        row.New_Frequency != row.Old_Frequency ||
-        row.New_Desc2 !== row.Old_Desc2 ||
-        row.New_Last_Scheduled_Date !== row.Old_Last_Scheduled_Date ||
-        row.New_Work_Group_Code !== row.Old_Work_Group_Code ||
-        row.New_Job_Desc_Code !== row.Old_Job_Desc_Code ||
-        row.New_Units_Required != row.Old_Units_Required ||
-        row.New_Segment_From != row.Old_Segment_From ||
-        row.New_Segment_To != row.Old_Segment_To ||
-        row.New_Protection_Type_Code !== row.Old_Protection_Type_Code ||
-        row.New_Protection_Method_Code !== row.Old_Protection_Method_Code;
-
-    if (hasDiff) {
-        window.changes[mstId] = row;
-    } else {
-        delete window.changes[mstId];
-    }
-
-    if (window.changeCount) {
-        window.changeCount.innerText = `Changes made: ${Object.keys(window.changes).length}`;
-    }
-
-    const baseEvent = window.calendar.getEventById(`${mstId}_0`);
-    if (baseEvent) {
-        const originalTitle = baseEvent.title.replace(/\*Amended\*/gi, "").trim();
-
-        if (window.changes[mstId]) {
-            baseEvent.setProp("title", `*Amended* ${originalTitle}`);
-        } else {
-            baseEvent.setProp("title", originalTitle);
-        }
-    }
-};
 
   /* ----------------------------------------
      LOAD MSTs
@@ -904,6 +900,18 @@ MST.Editor.addNewMST = function () {
       pm: baseEvent.extendedProps.protMethod
     };
 
+    const normalizedLastSched = U.normalizeDateInput(orig["Last Scheduled Date"] || "");
+    const normalizedCurLastSched = U.normalizeDateInput(cur.lastSched);
+
+    const normalizedUnitsOld = U.normalizeNumericField(orig["Units Required"] || "");
+    const normalizedUnitsNew = U.normalizeNumericField(cur.units);
+
+    const normalizedSegFromOld = U.normalizeNumericField(orig["MST Segment Mileage From"] || "");
+    const normalizedSegFromNew = U.normalizeNumericField(cur.segFrom);
+
+    const normalizedSegToOld = U.normalizeNumericField(orig["MST Segment Mileage To"] || "");
+    const normalizedSegToNew = U.normalizeNumericField(cur.segTo);
+
     return {
       MST_ID: mstId,
       Equipment_Number: orig["Equipment Number"] || "",
@@ -917,8 +925,8 @@ Old_Desc2: (orig["MST Description 2"] || "").trimEnd(),
 New_Desc2: (cur.desc2 || "").trimEnd(),
 
 
-      Old_Last_Scheduled_Date: orig["Last Scheduled Date"] || "",
-      New_Last_Scheduled_Date: cur.lastSched,
+      Old_Last_Scheduled_Date: normalizedLastSched,
+      New_Last_Scheduled_Date: normalizedCurLastSched,
 
       Old_Work_Group_Code: orig["Work Group Code"] || "",
       New_Work_Group_Code: cur.wg,
@@ -926,14 +934,14 @@ New_Desc2: (cur.desc2 || "").trimEnd(),
       Old_Job_Desc_Code: orig["Job Description Code"] || "",
       New_Job_Desc_Code: cur.job,
 
-      Old_Units_Required: orig["Units Required"] || "",
-      New_Units_Required: cur.units,
+      Old_Units_Required: normalizedUnitsOld,
+      New_Units_Required: normalizedUnitsNew,
 
-      Old_Segment_From: orig["MST Segment Mileage From"] || "",
-      New_Segment_From: cur.segFrom,
+      Old_Segment_From: normalizedSegFromOld,
+      New_Segment_From: normalizedSegFromNew,
 
-      Old_Segment_To: orig["MST Segment Mileage To"] || "",
-      New_Segment_To: cur.segTo,
+      Old_Segment_To: normalizedSegToOld,
+      New_Segment_To: normalizedSegToNew,
 
       Old_Protection_Type_Code: orig["Protection Type Code"] || "",
       New_Protection_Type_Code: cur.pt,
@@ -989,6 +997,11 @@ if (changed) {
   baseEvent.setProp("classNames", filtered);
 }
 
+  };
+
+  MST.Editor.hasChanged = function(mstId) {
+    if (!mstId || !window.changes) return false;
+    return Boolean(window.changes[mstId]);
   };
 
 })();
