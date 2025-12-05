@@ -27,6 +27,22 @@ document.addEventListener("DOMContentLoaded", function () {
 
   const fileInput = document.getElementById("fileInput");
   const loading   = document.getElementById("loading");
+  const downloadDateDisplay = document.getElementById("downloadDateDisplay");
+  const downloadDateWarning = document.getElementById("downloadDateWarning");
+
+  function parseDownloadDate(value) {
+    if (!value) return null;
+    if (value instanceof Date) return value;
+    if (typeof value === "number") {
+      const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+      return new Date(excelEpoch.getTime() + value * 86400000);
+    }
+    if (typeof value === "string") {
+      const parsed = new Date(value);
+      return isNaN(parsed) ? null : parsed;
+    }
+    return null;
+  }
 
   if (!fileInput) {
     console.error("❌ FileUpload.js: #fileInput not found in DOM");
@@ -46,6 +62,31 @@ document.addEventListener("DOMContentLoaded", function () {
         const workbook = XLSX.read(data, { type: "array" });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const json = XLSX.utils.sheet_to_json(sheet);
+
+        const downloadDateRaw = json[0]?.["Download Date"];
+        const downloadDate = parseDownloadDate(downloadDateRaw);
+
+        if (downloadDateDisplay) {
+          if (downloadDate) {
+            downloadDateDisplay.textContent = `Download Date: ${downloadDate.toLocaleDateString()}`;
+          } else {
+            downloadDateDisplay.textContent = "Download Date: Not found";
+          }
+        }
+
+        if (downloadDateWarning) {
+          downloadDateWarning.style.display = "none";
+          downloadDateWarning.textContent = "";
+
+          if (downloadDate) {
+            const diffDays = (Date.now() - downloadDate.getTime()) / 86400000;
+            if (diffDays > 7) {
+              downloadDateWarning.textContent =
+                "The MST data is older than 7 days. Please contact your SSM team to refresh the download. Continuing may result in Data Errors —proceed at your own risk.";
+              downloadDateWarning.style.display = "block";
+            }
+          }
+        }
 
         // Save master rows
         window.originalRows = json;
