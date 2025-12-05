@@ -27,7 +27,6 @@ window.formatDateDMY = function(input) {
 
 
 
-
 (function () {
 
     MST.Export = MST.Export || {};
@@ -55,6 +54,15 @@ window.formatDateDMY = function(input) {
             fill: { type: "pattern", pattern: "solid", fgColor: { argb: "FF10B981" } },
             alignment: { vertical: "middle", horizontal: "center" },
         };
+
+        const mstHeaders = [
+            "Equipment", "Task No", "Comp Code", "Mod Code", "Job Desc Code",
+            "MST Type", "StatutoryMST", "Allow Multiple workorders",
+            "MST Desc 1", "MST Desc 2", "Freq", "Unit Required", "Unit of Work",
+            "Sched Ind", "Work Group", "Std Job No", "LPD", "LSD", "NSD",
+            "Segment From", "Segment To", "Segment UOM", "Assign To",
+            "ProtectionType", "ProtectionMethod", "TV Reference", "TV Expiry Date"
+        ];
 
         // ------------------------------------------------------
         // 1️⃣ Sheet: Change Log
@@ -128,58 +136,46 @@ window.formatDateDMY = function(input) {
 
             ws1.getRow(1).eachCell(cell => Object.assign(cell, { style: headerStyle }));
             ws1.views = [{ state: 'frozen', ySplit: 1 }];
+
+            // ------------------------------------------------------
+            // 3️⃣ Sheet: MST Amend
+            // ------------------------------------------------------
+            const ws3 = workbook.addWorksheet("MST Amend");
+            ws3.columns = mstHeaders.map(h => ({ header: h, key: h, width: 18 }));
+
+            changeData.forEach(row => {
+                const out = {};
+                const orig = window.originalProps[row.MST_ID] || {};
+
+                mstHeaders.forEach(h => {
+
+                    let val =
+                        (h === "Equipment"       && (row.Equipment || orig["Equipment Number"] || "")) ||
+                        (h === "Task No"        && (row["Task No"] || orig["MST Task Number"] || "")) ||
+                        (h === "MST Desc 1"     && (row["MST Desc 1"] || orig["MST Description 1"] || "")) ||
+                        (h === "MST Desc 2"     && (row.New_Desc2 || row.Old_Desc2 || orig["MST Description 2"] || "")) ||
+                        (h === "Freq"           && (row.New_Frequency || row.Old_Frequency || orig["MST Frequency"] || "")) ||
+                        (h === "Work Group"     && (row.New_Work_Group_Code || row.Old_Work_Group_Code || orig["Work Group Code"] || "")) ||
+                        (h === "Job Desc Code"  && (row.New_Job_Desc_Code || row.Old_Job_Desc_Code || orig["Job Description Code"] || "")) ||
+                        (h === "Sched Ind"      && (row.New_Scheduling_Indicator_Code || row.Old_Scheduling_Indicator_Code || orig["Scheduling Indicator Code"] || "")) ||
+                        (h === "LSD"            && (row.New_Last_Scheduled_Date || row.Old_Last_Scheduled_Date || orig["Last Scheduled Date"] || "")) ||
+                        (h === "ProtectionType" && (row.New_Protection_Type_Code || row.Old_Protection_Type_Code || orig["Protection Type Code"] || "")) ||
+                        (h === "ProtectionMethod" && (row.New_Protection_Method_Code || row.Old_Protection_Method_Code || orig["Protection Method Code"] || "")) ||
+                        orig[h] || "";
+
+                    if (["LSD", "NSD", "LPD", "TV Expiry Date"].includes(h)) {
+                        val = window.formatDateDMY(val);
+                    }
+
+                    out[h] = val;
+                });
+
+                ws3.addRow(out);
+            });
+
+            ws3.getRow(1).eachCell(cell => Object.assign(cell, { style: headerStyle }));
+            ws3.views = [{ state: 'frozen', ySplit: 1 }];
         }
-
-        // 3️⃣ Sheet: MST Amend
-if (changeKeys.length) {
-
-    const changeData = Object.values(window.changes);
-    const ws3 = workbook.addWorksheet("MST Amend");
-
-    const headers = [
-        "Equipment", "Task No", "Comp Code", "Mod Code", "Job Desc Code",
-        "MST Type", "StatutoryMST", "Allow Multiple workorders",
-        "MST Desc 1", "MST Desc 2", "Freq", "Unit Required", "Unit of Work",
-        "Sched Ind", "Work Group", "Std Job No", "LPD", "LSD", "NSD",
-        "Segment From", "Segment To", "Segment UOM", "Assign To",
-        "ProtectionType", "ProtectionMethod", "TV Reference", "TV Expiry Date"
-    ];
-
-    ws3.columns = headers.map(h => ({ header: h, key: h, width: 18 }));
-
-    changeData.forEach(row => {
-        const out = {};
-        const orig = window.originalProps[row.MST_ID] || {};
-
-        headers.forEach(h => {
-
-            let val =
-                (h === "Equipment"       && (row.Equipment || orig["Equipment Number"] || "")) ||
-                (h === "Task No"        && (row["Task No"] || orig["MST Task Number"] || "")) ||
-                (h === "MST Desc 1"     && (row["MST Desc 1"] || orig["MST Description 1"] || "")) ||
-                (h === "MST Desc 2"     && (row.New_Desc2 || row.Old_Desc2 || orig["MST Description 2"] || "")) ||
-                (h === "Freq"           && (row.New_Frequency || row.Old_Frequency || orig["MST Frequency"] || "")) ||
-                (h === "Work Group"     && (row.New_Work_Group_Code || row.Old_Work_Group_Code || orig["Work Group Code"] || "")) ||
-                (h === "Job Desc Code"  && (row.New_Job_Desc_Code || row.Old_Job_Desc_Code || orig["Job Description Code"] || "")) ||
-                (h === "Sched Ind"      && (row.New_Scheduling_Indicator_Code || row.Old_Scheduling_Indicator_Code || orig["Scheduling Indicator Code"] || "")) ||
-                (h === "LSD"            && (row.New_Last_Scheduled_Date || row.Old_Last_Scheduled_Date || orig["Last Scheduled Date"] || "")) ||
-                (h === "ProtectionType" && (row.New_Protection_Type_Code || row.Old_Protection_Type_Code || orig["Protection Type Code"] || "")) ||
-                (h === "ProtectionMethod" && (row.New_Protection_Method_Code || row.Old_Protection_Method_Code || orig["Protection Method Code"] || "")) ||
-                orig[h] || "";
-
-            if (["LSD", "NSD", "LPD", "TV Expiry Date"].includes(h)) {
-                val = window.formatDateDMY(val);
-            }
-
-            out[h] = val;
-        });
-
-        ws3.addRow(out);
-    });
-
-    ws3.getRow(1).eachCell(cell => Object.assign(cell, { style: headerStyle }));
-    ws3.views = [{ state: 'frozen', ySplit: 1 }];
-}
 
 
         // ------------------------------------------------------
@@ -190,21 +186,12 @@ if (changeKeys.length) {
             const newData = Object.values(window.createdMSTs);
             const ws2 = workbook.addWorksheet("Created_MSTs");
 
-            const commonHeaders = [
-                "Equipment", "Task No", "Comp Code", "Mod Code", "Job Desc Code",
-                "MST Type", "StatutoryMST", "Allow Multiple workorders",
-                "MST Desc 1", "MST Desc 2", "Freq", "Unit Required", "Unit of Work",
-                "Sched Ind", "Work Group", "Std Job No", "LPD", "LSD", "NSD",
-                "Segment From", "Segment To", "Segment UOM", "Assign To",
-                "ProtectionType", "ProtectionMethod", "TV Reference", "TV Expiry Date"
-            ];
-
-            ws2.columns = headers.map(h => ({ header: h, key: h, width: 18 }));
+            ws2.columns = mstHeaders.map(h => ({ header: h, key: h, width: 18 }));
 
             newData.forEach(row => {
                 const out = {};
 
-                headers.forEach(h => {
+                mstHeaders.forEach(h => {
                     let val = row[h] ?? "";
 
                     if (["LSD", "NSD", "LPD", "TV Expiry Date"].includes(h)) {
