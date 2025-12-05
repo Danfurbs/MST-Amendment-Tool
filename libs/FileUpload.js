@@ -162,16 +162,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
           window.originalRows = filtered;
 
-          window.equipmentDescriptions = new Map();
-          filtered.forEach(r => {
-            const eq = safeTrim(r["Equipment Number"]);
-            if (!eq) return;
-            const desc = safeTrim(r["Equipment Description 1"]);
-            if (!window.equipmentDescriptions.has(eq)) {
-              window.equipmentDescriptions.set(eq, desc);
-            }
-          });
-
           populateUnique(document.getElementById("filterWorkGroup"),  filtered, "Work Group Code");
           populateUnique(document.getElementById("filterJobDesc"),    filtered, "Job Description Code");
           populateUnique(document.getElementById("filterDesc1"),      filtered, "MST Description 1");
