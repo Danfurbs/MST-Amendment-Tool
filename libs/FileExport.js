@@ -1,27 +1,6 @@
-window.formatDateDMY = function(input) {
-  if (!input) return "";
-
-  if (input instanceof Date && !isNaN(input)) {
-    return String(input.getDate()).padStart(2, "0") + "/" +
-           String(input.getMonth() + 1).padStart(2, "0") + "/" +
-           input.getFullYear();
-  }
-
-  const inputStr = (typeof input === "string") ? input : String(input);
-
-  if (/^\d{8}$/.test(inputStr)) {
-    const y = inputStr.slice(0, 4);
-    const m = inputStr.slice(4, 6);
-    const d = inputStr.slice(6, 8);
-    return `${d}/${m}/${y}`;
-  }
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(inputStr)) {
-    const [y, m, d] = inputStr.split("-");
-    return `${d}/${m}/${y}`;
-  }
-
-  return inputStr;
+const formatDateDMY = (value) => {
+  if (window.MST?.Utils?.formatDateDMY) return window.MST.Utils.formatDateDMY(value);
+  return value ?? "";
 };
 
 function formatDateTimeStamp(date) {
@@ -169,7 +148,7 @@ function formatDateTimeStamp(date) {
 
             function safeValue(value, fieldLabel) {
                 if (value == null || value === "") return "";
-                if (dateFields.has(fieldLabel)) return (window.MST?.Utils?.formatDateDMY || (() => ""))(value);
+                if (dateFields.has(fieldLabel)) return formatDateDMY(value);
                 return value;
             }
 
@@ -245,7 +224,7 @@ function formatDateTimeStamp(date) {
                         orig[h] || "";
 
                     if (["LSD", "NSD", "LPD", "TV Expiry Date"].includes(h)) {
-                        val = window.formatDateDMY(val);
+                        val = formatDateDMY(val);
                     }
 
                     out[h] = val;
@@ -276,7 +255,7 @@ function formatDateTimeStamp(date) {
                     let val = row[h] ?? "";
 
                     if (["LSD", "NSD", "LPD", "TV Expiry Date"].includes(h)) {
-                        val = window.formatDateDMY(val);
+                        val = formatDateDMY(val);
                     }
 
                     out[h] = val;
