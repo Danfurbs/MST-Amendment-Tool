@@ -5,7 +5,6 @@
   const prevWindowBtn = document.getElementById('prevWindowBtn');
   const nextWindowBtn = document.getElementById('nextWindowBtn');
   const resourceRangeLabel = document.getElementById('resourceRangeLabel');
-  const resourceTotalHours = document.getElementById('resourceTotalHours');
   const resourceCanvas = document.getElementById('plannedHoursChart');
   const dragArea = document.getElementById('resourceFloatHeader');
 
@@ -40,6 +39,10 @@
     return `${dd}/${mm}/${yy}`;
   }
 
+  function formatShort(d) {
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  }
+
   function bucketResourceHours(windowStart, days = 42) {
     const windowEnd = MST.Utils.addDays(windowStart, days);
     const events = window.calendar.getEvents();
@@ -68,20 +71,20 @@
     const labels = keys.map((k) => {
       const d = new Date(`${k}T00:00:00`);
       const d2 = MST.Utils.addDays(d, 6);
-      return `${formatDMY(d)} – ${formatDMY(d2)}`; // week span label
+      const startLabel = formatShort(d);
+      const endLabel = formatShort(d2);
+      return [`w/c ${startLabel}`, `to ${endLabel}`];
     });
     const data = keys.map((k) => hoursByWeekKey.get(k));
 
-    const total = data.reduce((a, b) => a + b, 0);
-    return { labels, data, total, rangeStart: windowStart, rangeEnd: MST.Utils.addDays(windowEnd, -1) };
+    return { labels, data, rangeStart: windowStart, rangeEnd: MST.Utils.addDays(windowEnd, -1) };
   }
 
   function drawResourceChart() {
     const ctx = resourceCanvas.getContext('2d');
-    const { labels, data, total, rangeStart, rangeEnd } = bucketResourceHours(startOfWeek(resourceWindowStart), 42);
+    const { labels, data, rangeStart, rangeEnd } = bucketResourceHours(startOfWeek(resourceWindowStart), 42);
 
     resourceRangeLabel.textContent = `${formatDMY(rangeStart)} → ${formatDMY(rangeEnd)}`;
-    resourceTotalHours.textContent = `Total: ${total.toFixed(1)}h`;
 
     if (resourceChart) {
       resourceChart.data.labels = labels;
@@ -107,7 +110,7 @@
         maintainAspectRatio: false,
         scales: {
           y: { beginAtZero: true, title: { display: true, text: 'Hours' } },
-          x: { title: { display: true, text: 'Week' } },
+          x: { title: { display: true, text: 'Week' }, ticks: { maxRotation: 0, minRotation: 0 } },
         },
         plugins: {
           legend: { display: false },
@@ -122,7 +125,7 @@
   }
 
   openBtn.addEventListener('click', () => {
-    panel.style.display = 'block';
+    panel.style.display = 'flex';
     drawResourceChart();
   });
 

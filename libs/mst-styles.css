@@ -417,8 +417,8 @@ input, button {
 
 #plannedHoursChart {
   width: 100% !important;
-  height: 200px !important;
-  max-height: 500px;
+  height: 260px !important;
+  max-height: 520px;
 }
 
 /* Draggable floating window */
@@ -426,7 +426,8 @@ input, button {
   position: fixed;
   top: 120px;
   right: 40px;
-  width: 420px;
+  width: 520px;
+  max-width: 92vw;
   background: #ffffff;
   border-radius: 8px;
   box-shadow: 0 4px 18px rgba(0,0,0,0.25);
@@ -434,9 +435,9 @@ input, button {
 
   display: none; /* hidden until activated */
 
-  max-height: 560px;
+  max-height: 80vh;
   overflow: hidden;
-  padding: 12px;
+  padding: 16px;
   flex-direction: column;
 }
 
@@ -447,6 +448,20 @@ input, button {
   cursor: grab;
   font-weight: bold;
   margin-bottom: 8px;
+  gap: 8px;
+}
+
+#resourceFloatHeader .resource-title {
+  display: block;
+  line-height: 1.2;
+}
+
+#resourceFloatHeader .resource-subtitle {
+  display: block;
+  font-size: 12px;
+  color: #4b5563;
+  font-weight: normal;
+  margin-top: 2px;
 }
 
 #resourceFloatHeader button {
