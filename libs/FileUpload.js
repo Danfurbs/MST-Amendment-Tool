@@ -26,6 +26,8 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   const fileInput = document.getElementById("fileInput");
+  const fileInputLabel = document.querySelector('label[for="fileInput"]');
+  const fileInputLabelText = document.querySelector(".file-upload-label-text");
   const loading   = document.getElementById("loading");
   const downloadDateDisplay = document.getElementById("downloadDateDisplay");
   const downloadDateWarning = document.getElementById("downloadDateWarning");
@@ -53,6 +55,21 @@ document.addEventListener("DOMContentLoaded", function () {
       return isNaN(parsed) ? null : parsed;
     }
     return null;
+  }
+
+  function lockFileInput() {
+    if (fileInput) {
+      fileInput.disabled = true;
+    }
+
+    if (fileInputLabel) {
+      fileInputLabel.classList.add("disabled");
+      fileInputLabel.title = "File loaded";
+    }
+
+    if (fileInputLabelText) {
+      fileInputLabelText.textContent = "\ud83d\udd12";
+    }
   }
 
   if (!fileInput) {
@@ -175,6 +192,8 @@ document.addEventListener("DOMContentLoaded", function () {
           window.allEquipNumbers = [...new Set(
             (window.fullDownloadRows || []).map(r => safeTrim(r["Equipment Number"]))
           )];
+
+          lockFileInput();
 
           MST.Editor.loadMSTs(filtered);
         };
