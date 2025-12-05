@@ -109,13 +109,20 @@
         ],
       },
       options: {
-        responsive: false,
+        responsive: true,
         maintainAspectRatio: false,
         scales: {
           y: { beginAtZero: true, title: { display: true, text: 'Hours' } },
           x: {
             title: { display: true, text: 'Week' },
-            ticks: { maxRotation: 0, minRotation: 0, autoSkip: false },
+            ticks: {
+              maxRotation: 0,
+              minRotation: 0,
+              autoSkip: true,
+              maxTicksLimit: 6,
+              font: { size: 11 },
+              callback: (val, idx) => (Array.isArray(labels[idx]) ? labels[idx] : val),
+            },
           },
         },
         plugins: {
@@ -124,6 +131,11 @@
             callbacks: {
               label: (ctx) => `${ctx.parsed.y.toFixed(1)} h`,
             },
+          },
+        },
+        layout: {
+          padding: {
+            bottom: 6,
           },
         },
       },
