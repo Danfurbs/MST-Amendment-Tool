@@ -162,21 +162,7 @@ window.MST.Editor.openNewMSTModal = function () {
         return;
       }
 
-      const trim = (val) => {
-        if (val == null) return "";
-        return typeof val === "string" ? val.trim() : String(val).trim();
-      };
-
-      const normalize = (val) => trim(val).toUpperCase();
-      const normCode  = normalize(code);
-
-      // Prefer the prebuilt map; fall back to a direct lookup over the full download
-      const fromMap  = map.get(normCode);
-      const fromRows = (!fromMap && Array.isArray(window.fullDownloadLookup))
-        ? window.fullDownloadLookup.find(r => normalize(r["Equipment Number"]) === normCode)
-        : null;
-
-      equipDesc.textContent = fromMap || trim(fromRows?.["Equipment Description 1"]) || "";
+      equipDesc.textContent = map.get(code) || "";
     };
 
     if (!equipInput.dataset.equipDescBound) {
@@ -988,9 +974,7 @@ MST.Editor.addNewMST = function () {
   };
 
   // Close modal
-  const modal = document.getElementById("newMSTModal");
-  modal.style.display = "none";
-  modal.style.pointerEvents = "none";
+  MST.Editor.closeNewMSTModal();
 
   // Immediately open the editor
   MST.Editor.openEditorForMST(mstId, baseEvent);

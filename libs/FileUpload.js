@@ -60,15 +60,11 @@ document.addEventListener("DOMContentLoaded", function () {
     return;
   }
 
-  function normalizeEquip(value) {
-    return safeTrim(value).toUpperCase();
-  }
-
   function buildEquipmentDescMap(rows) {
     const map = new Map();
 
     rows.forEach(r => {
-      const eq = normalizeEquip(r["Equipment Number"]);
+      const eq = safeTrim(r["Equipment Number"]);
       if (!eq) return;
 
       const desc = safeTrim(r["Equipment Description 1"]);
@@ -95,23 +91,10 @@ document.addEventListener("DOMContentLoaded", function () {
         const json = XLSX.utils.sheet_to_json(sheet);
 
         const fullRows = json;
-        const lookupRows = structuredClone(json);
 
-        // Persist the complete, unfiltered download for lookups (never reassign)
-        window.fullDownloadRows      = fullRows;
-        window.fullDownloadLookup    = lookupRows;
-        window.equipmentDescriptions = buildEquipmentDescMap(window.fullDownloadLookup);
-
-        const seenEquip = new Set();
-        window.allEquipNumbers = [];
-        lookupRows.forEach(r => {
-          const rawEquip = safeTrim(r["Equipment Number"]);
-          const norm = normalizeEquip(rawEquip);
-          if (norm && !seenEquip.has(norm)) {
-            seenEquip.add(norm);
-            window.allEquipNumbers.push(rawEquip);
-          }
-        });
+        // Build equipment descriptions from the complete, unfiltered download
+        window.fullDownloadRows     = fullRows;
+        window.equipmentDescriptions = buildEquipmentDescMap(fullRows);
 
         const downloadDateRaw = fullRows[0]?.["Download Date"];
         const downloadDate = parseDownloadDate(downloadDateRaw);
@@ -173,11 +156,21 @@ document.addEventListener("DOMContentLoaded", function () {
 
           wgSelectModal.style.display = "none";
 
-          const filtered = window.fullDownloadRows.filter(r =>
+          const filtered = fullRows.filter(r =>
             selected.includes(safeTrim(r["Work Group Set Code"]))
           );
 
           window.originalRows = filtered;
+
+          window.equipmentDescriptions = new Map();
+          filtered.forEach(r => {
+            const eq = safeTrim(r["Equipment Number"]);
+            if (!eq) return;
+            const desc = safeTrim(r["Equipment Description 1"]);
+            if (!window.equipmentDescriptions.has(eq)) {
+              window.equipmentDescriptions.set(eq, desc);
+            }
+          });
 
           populateUnique(document.getElementById("filterWorkGroup"),  filtered, "Work Group Code");
           populateUnique(document.getElementById("filterJobDesc"),    filtered, "Job Description Code");
@@ -186,6 +179,12 @@ document.addEventListener("DOMContentLoaded", function () {
           populateUnique(document.getElementById("filterProtType"),   filtered, "Protection Type Code");
           populateUnique(document.getElementById("filterProtMethod"), filtered, "Protection Method Code");
           populateUnique(document.getElementById("filterEquipDesc1"), filtered, "Equipment Description 1");
+
+          // Keep the equipment number pool unfiltered so description lookups work for
+          // any record contained in the original download
+          window.allEquipNumbers = [...new Set(
+            (window.fullDownloadRows || []).map(r => safeTrim(r["Equipment Number"]))
+          )];
 
           MST.Editor.loadMSTs(filtered);
         };
