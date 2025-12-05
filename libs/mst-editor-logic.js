@@ -189,6 +189,7 @@ window.nextDateCalc = nextDateCalc;
     const wgInput         = document.getElementById('wgInput');
     const jobDescCodeInput= document.getElementById('jobDescCodeInput');
     const unitsRequiredInput = document.getElementById('unitsRequiredInput');
+    const unitsRequiredLabel = document.getElementById('unitsRequiredLabel');
     const mileageFromInput   = document.getElementById('mileageFromInput');
     const mileageToInput     = document.getElementById('mileageToInput');
     const protTypeInput      = document.getElementById('protTypeInput');
@@ -422,6 +423,21 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
       : window.originalProps[mstId];
 
     if (!orig) return;
+
+    const stdJobNo = (
+      baseEvent.extendedProps.stdJobNo ||
+      orig["Std Job No"] ||
+      ""
+    ).toString().trim();
+
+    const stdJobUom = (window.STANDARD_JOBS?.[stdJobNo]?.uom || "").trim();
+
+    if (unitsRequiredLabel) {
+      unitsRequiredLabel.textContent = stdJobUom
+        ? `Units Required (${stdJobUom})`
+        : "Units Required";
+    }
+
     // Reset form visually
     [
       window.equipDisplay,
@@ -591,36 +607,37 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
       const rawLastDate = (r["Last Scheduled Date"] || "").toString().trim();
       if (!/^[0-9]{8}$/.test(rawLastDate)) return;
 
-const baseDate = MST.Utils.yyyymmddToDate(rawLastDate);
-if (!baseDate) return;
+      const baseDate = MST.Utils.yyyymmddToDate(rawLastDate);
+      if (!baseDate) return;
 
-// Force consistent 09:00 time to avoid DST shifts
-const eventStart = new Date(baseDate);
-eventStart.setHours(9, 0, 0, 0);
+      // Force consistent 09:00 time to avoid DST shifts
+      const eventStart = new Date(baseDate);
+      eventStart.setHours(9, 0, 0, 0);
 
-if (typeof MST.Editor.ensureOriginalPropsStored === "function") {
-  MST.Editor.ensureOriginalPropsStored(mstId, r);
-}
+      if (typeof MST.Editor.ensureOriginalPropsStored === "function") {
+        MST.Editor.ensureOriginalPropsStored(mstId, r);
+      }
 
-window.calendar.addEvent({
-  id: `${mstId}_0`,
-  title: `${r["MST Description 1"] || ""} — ${r["MST Description 2"] || ""}`,
-  start: eventStart,     // ← Correct placement
-  allDay: false,         // ← Prevent DST-shifting behaviour
-  backgroundColor: MST.Utils.BASE_COLOR,
-  borderColor: MST.Utils.BASE_COLOR,
-  extendedProps: {
-    mstId,
-    instance: 0,
-    frequency: freq,
-    desc1: r["MST Description 1"] || "",
-    desc2: (r["MST Description 2"] || "").trimEnd(),
-    equipmentNo: r["Equipment Number"] || "",
-    taskNo: r["MST Task Number"] || "",
-    equipmentDesc1: r["Equipment Description 1"] || "",
-    workGroup: r["Work Group Code"] || "",
-    jobDescCode: r["Job Description Code"] || "",
-    unitsRequired: r["Units Required"] || "",
+      window.calendar.addEvent({
+        id: `${mstId}_0`,
+        title: `${r["MST Description 1"] || ""} — ${r["MST Description 2"] || ""}`,
+        start: eventStart,     // ← Correct placement
+        allDay: false,         // ← Prevent DST-shifting behaviour
+        backgroundColor: MST.Utils.BASE_COLOR,
+        borderColor: MST.Utils.BASE_COLOR,
+        extendedProps: {
+          mstId,
+          instance: 0,
+          frequency: freq,
+          desc1: r["MST Description 1"] || "",
+          desc2: (r["MST Description 2"] || "").trimEnd(),
+          equipmentNo: r["Equipment Number"] || "",
+          taskNo: r["MST Task Number"] || "",
+          stdJobNo: (r["Std Job No"] || "").toString().trim(),
+          equipmentDesc1: r["Equipment Description 1"] || "",
+          workGroup: r["Work Group Code"] || "",
+          jobDescCode: r["Job Description Code"] || "",
+          unitsRequired: r["Units Required"] || "",
     segFrom: r["MST Segment Mileage From"] || "",
     segTo: r["MST Segment Mileage To"] || "",
     protType: r["Protection Type Code"] || "",
