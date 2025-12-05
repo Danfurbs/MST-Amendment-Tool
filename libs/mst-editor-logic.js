@@ -427,6 +427,7 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     const stdJobNo = (
       baseEvent.extendedProps.stdJobNo ||
       orig["Std Job No"] ||
+      orig["Standard Job Number"] ||
       ""
     ).toString().trim();
 
@@ -610,7 +611,11 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
 
       const freq = parseInt(r["MST Frequency"]) || 0;
       const rawLastDate = (r["Last Scheduled Date"] || "").toString().trim();
-      const stdJobNo = (r["Std Job No"] || "").toString().trim();
+      const stdJobNo = (
+        r["Std Job No"] ||
+        r["Standard Job Number"] ||
+        ""
+      ).toString().trim();
       const stdJobUom = (
         window.STANDARD_JOBS?.[stdJobNo]?.uom ||
         ""
@@ -645,6 +650,7 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
           taskNo: r["MST Task Number"] || "",
           stdJobNo,
           stdJobUom,
+          unitMeasure: stdJobUom,
           equipmentDesc1: r["Equipment Description 1"] || "",
           workGroup: r["Work Group Code"] || "",
           jobDescCode: r["Job Description Code"] || "",
