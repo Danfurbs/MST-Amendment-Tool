@@ -81,7 +81,7 @@ function formatDateTimeStamp(date) {
         };
 
         headerSheet.addRow(["This spreadsheet includes MST changes for approval", ""]);
-        headerSheet.addRow(["Note: On modified records, fields changed are highlighted in yellow", ""]);
+        headerSheet.addRow(["Note: New and Amended MSTs are recorded on seperate tabs. The Change Log sheet shows all changes made", ""]);
         headerSheet.mergeCells("A1:B1");
         headerSheet.mergeCells("A2:B2");
         headerSheet.getRow(1).eachCell(cell => Object.assign(cell, bannerStyle));
