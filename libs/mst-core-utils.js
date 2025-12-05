@@ -8,10 +8,11 @@ window.MST.Utils = {
   BASE_COLOR: "#10b981",
 
   yyyymmddToDate(str) {
-    if (!/^[0-9]{8}$/.test(str || "")) return null;
-    const y = +str.slice(0, 4);
-    const m = +str.slice(4, 6) - 1;
-    const d = +str.slice(6, 8);
+    const normalized = (str ?? "").toString();
+    if (!/^[0-9]{8}$/.test(normalized)) return null;
+    const y = +normalized.slice(0, 4);
+    const m = +normalized.slice(4, 6) - 1;
+    const d = +normalized.slice(6, 8);
     const date = new Date(y, m, d, 12);   // noon avoids TZ rollover
     return isNaN(date) ? null : date;
   },
