@@ -1,4 +1,7 @@
 (function initResourceGraph() {
+  window.MST = window.MST || {};
+  window.MST.Resources = window.MST.Resources || {};
+
   const panel = document.getElementById('resourceFloatPanel');
   const openBtn = document.getElementById('openResourceBtn');
   const closeBtn = document.getElementById('closeResourceFloat');
@@ -110,7 +113,10 @@
         maintainAspectRatio: false,
         scales: {
           y: { beginAtZero: true, title: { display: true, text: 'Hours' } },
-          x: { title: { display: true, text: 'Week' }, ticks: { maxRotation: 0, minRotation: 0 } },
+          x: {
+            title: { display: true, text: 'Week' },
+            ticks: { maxRotation: 0, minRotation: 0, autoSkip: false },
+          },
         },
         plugins: {
           legend: { display: false },
@@ -123,6 +129,8 @@
       },
     });
   }
+
+  window.MST.Resources.refreshChart = drawResourceChart;
 
   openBtn.addEventListener('click', () => {
     panel.style.display = 'flex';
