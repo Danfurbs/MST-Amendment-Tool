@@ -27,6 +27,145 @@
 
   <style>
     /******************************************************************
+     * TOP BAR LAYOUT REFINEMENT
+     ******************************************************************/
+    .page-header {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 16px;
+      align-items: start;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 16px 20px;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
+      margin-bottom: 14px;
+    }
+    .header-text h1 {
+      margin: 0 0 4px 0;
+      font-size: 26px;
+      letter-spacing: 0.2px;
+      color: #0f172a;
+    }
+    .download-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin: 6px 0;
+    }
+    #downloadDateDisplay {
+      font-weight: 700;
+      color: #111827;
+    }
+    #downloadDateWarning {
+      color: #b45309;
+      font-weight: 700;
+      max-width: 720px;
+    }
+    .header-intro {
+      margin: 6px 0 0 0;
+      color: #374151;
+      line-height: 1.45;
+    }
+    .upload-card {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 12px 14px;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .upload-card .label {
+      font-weight: 700;
+      color: #0f172a;
+      font-size: 13px;
+    }
+    .upload-controls {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+    .file-upload-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: #1e293b;
+      color: #fff;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+      text-decoration: none;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+    }
+    .file-upload-btn input[type="file"] {
+      display: none;
+    }
+    .batch-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .batch-field label {
+      font-size: 12px;
+      font-weight: 700;
+      color: #334155;
+    }
+    .batch-field input {
+      padding: 8px 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    #exportBtn {
+      background: #0ea5e9;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-weight: 700;
+      padding: 10px 12px;
+      align-self: flex-start;
+      box-shadow: 0 2px 10px rgba(14, 165, 233, 0.25);
+    }
+    .action-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 10px 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+      margin-bottom: 10px;
+    }
+    .action-buttons {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .action-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      color: #1f2937;
+    }
+    #changeCount {
+      font-weight: 700;
+      color: #0f172a;
+    }
+    #controls {
+      text-align: initial;
+      margin-bottom: 0;
+    }
+
+    /******************************************************************
      * FILTER FLYOUT + OVERLAY
      ******************************************************************/
     /* Dim page */
@@ -331,39 +470,45 @@
        CALENDAR COLUMN
   ========================== -->
   <div id="calendar">
-    <h1 style="text-align:center;">MST Amendment Calendar</h1>
-    <div style="text-align:center; margin:4px 0 8px 0;">
-      <div id="downloadDateDisplay" style="font-weight:bold;">Download Date: —</div>
-      <div
-        id="downloadDateWarning"
-        style="color:#b45309; font-weight:bold; display:none; max-width:720px; margin:6px auto 0 auto;"
-      ></div>
-    </div>
-    <p style="text-align:center;">
-      Upload MST Excel/CSV.<br />
-      Green = current instance (click to edit). Amber = next due. Red = following due.<br />
-      You can drag the green instance to shift dates. Export changes when done or reset all.
-    </p>
-	
-<div id="batchInputContainer" style="margin-top: 10px; margin-bottom: 10px; text-align:center;">
-<input type="file" id="fileInput" accept=".xlsx,.xls,.csv" />
-  <label for="batchNumber" style="font-weight:bold;">Batch Number:</label>
-  <input 
-    type="text" 
-    id="batchNumber" 
-    placeholder="LANDC....." 
-    style="padding:6px 10px; margin-left:8px; border:1px solid #ccc; border-radius:4px; width:180px;"
-  />
+    <div class="page-header">
+      <div class="header-text">
+        <h1>MST Amendment Calendar</h1>
+        <div class="download-meta">
+          <div id="downloadDateDisplay">Download Date: —</div>
+          <div id="downloadDateWarning" style="display:none;"></div>
+        </div>
+        <p class="header-intro">
+          Upload MST Excel/CSV. Green = current instance (click to edit). Amber = next due. Red = following due.
+          You can drag the green instance to shift dates. Export changes when done or reset all.
+        </p>
+      </div>
+      <div class="upload-card">
+        <div class="label">Upload + Batch</div>
+        <div class="upload-controls">
+          <label class="file-upload-btn" for="fileInput">
+            📄 Choose File
+            <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" />
+          </label>
+          <div class="batch-field">
+            <label for="batchNumber">Batch Number</label>
+            <input type="text" id="batchNumber" placeholder="LANDC....." />
+          </div>
+        </div>
         <button id="exportBtn">Export MST Changes</button>
-</div>
+      </div>
+    </div>
 
-    <div id="controls">
-      <button id="resetAllBtn" style="background:#ef4444; color:white;">Reset All Changes</button>
-      <button id="openFilterBtn">⚙️ Filters</button>
-	  <button id="openGotoBtn">Go to MST</button>
-	  <button id="openResourceBtn" class="topbar-btn">Planned Hours Graph</button>
-      <span id="changeCount" style="font-weight:bold; margin-left:8px;"></span>
-      <div id="loading">Loading MSTs...</div>
+    <div id="controls" class="action-bar">
+      <div class="action-buttons">
+        <button id="resetAllBtn" style="background:#ef4444; color:white;">Reset All Changes</button>
+        <button id="openFilterBtn">⚙️ Filters</button>
+        <button id="openGotoBtn">Go to MST</button>
+        <button id="openResourceBtn" class="topbar-btn">Planned Hours Graph</button>
+      </div>
+      <div class="action-meta">
+        <span id="changeCount"></span>
+        <div id="loading">Loading MSTs...</div>
+      </div>
     </div>
 
     <button id="newMSTBtn"
