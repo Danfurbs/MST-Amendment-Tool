@@ -175,6 +175,14 @@ window.MST.Editor.openNewMSTModal = function () {
   }
 };
 
+window.MST.Editor.closeNewMSTModal = function () {
+  const modal = document.getElementById("newMSTModal");
+  if (!modal) return;
+
+  modal.style.display = "none";
+  modal.style.pointerEvents = "none";
+};
+
 
 
 (function() {
@@ -974,9 +982,7 @@ MST.Editor.addNewMST = function () {
   };
 
   // Close modal
-  const modal = document.getElementById("newMSTModal");
-  modal.style.display = "none";
-  modal.style.pointerEvents = "none";
+  MST.Editor.closeNewMSTModal();
 
   // Immediately open the editor
   MST.Editor.openEditorForMST(mstId, baseEvent);
