@@ -13,7 +13,7 @@ document.addEventListener("DOMContentLoaded", function () {
   /** Utility: populate <select> with unique values */
   function populateUnique(selectEl, rows, field) {
     if (!selectEl) return;
-    const vals = [...new Set(rows.map(r => (r[field] || "").trim()))].sort();
+    const vals = [...new Set(rows.map(r => safeTrim(r[field])))].sort();
 
     selectEl.innerHTML = `<option value="">(All)</option>`;
     vals.forEach(v => {
@@ -29,6 +29,17 @@ document.addEventListener("DOMContentLoaded", function () {
   const loading   = document.getElementById("loading");
   const downloadDateDisplay = document.getElementById("downloadDateDisplay");
   const downloadDateWarning = document.getElementById("downloadDateWarning");
+
+  /** Safely coerce any value to a trimmed string */
+  function safeTrim(value) {
+    if (value == null) return "";
+    if (typeof value === "string") return value.trim();
+    if (typeof value === "number" || typeof value === "boolean") {
+      return String(value).trim();
+    }
+    if (value instanceof Date) return value.toISOString().trim();
+    return "";
+  }
 
   function parseDownloadDate(value) {
     if (!value) return null;
@@ -97,8 +108,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
         const wgPairs = new Map();
         json.forEach(r => {
-          const code = (r["Work Group Set Code"] || "").trim();
-          const desc = (r["Work Group Description"] || "").trim();
+          const code = safeTrim(r["Work Group Set Code"]);
+          const desc = safeTrim(r["Work Group Description"]);
           if (code && desc) wgPairs.set(code, desc);
         });
 
@@ -124,7 +135,7 @@ document.addEventListener("DOMContentLoaded", function () {
           wgSelectModal.style.display = "none";
 
           const filtered = json.filter(r =>
-            selected.includes((r["Work Group Set Code"] || "").trim())
+            selected.includes(safeTrim(r["Work Group Set Code"]))
           );
 
           window.originalRows = filtered;
@@ -138,7 +149,7 @@ document.addEventListener("DOMContentLoaded", function () {
           populateUnique(document.getElementById("filterEquipDesc1"), filtered, "Equipment Description 1");
 
           window.allEquipNumbers = [...new Set(
-            filtered.map(r => (r["Equipment Number"] || "").toString().trim())
+            filtered.map(r => safeTrim(r["Equipment Number"]))
           )];
 
           MST.Editor.loadMSTs(filtered);
