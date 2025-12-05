@@ -34,6 +34,13 @@ input, button {
   box-sizing: border-box;
   font-size: 14px;
 }
+.field-block select {
+  width: 100%;
+  padding: 6px 8px;
+  box-sizing: border-box;
+  font-size: 14px;
+  height: 32px;
+}
 
 /* Section label headings inside sidebar */
 .section-title {

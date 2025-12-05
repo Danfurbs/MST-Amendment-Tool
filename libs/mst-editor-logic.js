@@ -204,6 +204,13 @@ window.MST.Editor.closeNewMSTModal = function () {
 
   const U = window.MST.Utils;
   const E = window.MST.Editor;
+
+  const formatMileageValue = (val) => {
+    if (val === null || val === undefined) return "";
+    const num = parseFloat(val);
+    if (Number.isNaN(num)) return "";
+    return num.toFixed(4);
+  };
   
     document.addEventListener('DOMContentLoaded', function () {
 
@@ -277,9 +284,9 @@ window.unitsRequiredInput = unitsRequiredInput;
 window.mileageFromInput = mileageFromInput;
 window.mileageToInput = mileageToInput;
 window.protTypeInput = protTypeInput;
-window.protMethodInput = protMethodInput;
-window.detailsIntro = detailsIntro;
-window.editForm = editForm;
+    window.protMethodInput = protMethodInput;
+    window.detailsIntro = detailsIntro;
+    window.editForm = editForm;
     window.changeCount = changeCount;
 
 // ----------------------
@@ -287,6 +294,12 @@ window.editForm = editForm;
     // ----------------------
     window.lastDateInput.addEventListener("input",  E.refreshNextScheduledDisplay);
     window.freqInput.addEventListener("input",       E.refreshNextScheduledDisplay);
+    window.mileageFromInput.addEventListener("blur", () => {
+      window.mileageFromInput.value = formatMileageValue(window.mileageFromInput.value);
+    });
+    window.mileageToInput.addEventListener("blur", () => {
+      window.mileageToInput.value = formatMileageValue(window.mileageToInput.value);
+    });
     if (exportBtn && MST?.Export?.exportChanges) {
       exportBtn.addEventListener("click", MST.Export.exportChanges);
     }
@@ -551,8 +564,11 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
 
     window.wgInput.value = baseEvent.extendedProps.workGroup || orig["Work Group Code"] || "";
     window.unitsRequiredInput.value = baseEvent.extendedProps.unitsRequired || orig["Units Required"] || "";
-    window.mileageFromInput.value   = baseEvent.extendedProps.segFrom     || orig["MST Segment Mileage From"] || "";
-    window.mileageToInput.value     = baseEvent.extendedProps.segTo       || orig["MST Segment Mileage To"]   || "";
+    const segFromVal = baseEvent.extendedProps.segFrom ?? orig["MST Segment Mileage From"] ?? "";
+    const segToVal   = baseEvent.extendedProps.segTo   ?? orig["MST Segment Mileage To"]   ?? "";
+
+    window.mileageFromInput.value = formatMileageValue(segFromVal);
+    window.mileageToInput.value   = formatMileageValue(segToVal);
 
     /* --- Dropdowns: Job, ProtType, ProtMethod --- */
     const JD = window.MST_VARIABLES?.jobDescCodes || [];
@@ -743,13 +759,19 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
   const freq       = parseInt(window.freqInput.value || "0", 10);
 
   // Update props
+  const formattedSegFrom = formatMileageValue(window.mileageFromInput.value);
+  const formattedSegTo   = formatMileageValue(window.mileageToInput.value);
+
+  window.mileageFromInput.value = formattedSegFrom;
+  window.mileageToInput.value   = formattedSegTo;
+
   baseEvent.setExtendedProp("frequency", freq);
   baseEvent.setExtendedProp("desc2", window.desc2Input.value.trimEnd());
   baseEvent.setExtendedProp("workGroup", window.wgInput.value.trim());
   baseEvent.setExtendedProp("jobDescCode", window.jobDescCodeInput.value.trim());
   baseEvent.setExtendedProp("unitsRequired", window.unitsRequiredInput.value);
-  baseEvent.setExtendedProp("segFrom", window.mileageFromInput.value);
-  baseEvent.setExtendedProp("segTo", window.mileageToInput.value);
+  baseEvent.setExtendedProp("segFrom", formattedSegFrom);
+  baseEvent.setExtendedProp("segTo", formattedSegTo);
   baseEvent.setExtendedProp("protType", window.protTypeInput.value.trim());
   baseEvent.setExtendedProp("protMethod", window.protMethodInput.value.trim());
 
@@ -779,8 +801,8 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
       "Job Desc Code": window.jobDescCodeInput.value.trim(),
       "Work Group": window.wgInput.value.trim(),
       "Unit Required": window.unitsRequiredInput.value,
-      "Segment From": window.mileageFromInput.value,
-      "Segment To": window.mileageToInput.value,
+      "Segment From": formattedSegFrom,
+      "Segment To": formattedSegTo,
       "ProtectionType": window.protTypeInput.value.trim(),
       "ProtectionMethod": window.protMethodInput.value.trim(),
       "LSD": newDateStr
