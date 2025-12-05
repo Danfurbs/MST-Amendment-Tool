@@ -60,6 +60,22 @@ document.addEventListener("DOMContentLoaded", function () {
     return;
   }
 
+  function buildEquipmentDescMap(rows) {
+    const map = new Map();
+
+    rows.forEach(r => {
+      const eq = safeTrim(r["Equipment Number"]);
+      if (!eq) return;
+
+      const desc = safeTrim(r["Equipment Description 1"]);
+      if (!map.has(eq)) {
+        map.set(eq, desc);
+      }
+    });
+
+    return map;
+  }
+
   fileInput.addEventListener("change", e => {
     const file = e.target.files[0];
     if (!file) return;
@@ -101,6 +117,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         // Save master rows
         window.originalRows = json;
+        window.equipmentDescriptions = buildEquipmentDescMap(json);
 
         // ========= Work Group Modal =========
         const wgSelectModal    = document.getElementById("wgSelectModal");

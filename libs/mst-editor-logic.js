@@ -175,14 +175,6 @@ window.MST.Editor.openNewMSTModal = function () {
   }
 };
 
-window.MST.Editor.closeNewMSTModal = function () {
-  const modal = document.getElementById("newMSTModal");
-  if (!modal) return;
-
-  modal.style.display = "none";
-  modal.style.pointerEvents = "none";
-};
-
 
 
 (function() {
