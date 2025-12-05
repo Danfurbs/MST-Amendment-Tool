@@ -60,6 +60,22 @@ document.addEventListener("DOMContentLoaded", function () {
     return;
   }
 
+  function buildEquipmentDescMap(rows) {
+    const map = new Map();
+
+    rows.forEach(r => {
+      const eq = safeTrim(r["Equipment Number"]);
+      if (!eq) return;
+
+      const desc = safeTrim(r["Equipment Description 1"]);
+      if (!map.has(eq)) {
+        map.set(eq, desc);
+      }
+    });
+
+    return map;
+  }
+
   fileInput.addEventListener("change", e => {
     const file = e.target.files[0];
     if (!file) return;
@@ -74,7 +90,13 @@ document.addEventListener("DOMContentLoaded", function () {
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const json = XLSX.utils.sheet_to_json(sheet);
 
-        const downloadDateRaw = json[0]?.["Download Date"];
+        const fullRows = json;
+
+        // Build equipment descriptions from the complete, unfiltered download
+        window.fullDownloadRows     = fullRows;
+        window.equipmentDescriptions = buildEquipmentDescMap(fullRows);
+
+        const downloadDateRaw = fullRows[0]?.["Download Date"];
         const downloadDate = parseDownloadDate(downloadDateRaw);
 
         if (downloadDateDisplay) {
@@ -100,14 +122,14 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         // Save master rows
-        window.originalRows = json;
+        window.originalRows = fullRows;
 
         // ========= Work Group Modal =========
         const wgSelectModal    = document.getElementById("wgSelectModal");
         const wgSelectDropdown = document.getElementById("wgSelectDropdown");
 
         const wgPairs = new Map();
-        json.forEach(r => {
+        fullRows.forEach(r => {
           const code = safeTrim(r["Work Group Set Code"]);
           const desc = safeTrim(r["Work Group Description"]);
           if (code && desc) wgPairs.set(code, desc);
@@ -134,7 +156,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
           wgSelectModal.style.display = "none";
 
-          const filtered = json.filter(r =>
+          const filtered = fullRows.filter(r =>
             selected.includes(safeTrim(r["Work Group Set Code"]))
           );
 

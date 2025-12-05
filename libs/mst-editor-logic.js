@@ -147,6 +147,32 @@ window.MST.Editor.openNewMSTModal = function () {
     // If the field is prefilled, initialise values
     updateFromStdJob();
   }
+
+  // ---- Equipment Number → Equipment Description display ----
+  const equipInput = document.getElementById("newEquipNo");
+  const equipDesc  = document.getElementById("newEquipDesc");
+
+  if (equipInput && equipDesc) {
+    const updateEquipDesc = () => {
+      const code = equipInput.value.trim();
+      const map  = window.equipmentDescriptions;
+
+      if (!code || !map?.get) {
+        equipDesc.textContent = "";
+        return;
+      }
+
+      equipDesc.textContent = map.get(code) || "";
+    };
+
+    if (!equipInput.dataset.equipDescBound) {
+      equipInput.addEventListener("input", updateEquipDesc);
+      equipInput.addEventListener("blur", updateEquipDesc);
+      equipInput.dataset.equipDescBound = "true";
+    }
+
+    updateEquipDesc();
+  }
 };
 
 
