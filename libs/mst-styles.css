@@ -177,10 +177,7 @@ input, button {
 
 /* Highlight events updated by user */
 .fc-event.changed-mst {
-
-  background: inherit !important;
-  background-color: inherit !important;
-  border: 2px dashed #15803d !important; 
+  border: 2px dashed #15803d !important;
   border-radius: 6px !important;
   box-shadow: none !important;
 }
