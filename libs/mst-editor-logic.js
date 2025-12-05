@@ -430,7 +430,12 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
       ""
     ).toString().trim();
 
-    const stdJobUom = (window.STANDARD_JOBS?.[stdJobNo]?.uom || "").trim();
+    const stdJobUom = (
+      baseEvent.extendedProps.stdJobUom ||
+      window.STANDARD_JOBS?.[stdJobNo]?.uom ||
+      baseEvent.extendedProps.unitMeasure ||
+      ""
+    ).toString().trim();
 
     if (unitsRequiredLabel) {
       unitsRequiredLabel.textContent = stdJobUom
@@ -605,6 +610,11 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
 
       const freq = parseInt(r["MST Frequency"]) || 0;
       const rawLastDate = (r["Last Scheduled Date"] || "").toString().trim();
+      const stdJobNo = (r["Std Job No"] || "").toString().trim();
+      const stdJobUom = (
+        window.STANDARD_JOBS?.[stdJobNo]?.uom ||
+        ""
+      ).toString().trim();
       if (!/^[0-9]{8}$/.test(rawLastDate)) return;
 
       const baseDate = MST.Utils.yyyymmddToDate(rawLastDate);
@@ -633,7 +643,8 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
           desc2: (r["MST Description 2"] || "").trimEnd(),
           equipmentNo: r["Equipment Number"] || "",
           taskNo: r["MST Task Number"] || "",
-          stdJobNo: (r["Std Job No"] || "").toString().trim(),
+          stdJobNo,
+          stdJobUom,
           equipmentDesc1: r["Equipment Description 1"] || "",
           workGroup: r["Work Group Code"] || "",
           jobDescCode: r["Job Description Code"] || "",
@@ -831,6 +842,11 @@ MST.Editor.addNewMST = function () {
 
   const equipNo     = document.getElementById("newEquipNo").value.trim();
   const stdJobNo    = document.getElementById("newStdJobNo").value.trim();
+  const stdJobUom   = (
+    window.STANDARD_JOBS?.[stdJobNo]?.uom ||
+    document.getElementById("newUnitMeasure").value.trim() ||
+    ""
+  ).toString().trim();
   const desc1       = document.getElementById("newDesc1").value.trim();
   const desc2       = document.getElementById("newDesc2").value.trim();
   const jobDescCode = document.getElementById("newJobCode").value.trim();
@@ -871,11 +887,12 @@ MST.Editor.addNewMST = function () {
       workGroup: wgCode,
       jobDescCode,
       unitsRequired: unitsReq,
+      stdJobUom,
       segFrom: document.getElementById("newFrom").value.trim(),
       segTo: document.getElementById("newTo").value.trim(),
       protType,
       protMethod,
-      unitMeasure: document.getElementById("newUnitMeasure").value.trim(),
+      unitMeasure: stdJobUom,
       instance: 0,
       isNew: true
     }
