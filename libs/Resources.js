@@ -132,14 +132,14 @@
 
   if (prevWindowBtn) {
     prevWindowBtn.addEventListener('click', () => {
-      resourceWindowStart = MST.Utils.addDays(resourceWindowStart, -7);
+      resourceWindowStart = MST.Utils.addDays(resourceWindowStart, -42);
       drawResourceChart();
     });
   }
 
   if (nextWindowBtn) {
     nextWindowBtn.addEventListener('click', () => {
-      resourceWindowStart = MST.Utils.addDays(resourceWindowStart, 7);
+      resourceWindowStart = MST.Utils.addDays(resourceWindowStart, 42);
       drawResourceChart();
     });
   }

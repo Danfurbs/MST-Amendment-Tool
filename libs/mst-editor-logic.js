@@ -7,6 +7,28 @@ const U = MST.Utils;
 window.MST = window.MST || {};
 window.MST.Editor = window.MST.Editor || {};
 
+// Calculate and display the next scheduled date from Last Scheduled Date + Frequency
+window.MST.Editor.refreshNextScheduledDisplay = function() {
+  if (!window.lastDateInput || !window.freqInput || !window.nextDateCalc) return;
+
+  const last = window.lastDateInput.value;
+  const freq = parseInt(window.freqInput.value || "0", 10);
+
+  if (!last || !freq) {
+    window.nextDateCalc.value = "";
+    return;
+  }
+
+  const [y, m, d] = last.split("-");
+  const base = new Date(+y, +m - 1, +d);
+  base.setHours(9, 0, 0, 0);
+
+  const next = U.addDays(base, freq);
+  next.setHours(9, 0, 0, 0);
+
+  window.nextDateCalc.value = U.dateToInputYYYYMMDD(next);
+};
+
 // Ensure original MST data is preserved for revert/compare
 window.MST.Editor.ensureOriginalPropsStored = function(mstId, row) {
   if (!window.originalProps) window.originalProps = {};
@@ -276,11 +298,22 @@ eventContent: function(arg) {
       const ev = info.event;
       console.log("Clicked event:", ev);
       console.log("Instance value:", ev.extendedProps.instance);
-	  
+
       const mstId = ev.extendedProps.mstId;
 
+      // Always edit the base (green) MST instance so edits apply to the correct row
+      let targetEvent = ev;
+      if (ev.extendedProps.instance !== 0) {
+        const baseEvent = window.calendar?.getEventById(`${mstId}_0`);
+        if (baseEvent) {
+          targetEvent = baseEvent;
+        } else {
+          console.warn("⚠️ Base event not found for MST", mstId);
+        }
+      }
+
       if (typeof MST?.Editor?.openEditorForMST === "function") {
-        MST.Editor.openEditorForMST(mstId, ev);
+        MST.Editor.openEditorForMST(mstId, targetEvent);
 
         // Optional: scroll editor into view
         const form = document.getElementById("editForm");
@@ -507,6 +540,10 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
       if (pm.code === currentPM) opt.selected = true;
       pmSelect.appendChild(opt);
     });
+
+    if (typeof MST?.Editor?.refreshNextScheduledDisplay === "function") {
+      MST.Editor.refreshNextScheduledDisplay();
+    }
 
     /* Buttons */
     window.saveBtn.onclick = () => MST.Editor.saveMSTEdits(mstId);
@@ -888,6 +925,10 @@ MST.Editor.addNewMST = function () {
     if (!orig || !baseEvent) return null;
 
     const cur = {
+      equipmentNo: baseEvent.extendedProps.equipmentNo,
+      equipmentDesc1: baseEvent.extendedProps.equipmentDesc1,
+      taskNo: baseEvent.extendedProps.taskNo,
+      desc1: baseEvent.extendedProps.desc1,
       freq: baseEvent.extendedProps.frequency,
       desc2: baseEvent.extendedProps.desc2,
       lastSched: U.dateToInputYYYYMMDD(baseEvent.start),
@@ -914,15 +955,17 @@ MST.Editor.addNewMST = function () {
 
     return {
       MST_ID: mstId,
-      Equipment_Number: orig["Equipment Number"] || "",
-      MST_Task_Number: orig["MST Task Number"] || "",
-      Desc1: orig["MST Description 1"] || "",
+      Equipment: cur.equipmentNo || orig["Equipment Number"] || "",
+      Equipment_Description: cur.equipmentDesc1 || orig["Equipment Description 1"] || "",
+      "Task No": cur.taskNo || orig["MST Task Number"] || "",
+      MST_Description_1: cur.desc1 || orig["MST Description 1"] || "",
+      "MST Desc 1": cur.desc1 || orig["MST Description 1"] || "",
 
       Old_Frequency: orig["MST Frequency"] || "",
       New_Frequency: cur.freq,
 
-Old_Desc2: (orig["MST Description 2"] || "").trimEnd(),
-New_Desc2: (cur.desc2 || "").trimEnd(),
+      Old_Desc2: (orig["MST Description 2"] || "").trimEnd(),
+      New_Desc2: (cur.desc2 || "").trimEnd(),
 
 
       Old_Last_Scheduled_Date: normalizedLastSched,

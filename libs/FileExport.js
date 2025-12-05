@@ -64,8 +64,9 @@ window.formatDateDMY = function(input) {
             ws1.columns = [
                 { header: "MST ID", key: "MST_ID", width: 18 },
                 { header: "Equipment", key: "Equipment", width: 18 },
+                { header: "Equipment Description", key: "Equipment Description", width: 22 },
                 { header: "Task No", key: "Task No", width: 12 },
-                { header: "MST Description", key: "MST Description 1", width: 18 },
+                { header: "MST Description 1", key: "MST Description 1", width: 20 },
                 { header: "Field Changed", key: "FieldChanged", width: 22 },
                 { header: "Old Value", key: "OldValue", width: 22 },
                 { header: "New Value", key: "NewValue", width: 22 }
@@ -87,7 +88,9 @@ window.formatDateDMY = function(input) {
                 const orig = window.originalProps[mstId] || {};
 
                 const equipment = orig["Equipment Number"] || "";
+                const equipmentDesc = row.Equipment_Description || orig["Equipment Description 1"] || "";
                 const taskNo = orig["MST Task Number"] || "";
+                const mstDesc1 = row.MST_Description_1 || orig["MST Description 1"] || "";
 
                 const fieldsToCheck = [
                     ["MST Description 2", "Old_Desc2", "New_Desc2"],
@@ -109,7 +112,9 @@ window.formatDateDMY = function(input) {
                         ws1.addRow({
                             MST_ID: mstId,
                             Equipment: equipment,
+                            "Equipment Description": equipmentDesc,
                             "Task No": taskNo,
+                            "MST Description 1": mstDesc1,
                             FieldChanged: label,
                             OldValue: safeValue(oldVal, label),
                             NewValue: safeValue(newVal, label)
