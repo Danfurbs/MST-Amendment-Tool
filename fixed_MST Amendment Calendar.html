@@ -388,7 +388,10 @@
   ========================== -->
   <div id="resourceFloatPanel">
   <div id="resourceFloatHeader">
-    <span>Planned Hours (6 weeks)</span>
+    <div>
+      <span class="resource-title">Planned Hours (6 weeks)</span>
+      <div class="resource-subtitle">based on MST Norm Time x Units Required</div>
+    </div>
     <button id="closeResourceFloat">✕</button>
   </div>
 
@@ -397,8 +400,6 @@
     <span id="resourceRangeLabel"></span>
     <button id="nextWindowBtn">▶</button>
   </div>
-
-  <div id="resourceTotalHours" style="font-weight:bold; text-align:center; margin:6px 0;">Total: 0h</div>
 
   <canvas id="plannedHoursChart" width="350" height="220"></canvas>
 </div>
