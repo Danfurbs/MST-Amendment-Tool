@@ -7,19 +7,21 @@ window.formatDateDMY = function(input) {
            input.getFullYear();
   }
 
-  if (/^\d{8}$/.test(input)) {
-    const y = input.slice(0, 4);
-    const m = input.slice(4, 6);
-    const d = input.slice(6, 8);
+  const inputStr = (typeof input === "string") ? input : String(input);
+
+  if (/^\d{8}$/.test(inputStr)) {
+    const y = inputStr.slice(0, 4);
+    const m = inputStr.slice(4, 6);
+    const d = inputStr.slice(6, 8);
     return `${d}/${m}/${y}`;
   }
 
-  if (/^\d{4}-\d{2}-\d{2}$/.test(input)) {
-    const [y, m, d] = input.split("-");
+  if (/^\d{4}-\d{2}-\d{2}$/.test(inputStr)) {
+    const [y, m, d] = inputStr.split("-");
     return `${d}/${m}/${y}`;
   }
 
-  return input;
+  return inputStr;
 };
 
 
