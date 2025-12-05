@@ -366,9 +366,8 @@
       <div id="loading">Loading MSTs...</div>
     </div>
 
-    <button id="newMSTBtn" 
-	onclick="MST.Editor.openNewMSTModal()"
-	style="
+    <button id="newMSTBtn"
+        style="
       background:#2C3E50;
       color:white;
       border:none;
@@ -640,7 +639,9 @@ const addMSTBtn      = document.getElementById("addMSTBtn");
 const cancelMSTBtn   = document.getElementById("cancelMSTBtn");
 
 // Add MST
-addMSTBtn.addEventListener("click", () => MST.Editor.addNewMST());
+if (newMSTBtn) newMSTBtn.addEventListener("click", () => MST.Editor.openNewMSTModal());
+if (addMSTBtn) addMSTBtn.addEventListener("click", () => MST.Editor.addNewMST());
+if (cancelMSTBtn) cancelMSTBtn.addEventListener("click", () => MST.Editor.closeNewMSTModal());
 
   </script>
 
