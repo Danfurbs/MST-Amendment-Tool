@@ -484,44 +484,6 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
      MARK MSTs AS CHANGED
      ---------------------------------------- */
 
-MST.Editor.markMSTAsChanged = function(mstId) {
-    const row = window.buildChangeExportRow(mstId);
-    if (!row) return;
-
-    const hasDiff =
-        row.New_Frequency != row.Old_Frequency ||
-        row.New_Desc2 !== row.Old_Desc2 ||
-        row.New_Last_Scheduled_Date !== row.Old_Last_Scheduled_Date ||
-        row.New_Work_Group_Code !== row.Old_Work_Group_Code ||
-        row.New_Job_Desc_Code !== row.Old_Job_Desc_Code ||
-        row.New_Units_Required != row.Old_Units_Required ||
-        row.New_Segment_From != row.Old_Segment_From ||
-        row.New_Segment_To != row.Old_Segment_To ||
-        row.New_Protection_Type_Code !== row.Old_Protection_Type_Code ||
-        row.New_Protection_Method_Code !== row.Old_Protection_Method_Code;
-
-    if (hasDiff) {
-        window.changes[mstId] = row;
-    } else {
-        delete window.changes[mstId];
-    }
-
-    if (window.changeCount) {
-        window.changeCount.innerText = `Changes made: ${Object.keys(window.changes).length}`;
-    }
-
-    const baseEvent = window.calendar.getEventById(`${mstId}_0`);
-    if (baseEvent) {
-        const originalTitle = baseEvent.title.replace(/\*Amended\*/gi, "").trim();
-
-        if (window.changes[mstId]) {
-            baseEvent.setProp("title", `*Amended* ${originalTitle}`);
-        } else {
-            baseEvent.setProp("title", originalTitle);
-        }
-    }
-};
-
   /* ----------------------------------------
      LOAD MSTs
      ---------------------------------------- */
