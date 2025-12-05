@@ -92,9 +92,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
         const fullRows = json;
 
-        // Persist the complete, unfiltered download for lookups (never reassign)
-        window.fullDownloadRows      = fullRows;
-        window.equipmentDescriptions = buildEquipmentDescMap(window.fullDownloadRows);
+        // Build equipment descriptions from the complete, unfiltered download
+        window.fullDownloadRows     = fullRows;
+        window.equipmentDescriptions = buildEquipmentDescMap(fullRows);
 
         const downloadDateRaw = fullRows[0]?.["Download Date"];
         const downloadDate = parseDownloadDate(downloadDateRaw);
@@ -156,11 +156,21 @@ document.addEventListener("DOMContentLoaded", function () {
 
           wgSelectModal.style.display = "none";
 
-          const filtered = window.fullDownloadRows.filter(r =>
+          const filtered = fullRows.filter(r =>
             selected.includes(safeTrim(r["Work Group Set Code"]))
           );
 
           window.originalRows = filtered;
+
+          window.equipmentDescriptions = new Map();
+          filtered.forEach(r => {
+            const eq = safeTrim(r["Equipment Number"]);
+            if (!eq) return;
+            const desc = safeTrim(r["Equipment Description 1"]);
+            if (!window.equipmentDescriptions.has(eq)) {
+              window.equipmentDescriptions.set(eq, desc);
+            }
+          });
 
           populateUnique(document.getElementById("filterWorkGroup"),  filtered, "Work Group Code");
           populateUnique(document.getElementById("filterJobDesc"),    filtered, "Job Description Code");
