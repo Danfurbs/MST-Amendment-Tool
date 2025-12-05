@@ -149,6 +149,24 @@
       gap: 6px;
       flex-wrap: wrap;
     }
+    .primary-action-btn {
+      background: #2c3e50;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 16px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+      transition: transform 0.05s ease, box-shadow 0.1s ease;
+    }
+    .primary-action-btn:hover {
+      box-shadow: 0 3px 12px rgba(0, 0, 0, 0.12);
+    }
+    .primary-action-btn:active {
+      transform: translateY(1px);
+      box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
+    }
     .action-meta {
       display: flex;
       align-items: center;
@@ -502,8 +520,8 @@
       <div class="action-buttons">
         <button id="resetAllBtn" style="background:#ef4444; color:white;">Reset All Changes</button>
         <button id="openFilterBtn">⚙️ Filters</button>
-        <button id="openGotoBtn">Go to MST</button>
-        <button id="openResourceBtn" class="topbar-btn">Planned Hours Graph</button>
+        <button id="openGotoBtn" class="primary-action-btn">Go to MST</button>
+        <button id="openResourceBtn" class="primary-action-btn">Planned Hours Graph</button>
       </div>
       <div class="action-meta">
         <span id="changeCount"></span>
@@ -511,17 +529,7 @@
       </div>
     </div>
 
-    <button id="newMSTBtn"
-        style="
-      background:#2C3E50;
-      color:white;
-      border:none;
-      border-radius:6px;
-      padding:8px 16px;
-      font-weight:bold;
-      margin-bottom:10px;
-      cursor:pointer;
-    ">
+    <button id="newMSTBtn" class="primary-action-btn" style="margin-bottom:10px;">
       + New MST
     </button>
 
