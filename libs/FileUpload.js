@@ -180,8 +180,10 @@ document.addEventListener("DOMContentLoaded", function () {
           populateUnique(document.getElementById("filterProtMethod"), filtered, "Protection Method Code");
           populateUnique(document.getElementById("filterEquipDesc1"), filtered, "Equipment Description 1");
 
+          // Keep the equipment number pool unfiltered so description lookups work for
+          // any record contained in the original download
           window.allEquipNumbers = [...new Set(
-            filtered.map(r => safeTrim(r["Equipment Number"]))
+            (window.fullDownloadRows || []).map(r => safeTrim(r["Equipment Number"]))
           )];
 
           MST.Editor.loadMSTs(filtered);
