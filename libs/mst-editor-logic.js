@@ -974,9 +974,7 @@ MST.Editor.addNewMST = function () {
   };
 
   // Close modal
-  const modal = document.getElementById("newMSTModal");
-  modal.style.display = "none";
-  modal.style.pointerEvents = "none";
+  MST.Editor.closeNewMSTModal();
 
   // Immediately open the editor
   MST.Editor.openEditorForMST(mstId, baseEvent);
