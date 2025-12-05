@@ -6,6 +6,13 @@ const U = MST.Utils;
 
 window.MST = window.MST || {};
 window.MST.Editor = window.MST.Editor || {};
+window.MST.Resources = window.MST.Resources || {};
+
+const triggerResourceChartRefresh = () => {
+  if (typeof MST?.Resources?.refreshChart === "function") {
+    MST.Resources.refreshChart();
+  }
+};
 
 // Calculate and display the next scheduled date from Last Scheduled Date + Frequency
 window.MST.Editor.refreshNextScheduledDisplay = function() {
@@ -416,6 +423,8 @@ eventContent: function(arg) {
           MST.Editor.refreshNextScheduledDisplay();
         }
       }
+
+      triggerResourceChartRefresh();
     }
   });
 
@@ -792,6 +801,8 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     baseEvent.extendedProps.desc1,
     baseEvent.extendedProps.desc2
   );
+
+  triggerResourceChartRefresh();
 
   // Update created MST or mark changed
   if (isNew && window.createdMSTs?.[mstId]) {
