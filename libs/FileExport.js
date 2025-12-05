@@ -24,6 +24,17 @@ window.formatDateDMY = function(input) {
   return inputStr;
 };
 
+function formatDateTimeStamp(date) {
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const d = String(date.getDate()).padStart(2, "0");
+  const m = months[date.getMonth()];
+  const y = String(date.getFullYear()).slice(-2);
+  const h = String(date.getHours()).padStart(2, "0");
+  const min = String(date.getMinutes()).padStart(2, "0");
+
+  return `${d}-${m}-${y} ${h}:${min}`;
+}
+
 
 
 
@@ -36,6 +47,12 @@ window.formatDateDMY = function(input) {
         const changeKeys = Object.keys(window.changes || {});
         const newKeys = Object.keys(window.createdMSTs || {});
         const batchNumber = document.getElementById("batchNumber").value.trim();
+        const username =
+            (window.currentUser && (window.currentUser.name || window.currentUser)) ||
+            window.userName ||
+            window.username ||
+            (window.user && window.user.name) ||
+            "";
 
         if (!changeKeys.length && !newKeys.length) {
             alert("No changes or new MSTs to export.");
@@ -48,6 +65,70 @@ window.formatDateDMY = function(input) {
         }
 
         const workbook = new ExcelJS.Workbook();
+
+        const headerSheet = workbook.addWorksheet("Header");
+        headerSheet.columns = [
+            { key: "label", width: 45 },
+            { key: "value", width: 40 }
+        ];
+
+        const bannerStyle = {
+            font: { bold: true, color: { argb: "FFFFFFFF" } },
+            fill: { type: "pattern", pattern: "solid", fgColor: { argb: "FF4B5563" } },
+            alignment: { vertical: "middle", horizontal: "left" }
+        };
+
+        const labelStyle = {
+            font: { bold: true, color: { argb: "FFFFFFFF" } },
+            fill: { type: "pattern", pattern: "solid", fgColor: { argb: "FF4B5563" } },
+            border: {
+                top: { style: "thin", color: { argb: "FF000000" } },
+                left: { style: "thin", color: { argb: "FF000000" } },
+                bottom: { style: "thin", color: { argb: "FF000000" } },
+                right: { style: "thin", color: { argb: "FF000000" } }
+            },
+            alignment: { vertical: "middle" }
+        };
+
+        const valueStyle = {
+            fill: { type: "pattern", pattern: "solid", fgColor: { argb: "FFE5E7EB" } },
+            border: {
+                top: { style: "thin", color: { argb: "FF000000" } },
+                left: { style: "thin", color: { argb: "FF000000" } },
+                bottom: { style: "thin", color: { argb: "FF000000" } },
+                right: { style: "thin", color: { argb: "FF000000" } }
+            },
+            alignment: { vertical: "middle" }
+        };
+
+        headerSheet.addRow(["This spreadsheet includes MST changes for approval", ""]);
+        headerSheet.addRow(["Note: On modified records, fields changed are highlighted in yellow", ""]);
+        headerSheet.mergeCells("A1:B1");
+        headerSheet.mergeCells("A2:B2");
+        headerSheet.getRow(1).eachCell(cell => Object.assign(cell, bannerStyle));
+        headerSheet.getRow(2).eachCell(cell => Object.assign(cell, bannerStyle));
+        headerSheet.addRow([null, null]);
+
+        const headerData = [
+            ["Date and Time", formatDateTimeStamp(new Date())],
+            ["Batch Number", batchNumber],
+            ["Username", username || "Not provided"],
+            ["MST Amendment Calendar version", "0.5"],
+            ["Number of MST changes", changeKeys.length],
+            ["Number of new MSTs", newKeys.length]
+        ];
+
+        headerData.forEach(([label, value]) => {
+            const row = headerSheet.addRow([label, value]);
+            const labelCell = row.getCell(1);
+            const valueCell = row.getCell(2);
+            Object.assign(labelCell, { style: labelStyle });
+            Object.assign(valueCell, { style: valueStyle });
+        });
+
+        headerSheet.eachRow({ includeEmpty: false }, row => {
+            row.height = 20;
+        });
 
         const headerStyle = {
             font: { bold: true, color: { argb: "FFFFFFFF" } },
