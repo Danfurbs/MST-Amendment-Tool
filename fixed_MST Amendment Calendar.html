@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>MST Amendment Calendar — Clean + Flyout Filters</title>
+
+  <!-- FullCalendar CSS -->
+  <link href="libs/fullcalendar.min.css" rel="stylesheet" />
+  
+    <!-- Local libs (keep order) -->
+   <script src="libs/xlsx.full.min.js"></script>
+  <script src="libs/FileSaver.min.js"></script>
+  <script src="libs/index.global.min.js"></script>
+  <script src="libs/exceljs.min.js"></script>
+  <script src="libs/chart.umd.min.js"></script>
+  
+  <!-- Your variables + helpers -->
+  <script src="libs/mst-variables.js"></script>
+  <script src="libs/mst-stdjobs.js"></script>
+    <script src="libs/mst-core-utils.js"></script>
+  <script src="libs/mst-editor-logic2.js"></script>
+      <script src="libs/FileUpload.js"></script>
+    <script src="libs/FileExport.js"></script>
+  
+  <!-- shared CSS -->
+  <link href="libs/mst-styles.css" rel="stylesheet" />
+
+  <style>
+    /******************************************************************
+     * FILTER FLYOUT + OVERLAY
+     ******************************************************************/
+    /* Dim page */
+    #filterOverlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.35);
+      z-index: 1100;
+    }
+    #filterOverlay.active { display: block; }
+
+    /* Slide-out panel */
+    #filterPanel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 320px;
+      max-width: 85vw;
+      height: 100%;
+      background: #fff;
+      border-left: 1px solid #ddd;
+      box-shadow: -4px 0 14px rgba(0,0,0,0.12);
+      z-index: 1200;
+      transform: translateX(100%);
+      transition: transform 0.25s ease;
+      display: flex;
+      flex-direction: column;
+    }
+    #filterOverlay.active #filterPanel {
+      transform: translateX(0);
+    }
+
+    #filterPanelHeader {
+      padding: 14px 16px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    #filterPanelHeader h3 {
+      margin: 0;
+      font-size: 16px;
+    }
+    #filterPanelBody {
+      padding: 14px 16px 100px 16px;
+      overflow-y: auto;
+      flex: 1;
+    }
+    .filter-field {
+      margin-bottom: 12px;
+    }
+    .filter-field label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      color: #444;
+      margin-bottom: 4px;
+    }
+    .filter-field select {
+      width: 100%;
+      padding: 6px 8px;
+      font-size: 14px;
+    }
+    #filterPanelFooter {
+      padding: 12px 16px;
+      border-top: 1px solid #eee;
+      display: flex;
+      gap: 8px;
+      background: #fafafa;
+    }
+    #openFilterBtn {
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    #applyFiltersBtn {
+      background: #10b981;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      padding: 8px 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    #resetFiltersBtn {
+      background: #ef4444;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      padding: 8px 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    #closeFilterBtn {
+      background: transparent;
+      border: none;
+      font-size: 18px;
+      cursor: pointer;
+      line-height: 1;
+      color: #444;
+    }
+  </style>
+</head>
+<body>
+  <!-- =========================
+       LEFT SIDEBAR (Editor)
+  ========================== -->
+  <div id="sidebar">
+    <h2>MST Details</h2>
+
+    <div id="detailsIntro">
+      <p>Select a <strong>GREEN</strong> MST in the calendar to view or edit details.</p>
+      <p>Then use <em>Save Changes</em> or <em>Revert This MST</em>.</p>
+    </div>
+
+    <div id="editForm" style="display:none;">
+
+      <div class="section-title">Identification</div>
+
+      <div class="field-block">
+        <label>Equipment Number</label>
+        <input id="equipDisplay" disabled />
+      </div>
+
+      <div class="field-block">
+        <label>MST Task Number</label>
+        <input id="taskDisplay" disabled />
+      </div>
+
+      <!-- Hidden MST ID (CONCAT) -->
+      <div class="field-block" style="display:none;">
+        <label>MST ID (CONCAT)</label>
+        <input id="mstIdDisplay" disabled />
+      </div>
+
+      <div class="field-block">
+        <label>MST Description 1</label>
+        <input id="desc1Display" disabled />
+      </div>
+
+      <div class="section-title">Scheduling</div>
+	  
+<div class="field-block">
+  <label for="lastDatePerf">Last Performed Date</label>
+  <input type="date" id="lastDatePerf" disabled />
+</div>
+
+
+      <div class="field-block">
+        <label for="lastDateInput">Last Scheduled Date</label>
+        <input type="date" id="lastDateInput" />
+      </div>
+	  
+<div class="field-block">
+  <label for="nextDateCalc">Next Scheduled Date (Calculated)</label>
+  <input type="date" id="nextDateCalc" disabled />
+</div>
+	  
+      <div class="field-block">
+        <label for="freqInput">Frequency (days)</label>
+        <input type="number" id="freqInput" min="0" />
+      </div>
+
+      <div class="field-block">
+        <label for="desc2Input">Description 2</label>
+        <input type="text" id="desc2Input" />
+      </div>
+
+      <div class="section-title">Work / Ownership</div>
+
+      <div class="field-block">
+        <label for="wgInput">Work Group Code</label>
+        <input type="text" id="wgInput" />
+      </div>
+
+      <div class="field-block">
+        <label for="jobDescCodeInput">Job Description Code</label>
+        <select id="jobDescCodeInput" style="width:100%;"></select>
+      </div>
+
+      <div class="section-title">Requirements</div>
+
+      <div class="field-block">
+        <label for="unitsRequiredInput">Units Required</label>
+        <input type="number" id="unitsRequiredInput" min="0" />
+      </div>
+
+      <div class="field-block">
+        <label for="mileageFromInput">Segment Mileage From (for Linear Assets: Track ID, Boundary etc)</label>
+        <input type="number" id="mileageFromInput" min="0" />
+      </div>
+
+      <div class="field-block">
+        <label for="mileageToInput">Segment Mileage To (for Linear Assets: Track ID, Boundary etc)</label>
+        <input type="number" id="mileageToInput" min="0" />
+      </div>
+
+      <div class="section-title">Protection</div>
+
+      <div class="field-block">
+        <label for="protTypeInput">Protection Type</label>
+        <select id="protTypeInput" style="width:100%;"></select>
+      </div>
+
+      <div class="field-block">
+        <label for="protMethodInput">Protection Method</label>
+        <select id="protMethodInput" style="width:100%;"></select>
+      </div>
+
+      <button id="saveBtn" style="margin-top:15px;">Save Changes</button>
+
+      <button id="deactivateBtn" style="
+        background:#111;
+        color:white;
+        border:none;
+        border-radius:6px;
+        padding:8px 14px;
+        font-weight:bold;
+        margin-top:10px;
+        cursor:pointer;
+        width:100%;
+      ">
+        Deactivate MST
+      </button>
+
+      <button id="revertBtn" style="margin-top:10px;">Revert This MST</button>
+    </div>
+  </div>
+
+  <!-- =========================
+       RIGHT FILTER OVERLAY + PANEL
+  ========================== -->
+  <div id="filterOverlay">
+    <aside id="filterPanel" aria-label="Filter MSTs">
+      <div id="filterPanelHeader">
+        <h3>Filter MSTs</h3>
+        <button id="closeFilterBtn" title="Close">✕</button>
+      </div>
+	  
+      <div id="filterPanelBody">
+       <!-- Work Group -->
+<div class="filter-field">
+  <label for="filterWorkGroup"><strong>Work Group Code</strong></label>
+  <select id="filterWorkGroup"><option value="">(All)</option></select>
+</div>
+
+<!-- Asset Description 1 -->
+<div class="filter-field">
+  <label for="filterEquipDesc1"><strong>Asset Description 1</strong></label>
+  <select id="filterEquipDesc1"><option value="">(All)</option></select>
+</div>
+
+<!-- Job Description -->
+<div class="filter-field">
+  <label for="filterJobDesc"><strong>Job Description Code</strong></label>
+  <select id="filterJobDesc"><option value="">(All)</option></select>
+</div>
+
+<!-- MST Description 1 -->
+<div class="filter-field">
+  <label for="filterDesc1"><strong>MST Description 1</strong></label>
+  <select id="filterDesc1"><option value="">(All)</option></select>
+</div>
+
+<!-- MST Description 2 -->
+<div class="filter-field">
+  <label for="filterDesc2"><strong>MST Description 2</strong></label>
+  <select id="filterDesc2"><option value="">(All)</option></select>
+</div>
+
+<!-- Protection Type -->
+<div class="filter-field">
+  <label for="filterProtType"><strong>Protection Type</strong></label>
+  <select id="filterProtType"><option value="">(All)</option></select>
+</div>
+
+<!-- Protection Method -->
+<div class="filter-field">
+  <label for="filterProtMethod"><strong>Protection Method</strong></label>
+  <select id="filterProtMethod"><option value="">(All)</option></select>
+</div>
+
+
+
+		
+      </div>
+      <div id="filterPanelFooter">
+        <button id="applyFiltersBtn">Apply</button>
+        <button id="resetFiltersBtn">Reset</button>
+      </div>
+    </aside>
+  </div>
+
+
+
+  <!-- =========================
+       CALENDAR COLUMN
+  ========================== -->
+  <div id="calendar">
+    <h1 style="text-align:center;">MST Amendment Calendar</h1>
+    <p style="text-align:center;">
+      Upload MST Excel/CSV.<br />
+      Green = current instance (click to edit). Amber = next due. Red = following due.<br />
+      You can drag the green instance to shift dates. Export changes when done or reset all.
+    </p>
+	
+<div id="batchInputContainer" style="margin-top: 10px; margin-bottom: 10px; text-align:center;">
+<input type="file" id="fileInput" accept=".xlsx,.xls,.csv" />
+  <label for="batchNumber" style="font-weight:bold;">Batch Number:</label>
+  <input 
+    type="text" 
+    id="batchNumber" 
+    placeholder="LANDC....." 
+    style="padding:6px 10px; margin-left:8px; border:1px solid #ccc; border-radius:4px; width:180px;"
+  />
+        <button id="exportBtn">Export MST Changes</button>
+</div>
+
+    <div id="controls">
+      <button id="resetAllBtn" style="background:#ef4444; color:white;">Reset All Changes</button>
+      <button id="openFilterBtn">⚙️ Filters</button>
+	  <button id="openGotoBtn">Go to MST</button>
+	  <button id="openResourceBtn" class="topbar-btn">Planned Hours Graph</button>
+      <span id="changeCount" style="font-weight:bold; margin-left:8px;"></span>
+      <div id="loading">Loading MSTs...</div>
+    </div>
+
+    <button id="newMSTBtn" 
+	onclick="MST.Editor.openNewMSTModal()"
+	style="
+      background:#2C3E50;
+      color:white;
+      border:none;
+      border-radius:6px;
+      padding:8px 16px;
+      font-weight:bold;
+      margin-bottom:10px;
+      cursor:pointer;
+    ">
+      + New MST
+    </button>
+
+    <div id="calendarEl"></div>
+  </div>
+  
+  <!-- =========================
+       Floating Resource
+  ========================== -->
+  <div id="resourceFloatPanel">
+  <div id="resourceFloatHeader">
+    <span>Planned Hours (6 weeks)</span>
+    <button id="closeResourceFloat">✕</button>
+  </div>
+
+  <div id="resourceFloatControls">
+    <button id="prevWindowBtn">◀</button>
+    <span id="resourceRangeLabel"></span>
+    <button id="nextWindowBtn">▶</button>
+  </div>
+
+  <div id="resourceTotalHours" style="font-weight:bold; text-align:center; margin:6px 0;">Total: 0h</div>
+
+  <canvas id="plannedHoursChart" width="350" height="220"></canvas>
+</div>
+
+<!-- =========================
+       NEW MST MODAL (Updated)
+  ========================== -->
+<div id="newMSTModal" style="
+  display:none;
+  position:fixed;
+  top:0; left:0; right:0; bottom:0;
+  background:rgba(0,0,0,0.5);
+  z-index:9999;
+  justify-content:center;
+  align-items:center;
+  pointer-events:auto;
+">
+  <div id="newMSTBox" style="
+    background:#fff;
+    width:75%;
+    max-width:900px;
+    max-height:90%;
+    overflow-y:auto;
+    padding:30px;
+    border-radius:12px;
+    box-shadow:0 4px 20px rgba(0,0,0,0.3);
+    pointer-events:auto;
+  ">
+    <h2 style="text-align:center;">Create New MST</h2>
+    <p style="text-align:center;">
+      Fields marked <span style="color:red">*</span> are mandatory.
+    </p>
+
+  <div id="newMSTForm">
+  <!-- Row 1 -->
+ <label>
+  <span class="label-title">
+    Equipment Number <span class="required-star">*</span>
+  </span>
+  <input id="newEquipNo" required />
+</label>
+
+<label>
+   <span class="label-title">
+    Standard Job Number <span class="required-star">*</span>
+  </span>
+    <input id="newStdJobNo" required />
+    <small><a href="https://networkrail.sharepoint.com/:x:/r/sites/asd/_layouts/15/Doc.aspx?sourcedoc=%7B62BADB1E-7450-46C4-A0C1-353E38D2AA72%7D&file=Standard%20Job%20List.xls&action=default&mobileredirect=true&DefaultItemOpen=1%3Fweb%3D1" id="stdJobListLink" target="_blank">View Standard Job List</a></small>
+  </label>
+
+  <!-- Row 2 -->
+ <label>
+  <span class="label-title">
+    MST Description 1 <span class="required-star">*</span>
+  </span>
+    <input id="newDesc1" readonly />
+  </label>
+
+  <label>MST Description 2
+    <input id="newDesc2" maxlength="40" />
+  </label>
+  
+  <label>
+  <span class="label-title">
+    WorkGroup <span class="required-star">*</span>
+  </span>
+    <input id="newWorkGroup" required></select>
+	</label>
+  <!-- Row 3 -->
+   <label>
+  <span class="label-title">
+    Job Description Code <span class="required-star">*</span>
+  </span>
+    <select id="newJobCode" required></select>
+  </label>
+
+   <label>
+  <span class="label-title">
+    Frequency (Days) <span class="required-star">*</span>
+  </span>
+    <input id="newFreq" type="number" min="1" required />
+  </label>
+
+  <!-- Row 4 -->
+   <label>
+  <span class="label-title">
+    Last Scheduled Date <span class="required-star">*</span>
+  </span>
+    <input id="newLastDate" type="date" required />
+  </label>
+
+  <label>
+  <span class="label-title">
+    Units Required <span class="required-star">*</span>
+  </span>
+    <input id="newUnits" type="number" required />
+  </label>
+
+  <!-- Row 5 -->
+  <label>Unit of Measure
+    <input id="newUnitMeasure" readonly />
+  </label>
+
+  <label>Mileage From
+    <input id="newFrom" />
+  </label>
+
+  <!-- Row 6 -->
+  <label>Mileage To
+    <input id="newTo" />
+  </label>
+
+  <label>
+  <span class="label-title">
+    Protection Type <span class="required-star">*</span>
+  </span>
+    <select id="newProtType" required></select>
+  </label>
+
+  <!-- Row 7 -->
+   <label>
+  <span class="label-title">
+    Protection Method <span class="required-star">*</span>
+  </span>
+    <select id="newProtMethod" required></select>
+  </label>
+</div>
+
+
+    <div style="text-align:center; margin-top:20px;">
+      <button id="addMSTBtn" style="background:#10b981;color:white;border:none;padding:8px 20px;border-radius:6px;">
+        Add MST
+      </button>
+      <button id="cancelMSTBtn" style="background:#ef4444;color:white;border:none;padding:8px 20px;border-radius:6px;margin-left:10px;">
+        Cancel
+      </button>
+    </div>
+  </div>
+</div>
+<!-- =========================
+     GO TO MST OVERLAY + PANEL
+========================== -->
+<div id="gotoOverlay">
+  <aside id="gotoPanel" aria-label="Go to MST">
+    <div id="gotoHeader">
+      <h3>Go to MST</h3>
+      <button id="closeGotoBtn" title="Close">✕</button>
+    </div>
+
+    <div id="gotoBody">
+      <div class="goto-field">
+        <label for="gotoEquip"><strong>Equipment Number</strong></label>
+ <input type="text" id="gotoEquip" list="equipList" placeholder="Enter Equipment No" />
+<datalist id="equipList"></datalist>
+
+<small id="equipDescPreview" 
+       style="display:block; margin-top:4px; font-size:13px; font-weight:bold; color:#333;">
+</small>
+
+      </div>
+     <div class="goto-field">
+        <label for="gotoTask"><strong>Task Number</strong></label>
+        <input id="gotoTask" placeholder="e.g. 001" />
+      </div>
+      <button id="gotoSearchBtn" class="btn-primary" style="margin:8px 0 12px;">Search</button>
+
+      <div id="gotoResults" style="display:none;">
+        <table class="goto-table">
+          <thead>
+            <tr><th>Task No</th><th>MST Description 1</th></tr>
+          </thead>
+          <tbody id="gotoResultsBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="gotoFooter">
+      <button id="closeGotoBtn2">Close</button>
+    </div>
+  </aside>
+</div>
+
+  <!-- =======================================================
+     WORK GROUP SELECT MODAL (Shown after file upload)
+======================================================= -->
+<div id="wgSelectModal" style="
+  display:none; position:fixed; inset:0;
+  background:rgba(0,0,0,0.55); z-index:99999;
+  justify-content:center; align-items:center; pointer-events:auto;">
+  
+  <div style="
+    background:white; padding:25px; border-radius:10px;
+    min-width:420px; max-width:600px; pointer-events:auto;">
+
+    <h3>Select Work Group Set Description</h3>
+    <p>Please choose which MST set you want to load into the calendar.</p>
+
+  <select id="wgSelectDropdown" multiple size="8" style="
+  width:100%; padding:8px; margin-top:12px; border:1px solid #bbb; border-radius:6px;">
+</select>
+<p style="font-size:12px; color:#444; margin-top:5px;">
+Hold <strong>Ctrl</strong> (or <strong>Cmd</strong> on Mac) to select multiple
+</p>
+
+
+    <div style="text-align:right; margin-top:18px;">
+      <button id="wgSelectConfirm" style="padding:6px 18px; background:#10b981; color:white; border:none; border-radius:6px;">
+        Load MSTs
+      </button>
+    </div>
+
+  </div>
+</div>
+
+  <!-- =========================
+       PAGE SCRIPT
+  ========================== -->
+  <script>
+    /******************************************************************
+     * STATE
+     ******************************************************************/
+
+    window.futureEventsMap = {};  // mstId -> [EventApi, EventApi]
+    window.originalProps   = {};  // mstId -> source row (snapshot)
+    window.changes            = {};  // mstId -> export deltas
+    window.originalRows       = [];  // raw uploaded rows
+
+    /******************************************************************
+     * CONSTANTS
+     ******************************************************************/
+    const BASE_COLOR   = '#10b981'; // green
+    const NEXT_COLOR   = '#f59e0b'; // amber
+    const FUTURE_COLOR = '#ef4444'; // red
+ 
+/*******************************
+ * Planned Hours Graph (6 weeks)
+ *******************************/
+let resourceChart = null;
+let resourceWindowStart = startOfWeek(new Date()); // Monday by default
+
+const resourceOverlay     = document.getElementById('resourceOverlay');
+const resourcePanelOpen   = document.getElementById('openResourceBtn');
+const resourcePanelClose  = document.getElementById('closeResourceBtn');
+const prevWindowBtn       = document.getElementById('prevWindowBtn');
+const nextWindowBtn       = document.getElementById('nextWindowBtn');
+const resourceRangeLabel  = document.getElementById('resourceRangeLabel');
+const resourceTotalHours  = document.getElementById('resourceTotalHours');
+const resourceCanvas      = document.getElementById('plannedHoursChart');
+
+// Helpers
+function startOfDay(d) {
+  const x = new Date(d.getTime());
+  x.setHours(0,0,0,0);
+  return x;
+}
+function startOfWeek(d) {
+  const x = startOfDay(d);
+  const day = x.getDay(); // 0=Sun..6=Sat
+  const diff = (day === 0 ? -6 : 1) - day; // make Monday start
+  x.setDate(x.getDate() + diff);
+  return x;
+}
+function formatDMY(d) {
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth()+1).padStart(2, '0');
+  const yy = d.getFullYear();
+  return `${dd}/${mm}/${yy}`;
+}
+
+// Build weekly buckets across window
+function bucketResourceHours(windowStart, days=42) {
+  const windowEnd = MST.Utils.addDays(windowStart, days);
+  const events = window.calendar.getEvents();
+  const hoursByWeekKey = new Map(); // key: ISO date of Monday
+
+  // Initialize 6 week buckets
+  for (let k = 0; k < 6; k++) {
+    const wkStart = MST.Utils.addDays(startOfWeek(windowStart), k*7);
+    hoursByWeekKey.set(wkStart.toISOString().slice(0,10), 0);
+  }
+
+  // Sum events with resourceHours in range (include green/amber/red)
+  events.forEach(ev => {
+    const p = ev.extendedProps || {};
+    const h = parseFloat(p.resourceHours || 0);
+    if (!h || !ev.start) return;
+
+    const d = startOfDay(ev.start);
+    if (d < windowStart || d >= windowEnd) return;
+
+    const wkStart = startOfWeek(d);
+    const key = wkStart.toISOString().slice(0,10);
+    if (!hoursByWeekKey.has(key)) hoursByWeekKey.set(key, 0);
+    hoursByWeekKey.set(key, hoursByWeekKey.get(key) + h);
+  });
+
+  // Build labels/data sorted by date
+  const keys = [...hoursByWeekKey.keys()].sort();
+  const labels = keys.map(k => {
+    const d = new Date(k + 'T00:00:00');
+    const d2 = MST.Utils.addDays(d, 6);
+    return `${formatDMY(d)} – ${formatDMY(d2)}`; // week span label
+  });
+  const data = keys.map(k => hoursByWeekKey.get(k));
+
+  const total = data.reduce((a,b) => a+b, 0);
+  return { labels, data, total, rangeStart: windowStart, rangeEnd: MST.Utils.addDays(windowEnd, -1) };
+}
+
+// Draw / update chart
+function drawResourceChart() {
+  const ctx = resourceCanvas.getContext('2d');
+  const { labels, data, total, rangeStart, rangeEnd } = bucketResourceHours(startOfWeek(resourceWindowStart), 42);
+
+  resourceRangeLabel.textContent = `${formatDMY(rangeStart)} → ${formatDMY(rangeEnd)}`;
+  resourceTotalHours.textContent = `Total: ${total.toFixed(1)}h`;
+
+  if (resourceChart) {
+    resourceChart.data.labels = labels;
+    resourceChart.data.datasets[0].data = data;
+    resourceChart.update();
+    return;
+  }
+
+  resourceChart = new Chart(ctx, {
+    type: 'bar', // switch to 'line' if you prefer
+    data: {
+      labels,
+      datasets: [{
+        label: 'Planned Hours',
+        data,
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: false,
+      maintainAspectRatio: false,
+      scales: {
+        y: { beginAtZero: true, title: { display: true, text: 'Hours' } },
+        x: { title: { display: true, text: 'Week' } }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => `${ctx.parsed.y.toFixed(1)} h`
+          }
+        }
+      }
+    }
+  });
+}
+const panel = document.getElementById("resourceFloatPanel");
+const openBtn = document.getElementById("openResourceBtn");
+const closeBtn = document.getElementById("closeResourceFloat");
+
+// Show panel + draw chart
+openBtn.addEventListener("click", () => {
+  panel.style.display = "block";
+  drawResourceChart(); // already updates automatically
+});
+
+closeBtn.addEventListener("click", () => {
+  panel.style.display = "none";
+});
+
+// --- Draggable logic ---
+const dragArea = document.getElementById("resourceFloatHeader");
+let offsetX = 0, offsetY = 0, dragging = false;
+
+dragArea.addEventListener("mousedown", (e) => {
+  dragging = true;
+  offsetX = e.clientX - panel.offsetLeft;
+  offsetY = e.clientY - panel.offsetTop;
+  dragArea.style.cursor = "grabbing";
+});
+
+document.addEventListener("mousemove", (e) => {
+  if (!dragging) return;
+  panel.style.left = (e.clientX - offsetX) + "px";
+  panel.style.top  = (e.clientY - offsetY) + "px";
+});
+
+document.addEventListener("mouseup", () => {
+  dragging = false;
+  dragArea.style.cursor = "grab";
+});
+
+/******************************************************************
+ * SIMPLE VIRTUAL FILTERING (directly on events)
+ * - Checks base (green) events' extendedProps against UI filters
+ * - Shows/hides the entire series (green/amber/red) by mstId
+ ******************************************************************/
+function applyFilters() {
+  // Read selected filters (strip "CODE — desc" to just CODE where applicable)
+  const wg  = filterWorkGroup.value.trim();
+  const jd  = filterJobDesc.value.trim().split(" — ")[0];     // code only
+  const d1  = filterDesc1.value.trim();
+  const d2  = filterDesc2.value.trim();
+  const pt  = filterProtType.value.trim().split(" — ")[0];    // code only
+  const pm  = filterProtMethod.value.trim().split(" — ")[0];  // code only
+  const ad1 = filterEquipDesc1.value.trim();
+
+  const noActive = !wg && !jd && !d1 && !d2 && !pt && !pm && !ad1;
+
+const events = window.calendar.getEvents();
+const bases  = events.filter(e => (e.extendedProps || {}).instance === 0);
+
+window.calendar.batchRendering(() => {
+    // Start by showing everything if no filters
+    if (noActive) {
+      events.forEach(e => { if (e.display !== 'auto') e.setProp('display','auto'); });
+      return;
+    }
+
+    // Build a map from mstId -> shouldShow
+    const visibilityByMstId = new Map();
+
+    bases.forEach(base => {
+      const p = base.extendedProps || {};
+      const match =
+        (!wg  || (p.workGroup      || "").trim() === wg) &&
+        (!jd  || (p.jobDescCode    || "").trim() === jd) &&
+        (!d1  || (p.desc1          || "").trim() === d1) &&
+        (!d2  || (p.desc2          || "").trim() === d2) &&
+        (!pt  || (p.protType       || "").trim() === pt) &&
+        (!pm  || (p.protMethod     || "").trim() === pm) &&
+        (!ad1 || (p.equipmentDesc1 || "").trim() === ad1);
+
+      visibilityByMstId.set(p.mstId, match);
+    });
+
+    // Apply visibility to all events in each series (green/amber/red)
+    events.forEach(ev => {
+      const mid = (ev.extendedProps || {}).mstId;
+      const show = visibilityByMstId.get(mid) === true;
+      const desired = show ? 'auto' : 'none';
+      if (ev.display !== desired) ev.setProp('display', desired);
+    });
+  });
+}
+
+
+function resetFilters() {
+  filterWorkGroup.value = "";
+  filterJobDesc.value   = "";
+  filterDesc1.value     = "";
+  filterDesc2.value     = "";
+  filterProtType.value  = "";
+  filterProtMethod.value= "";
+  filterEquipDesc1.value= "";
+
+window.calendar.batchRendering(() => {
+  window.calendar.getEvents().forEach(e => {
+    if (e.display !== 'auto') e.setProp('display', 'auto');
+  });
+});
+
+}
+
+    /******************************************************************
+     * FILTER UI WIRING
+     ******************************************************************/
+    openFilterBtn.addEventListener('click', () => {
+      filterOverlay.classList.add('active');
+    });
+    closeFilterBtn.addEventListener('click', () => {
+      filterOverlay.classList.remove('active');
+    });
+    filterOverlay.addEventListener('click', (e) => {
+      // click outside panel closes
+      if (e.target === filterOverlay) {
+        filterOverlay.classList.remove('active');
+      }
+    });
+    applyFiltersBtn.addEventListener('click', () => {
+      applyFilters();
+      filterOverlay.classList.remove('active');
+    });
+    resetFiltersBtn.addEventListener('click', () => {
+      resetFilters();
+      filterOverlay.classList.remove('active');
+    });
+
+/************************************************************
+ * GO TO MST: open/close
+ ************************************************************/
+const gotoOverlay     = document.getElementById("gotoOverlay");
+const gotoPanel       = document.getElementById("gotoPanel");
+const openGotoBtn     = document.getElementById("openGotoBtn");
+const closeGotoBtn    = document.getElementById("closeGotoBtn");
+const closeGotoBtn2   = document.getElementById("closeGotoBtn2");
+
+const gotoEquip       = document.getElementById("gotoEquip");
+const gotoSearchBtn   = document.getElementById("gotoSearchBtn");
+const gotoResults     = document.getElementById("gotoResults");
+const gotoResultsBody = document.getElementById("gotoResultsBody");
+
+function openGoto()  { gotoOverlay.classList.add("active"); setTimeout(() => gotoEquip.focus(), 0); }
+function closeGoto() { gotoOverlay.classList.remove("active"); gotoResultsBody.innerHTML=""; gotoResults.style.display="none"; gotoEquip.value=""; }
+
+openGotoBtn.addEventListener("click", openGoto);
+closeGotoBtn.addEventListener("click", closeGoto);
+closeGotoBtn2.addEventListener("click", closeGoto);
+gotoOverlay.addEventListener("click", (e) => { if (e.target === gotoOverlay) closeGoto(); });
+
+/************************************************************
+ * GO TO MST: search + pick one
+ ************************************************************/
+function normalizeEquip(value) {
+  return (value || "").toString().toUpperCase().replace(/^0+/, "");
+}
+
+gotoSearchBtn.addEventListener("click", () => {
+  const equip = gotoEquip.value.trim().toUpperCase();
+  if (!equip) { alert("Please enter an Equipment Number."); return; }
+
+  const events = window.calendar.getEvents().filter(ev => {
+    const p = ev.extendedProps || {};
+    return normalizeEquip(p.equipmentNo) === normalizeEquip(equip) && ev.id.endsWith("_0");
+
+  });
+
+  gotoResultsBody.innerHTML = "";
+  if (!events.length) {
+    gotoResults.style.display = "none";
+    alert("No MSTs found for that Equipment.");
+    return;
+  }
+
+  // Build mini list (Task No | Desc1). Click = jump + highlight.
+  events.forEach(ev => {
+    const p  = ev.extendedProps || {};
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${p.taskNo || ""}</td><td>${p.desc1 || ""}</td>`;
+tr.addEventListener("click", () => {
+  const p = ev.extendedProps || {};
+  const mstId = p.mstId;
+
+  // Jump calendar to the month of the event
+  window.calendar.gotoDate(ev.start);
+
+  // Slight delay so FullCalendar finishes rendering
+  setTimeout(() => {
+
+    // ✅ Open left editor (same as clicking event)
+    MST.Editor.openEditorForMST(mstId, ev);
+
+    // ✅ Find the event element that FullCalendar rendered
+    const el = window.calendar.getEventById(`${mstId}_0`)?.el;
+    if (el) {
+      // Scroll into center of calendar view
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+
+      // Flash highlight glow around event
+      el.classList.add("goto-flash");
+      setTimeout(() => el.classList.remove("goto-flash"), 2000);
+    }
+
+    // ✅ Highlight the editor panel visually to confirm “selected”
+    const sidebar = document.getElementById("sidebar");
+    sidebar.classList.add("pulse-highlight");
+    setTimeout(() => sidebar.classList.remove("pulse-highlight"), 1200);
+
+  }, 300);
+
+  // Close the Go To panel immediately
+  closeGoto();
+});
+
+
+
+    gotoResultsBody.appendChild(tr);
+  });
+
+  gotoResults.style.display = "block";
+});
+
+// Optional: allow Enter to trigger Search
+gotoEquip.addEventListener("keydown", (e) => { if (e.key === "Enter") gotoSearchBtn.click(); });
+
+// ================================
+// NEW MST MODAL LOGIC 
+// ================================
+
+const newMSTBtn      = document.getElementById("newMSTBtn");
+const newMSTModal    = document.getElementById("newMSTModal");
+const addMSTBtn      = document.getElementById("addMSTBtn");
+const cancelMSTBtn   = document.getElementById("cancelMSTBtn");
+
+// Add MST
+addMSTBtn.addEventListener("click", () => MST.Editor.addNewMST());
+
+// === Dynamic autocomplete for Go To MST ===
+const gotoEquipInput = document.getElementById("gotoEquip");
+const equipList = document.getElementById("equipList");
+
+// Filter datalist options dynamically as the user types
+gotoEquipInput.addEventListener("input", (e) => {
+  const term = e.target.value.trim().toUpperCase().replace(/^0+/, ""); // strip leading zeros
+  equipList.innerHTML = "";
+
+  if (!term) return;
+
+  const matches = (window.allEquipNumbers || [])
+    .filter(eq => normalizeEquip(eq).includes(normalizeEquip(term)))
+    .slice(0, 25); // show only first 25 matches for speed
+
+  matches.forEach(eq => {
+    const opt = document.createElement("option");
+    opt.value = eq;
+    equipList.appendChild(opt);
+  });
+});
+
+// Highlight a day yellow for ~3 seconds
+function highlightDay(date) {
+  // Add a background event
+  const highlight = calendar.addEvent({
+    start: date,
+    display: "background",
+    backgroundColor: "yellow",
+    id: "goto_highlight"
+  });
+
+  // Remove highlight after 3 seconds
+  setTimeout(() => {
+    const ev = calendar.getEventById("goto_highlight");
+    if (ev) ev.remove();
+  }, 3000);
+}
+
+exportBtn.addEventListener("click", MST.Export.exportChanges);
+
+    /******************************************************************
+     * RESET ALL CHANGES
+     ******************************************************************/
+resetAllBtn.addEventListener('click', function() {
+  const ok = confirm("Are you sure you want to reset all changes and reload the original MST data?");
+  if (!ok) return;
+  MST.Editor.loadMSTs(window.originalRows || []);
+  detailsIntro.style.display = 'block';
+  editForm.style.display = 'none';
+});
+
+
+  
+  
+  </script>
+
+
+</body>
+</html>

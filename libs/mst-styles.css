@@ -1,0 +1,428 @@
+/* libs/mst-styles.css */
+    body {
+      font-family: Arial, sans-serif;
+      margin:0;
+      padding:0;
+      display:flex;
+    }
+
+    /* Sidebar (fixed, scrollable) */
+    #sidebar {
+      width: 320px;
+      padding: 20px;
+      border-right: 1px solid #ccc;
+      background:#f9f9f9;
+      position: fixed;
+      top:0; bottom:0; left:0;
+      overflow-y: auto;
+      box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+      font-size: 14px;
+    }
+
+
+    #sidebar h2 {
+      margin-top:0;
+    }
+
+    #calendar {
+      flex:1;
+      padding:20px;
+      margin-left:360px;
+    }
+
+    #controls {
+      text-align:center;
+      margin-bottom:18px;
+    }
+
+    input, button {
+      margin:5px;
+      padding:8px 12px;
+      cursor:pointer;
+      font-size: 14px;
+    }
+
+    .fc-event.future-event {
+      background-image: repeating-linear-gradient(
+        45deg,
+        rgba(255,255,255,0.3),
+        rgba(255,255,255,0.3) 4px,
+        transparent 4px,
+        transparent 8px
+      );
+    }
+
+    .field-block {
+      margin-bottom: 10px;
+    }
+    .field-block label {
+      display:block;
+      font-size: 12px;
+      font-weight:bold;
+      margin-bottom:2px;
+      color:#444;
+    }
+    .field-block input {
+      width:100%;
+      padding:6px 8px;
+      box-sizing:border-box;
+      font-size:14px;
+    }
+
+    .section-title {
+      font-size:13px;
+      font-weight:bold;
+      color:#444;
+      margin-top:16px;
+      border-top:1px solid #ddd;
+      padding-top:10px;
+    }
+
+    #loading {
+      font-weight:bold;
+      margin-top:6px;
+      display:none;
+    }
+
+    #saveBtn {
+      background:#10b981;
+      border:none;
+      border-radius:4px;
+      color:#fff;
+      font-weight:bold;
+      width:100%;
+    }
+
+
+    #revertBtn {
+      background:#f59e0b;
+      border:none;
+      border-radius:4px;
+      color:#000;
+      font-weight:bold;
+      width:100%;
+    }
+
+.fc-event.deactivated-mst {
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(0, 0, 0, 0.85),
+    rgba(0, 0, 0, 0.85) 8px,
+    rgba(255, 255, 255, 0.1) 8px,
+    rgba(255, 255, 255, 0.1) 16px
+  ) !important;
+  color: white !important;
+  border: 2px solid black !important;
+  font-weight: bold !important;
+  opacity: 0.9;
+}
+
+#filterOverlay {
+  display: none !important;
+}
+#filterOverlay.active {
+  display: block !important;
+}
+#filterOverlay.active #filterPanel {
+  transform: translateX(0) !important;
+}
+/* --- Make calendar events allow multiline text --- */
+.fc-daygrid-event {
+  white-space: normal !important;
+  height: auto !important;
+  min-height: 2.5em !important; /* ensures enough height for 2 lines */
+  line-height: 1.2em;
+  overflow: visible !important;
+}
+
+.fc-event-title,
+.fc-event-title-container {
+  white-space: normal !important;
+}
+
+/* --- Optional: styling for your two-line layout --- */
+.event-equip {
+  font-weight: bold;
+  font-size: 12px;
+  line-height: 1.2em;
+}
+
+.event-desc {
+  font-size: 11px;
+  line-height: 1.1em;
+}
+
+/* ===== New MST Modal Styling ===== */
+/* ===== Create New MST Form Styling ===== */
+
+#newMSTForm {
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* 2-column layout */
+  gap: 20px 40px; /* spacing between rows & columns */
+  align-items: start;
+  justify-items: stretch;
+}
+
+/* Label styling */
+#newMSTForm label {
+  display: flex;
+  flex-direction: column;
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 14px;
+}
+
+/* inline layout for label text + red star */
+#newMSTForm .label-title {
+  display: flex;
+  align-items: center;
+  gap: 4px; /* small space between title and star */
+}
+
+#newMSTForm .required-star {
+  color: red;
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 1;
+}
+
+/* Inputs & dropdowns */
+#newMSTForm input,
+#newMSTForm select {
+  width: 100%;
+  height: 40px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 6px 10px;
+  margin-top: 6px;
+  box-sizing: border-box;
+  font-size: 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  background: #fff;
+}
+
+/* Focus ring for accessibility */
+#newMSTForm input:focus,
+#newMSTForm select:focus {
+  border-color: #2c3e50;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(44, 62, 80, 0.2);
+}
+
+/* hyperlink under standard job number */
+#newMSTForm small a {
+  font-weight: normal;
+  color: #2563eb;
+  text-decoration: none;
+  font-size: 12px;
+}
+
+#newMSTForm small a:hover {
+  text-decoration: underline;
+}
+
+/* Action buttons styling */
+#addMSTBtn,
+#cancelMSTBtn {
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+}
+
+#addMSTBtn {
+  background: #10b981;
+  color: white;
+}
+
+#cancelMSTBtn {
+  background: #ef4444;
+  color: white;
+  margin-left: 10px;
+}
+
+/* Responsive single-column layout for smaller screens */
+@media (max-width: 700px) {
+  #newMSTForm {
+    grid-template-columns: 1fr;
+  }
+}
+/* Make Job Description Code stretch across both columns */
+#newMSTForm .wide-field {
+  grid-column: span 2;
+}
+
+/* ===== GO TO MST flyout (mirrors filter) ===== */
+#gotoOverlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  z-index: 1100;
+}
+#gotoOverlay.active { display: block; }
+
+#gotoPanel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 400px;
+  max-width: 85vw;
+  height: 100%;
+  background: #fff;
+  border-left: 1px solid #ddd;
+  box-shadow: -4px 0 14px rgba(0,0,0,0.12);
+  z-index: 1200;
+  transform: translateX(100%);
+  transition: transform .25s ease;
+  display: flex;
+  flex-direction: column;
+}
+#gotoOverlay.active #gotoPanel { transform: translateX(0); }
+
+#gotoHeader, #gotoFooter {
+  padding: 12px 16px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+#gotoFooter {
+  border-top: 1px solid #eee;
+  border-bottom: none;
+  margin-top: auto;
+}
+
+#gotoBody { padding: 14px 16px; overflow-y: auto; }
+.goto-field { margin-bottom: 12px; }
+.goto-field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: #444;
+  margin-bottom: 4px;
+}
+.goto-field input {
+  width: 75%;
+  padding: 6px 8px;
+  font-size: 14px;
+}
+
+.goto-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.goto-table thead th {
+  text-align: left;
+  background: #f3f4f6;
+  padding: 6px 8px;
+}
+#gotoResultsBody tr { cursor: pointer; }
+#gotoResultsBody td {
+  padding: 6px 8px;
+  border-top: 1px solid #eee;
+}
+#gotoResultsBody tr:hover { background: #fef08a; }
+
+/* Resource overlay & panel (like filter) */
+#plannedHoursChart {
+  width: 100% !important;
+  height: 200px !important; /* fixed size */
+  max-height: 500px;
+}
+
+#resourceFloatPanel {
+  position: fixed;
+  top: 120px;
+  right: 40px;
+  width: 420px;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.25);
+  z-index: 99999;
+
+  /* ✅ Hidden by default */
+  display: none;
+
+  /* ✅ Controlled layout */
+  max-height: 560px;
+  overflow: hidden;
+  padding: 12px;
+  flex-direction: column;
+}
+
+
+#resourceFloatHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: grab;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+#resourceFloatHeader button {
+  border: none;
+  background: transparent;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+#resourceFloatControls {
+  text-align: center;
+  margin: 6px 0 10px;
+}
+
+#resourceFloatControls button {
+  padding: 4px 8px;
+  font-size: 14px;
+}
+
+/* Flash around selected calendar event */
+.goto-flash {
+  box-shadow: 0 0 12px 6px yellow !important;
+  transition: box-shadow 0.6s ease-out;
+}
+
+/* Sidebar pulse when new MST loads */
+.pulse-highlight {
+  animation: sidebarPulse 1.1s ease-out;
+}
+
+@keyframes sidebarPulse {
+  0%   { background-color: #fff9c4; }
+  50%  { background-color: #fff176; }
+  100% { background-color: #f9f9f9; }
+}
+
+/* Highlight changed MSTs */
+.fc-event.changed-mst {
+  border: 8px solid #FFFF00 !important;       /* thicker yellow border */
+  border-radius: 6px !important;              /* nicer rounding */
+  box-shadow:
+    0 0 10px rgba(29, 78, 216, 0.6),          /* outer glow */
+    0 0 4px rgba(29, 78, 216, 0.9) inset !important; /* inner glow */
+}
+
+
+
+.overdue-date {
+  background: #ffdddd !important;
+  border: 1px solid #cc0000 !important;
+  color: #990000 !important;
+}
+
+.event-icon {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: 14px;
+  z-index: 10;
+  pointer-events: none;
+}
+.fc-event {
+  position: relative;
+}
