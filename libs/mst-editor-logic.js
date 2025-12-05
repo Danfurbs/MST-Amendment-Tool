@@ -147,6 +147,46 @@ window.MST.Editor.openNewMSTModal = function () {
     // If the field is prefilled, initialise values
     updateFromStdJob();
   }
+
+  // ---- Equipment Number → Equipment Description display ----
+  const equipInput = document.getElementById("newEquipNo");
+  const equipDesc  = document.getElementById("newEquipDesc");
+
+  if (equipInput && equipDesc) {
+    const updateEquipDesc = () => {
+      const code = equipInput.value.trim();
+      const map  = window.equipmentDescriptions;
+
+      if (!code || !map?.get) {
+        equipDesc.textContent = "";
+        return;
+      }
+
+      const trim = (val) => {
+        if (val == null) return "";
+        return typeof val === "string" ? val.trim() : String(val).trim();
+      };
+
+      const normalize = (val) => trim(val).toUpperCase();
+      const normCode  = normalize(code);
+
+      // Prefer the prebuilt map; fall back to a direct lookup over the full download
+      const fromMap  = map.get(normCode);
+      const fromRows = (!fromMap && Array.isArray(window.fullDownloadLookup))
+        ? window.fullDownloadLookup.find(r => normalize(r["Equipment Number"]) === normCode)
+        : null;
+
+      equipDesc.textContent = fromMap || trim(fromRows?.["Equipment Description 1"]) || "";
+    };
+
+    if (!equipInput.dataset.equipDescBound) {
+      equipInput.addEventListener("input", updateEquipDesc);
+      equipInput.addEventListener("blur", updateEquipDesc);
+      equipInput.dataset.equipDescBound = "true";
+    }
+
+    updateEquipDesc();
+  }
 };
 
 

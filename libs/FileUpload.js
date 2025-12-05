@@ -60,6 +60,26 @@ document.addEventListener("DOMContentLoaded", function () {
     return;
   }
 
+  function normalizeEquip(value) {
+    return safeTrim(value).toUpperCase();
+  }
+
+  function buildEquipmentDescMap(rows) {
+    const map = new Map();
+
+    rows.forEach(r => {
+      const eq = normalizeEquip(r["Equipment Number"]);
+      if (!eq) return;
+
+      const desc = safeTrim(r["Equipment Description 1"]);
+      if (!map.has(eq)) {
+        map.set(eq, desc);
+      }
+    });
+
+    return map;
+  }
+
   fileInput.addEventListener("change", e => {
     const file = e.target.files[0];
     if (!file) return;
@@ -74,7 +94,26 @@ document.addEventListener("DOMContentLoaded", function () {
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const json = XLSX.utils.sheet_to_json(sheet);
 
-        const downloadDateRaw = json[0]?.["Download Date"];
+        const fullRows = json;
+        const lookupRows = structuredClone(json);
+
+        // Persist the complete, unfiltered download for lookups (never reassign)
+        window.fullDownloadRows      = fullRows;
+        window.fullDownloadLookup    = lookupRows;
+        window.equipmentDescriptions = buildEquipmentDescMap(window.fullDownloadLookup);
+
+        const seenEquip = new Set();
+        window.allEquipNumbers = [];
+        lookupRows.forEach(r => {
+          const rawEquip = safeTrim(r["Equipment Number"]);
+          const norm = normalizeEquip(rawEquip);
+          if (norm && !seenEquip.has(norm)) {
+            seenEquip.add(norm);
+            window.allEquipNumbers.push(rawEquip);
+          }
+        });
+
+        const downloadDateRaw = fullRows[0]?.["Download Date"];
         const downloadDate = parseDownloadDate(downloadDateRaw);
 
         if (downloadDateDisplay) {
@@ -100,14 +139,14 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         // Save master rows
-        window.originalRows = json;
+        window.originalRows = fullRows;
 
         // ========= Work Group Modal =========
         const wgSelectModal    = document.getElementById("wgSelectModal");
         const wgSelectDropdown = document.getElementById("wgSelectDropdown");
 
         const wgPairs = new Map();
-        json.forEach(r => {
+        fullRows.forEach(r => {
           const code = safeTrim(r["Work Group Set Code"]);
           const desc = safeTrim(r["Work Group Description"]);
           if (code && desc) wgPairs.set(code, desc);
@@ -134,7 +173,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
           wgSelectModal.style.display = "none";
 
-          const filtered = json.filter(r =>
+          const filtered = window.fullDownloadRows.filter(r =>
             selected.includes(safeTrim(r["Work Group Set Code"]))
           );
 
@@ -147,10 +186,6 @@ document.addEventListener("DOMContentLoaded", function () {
           populateUnique(document.getElementById("filterProtType"),   filtered, "Protection Type Code");
           populateUnique(document.getElementById("filterProtMethod"), filtered, "Protection Method Code");
           populateUnique(document.getElementById("filterEquipDesc1"), filtered, "Equipment Description 1");
-
-          window.allEquipNumbers = [...new Set(
-            filtered.map(r => safeTrim(r["Equipment Number"]))
-          )];
 
           MST.Editor.loadMSTs(filtered);
         };
