@@ -25,6 +25,8 @@
       const calendar = window.calendar;
       if (!calendar) return;
 
+      const visibleDisplay = calendar.getOption('eventDisplay') || 'block';
+
       const wg  = (filterWorkGroup?.value || '').trim();
       const jd  = (filterJobDesc?.value || '').trim().split(' — ')[0];
       const d1  = (filterDesc1?.value || '').trim();
@@ -40,7 +42,9 @@
 
       calendar.batchRendering(() => {
         if (noActive) {
-          events.forEach((e) => { if (e.display !== 'auto') e.setProp('display', 'auto'); });
+          events.forEach((e) => {
+            if (e.display !== visibleDisplay) e.setProp('display', visibleDisplay);
+          });
           return;
         }
 
@@ -63,7 +67,7 @@
         events.forEach((ev) => {
           const mid = (ev.extendedProps || {}).mstId;
           const show = visibilityByMstId.get(mid) === true;
-          const desired = show ? 'auto' : 'none';
+          const desired = show ? visibleDisplay : 'none';
           if (ev.display !== desired) ev.setProp('display', desired);
         });
       });
@@ -81,9 +85,11 @@
       const calendar = window.calendar;
       if (!calendar) return;
 
+      const visibleDisplay = calendar.getOption('eventDisplay') || 'block';
+
       calendar.batchRendering(() => {
         calendar.getEvents().forEach((e) => {
-          if (e.display !== 'auto') e.setProp('display', 'auto');
+          if (e.display !== visibleDisplay) e.setProp('display', visibleDisplay);
         });
       });
     }
