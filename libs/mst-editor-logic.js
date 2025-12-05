@@ -175,6 +175,30 @@ window.MST.Editor.openNewMSTModal = function () {
   }
 };
 
+// Close and reset the New MST modal
+window.MST.Editor.closeNewMSTModal = function () {
+  const modal = document.getElementById("newMSTModal");
+  if (modal) {
+    modal.style.display = "none";
+    modal.style.pointerEvents = "none";
+  }
+
+  const form = document.getElementById("newMSTForm");
+  if (!form) return;
+
+  // Clear form fields for next use
+  form.querySelectorAll("input, select").forEach(el => {
+    if (el.tagName === "SELECT") {
+      el.selectedIndex = 0;
+    } else {
+      el.value = "";
+    }
+  });
+
+  const equipDesc = document.getElementById("newEquipDesc");
+  if (equipDesc) equipDesc.textContent = "";
+};
+
 
 
 (function() {
