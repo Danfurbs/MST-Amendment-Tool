@@ -38,10 +38,8 @@
       border: 1px solid #e2e8f0;
       border-radius: 10px;
       padding: 14px 16px;
-      padding-right: 56px;
       box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
       margin-bottom: 14px;
-      position: relative;
     }
     .header-top {
       display: flex;
@@ -68,21 +66,10 @@
       font-weight: 700;
       color: #111827;
     }
-    .download-warning {
-      position: absolute;
-      top: 12px;
-      right: 14px;
-      width: 30px;
-      height: 30px;
-      border-radius: 50%;
-      background: #fff7ed;
-      border: 1px solid #f59e0b;
+    #downloadDateWarning {
       color: #b45309;
       font-weight: 700;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+      max-width: 720px;
     }
     .header-bottom {
       display: grid;
@@ -600,9 +587,9 @@
           <h1>MST Amendment Calendar</h1>
           <div class="download-meta">
             <div id="downloadDateDisplay">Download Date: —</div>
+            <div id="downloadDateWarning" style="display:none;"></div>
           </div>
         </div>
-        <div id="downloadDateWarning" class="download-warning" style="display:none;" aria-hidden="true"></div>
       </div>
       <div class="header-bottom">
         <div class="help-box">
