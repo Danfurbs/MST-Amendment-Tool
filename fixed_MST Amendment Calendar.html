@@ -491,6 +491,27 @@
   </div>
 
   <!-- =========================
+       ERROR FLAG INDICATOR
+  ========================== -->
+  <div id="errorIndicatorWrapper" class="error-indicator" aria-live="polite">
+    <button id="errorIndicatorBtn" type="button" title="View MST error checks">
+      <svg id="errorIndicatorIcon" viewBox="0 0 64 64" role="img" aria-hidden="true">
+        <path d="M32.9 6.3c-1-1.8-3.6-1.8-4.6 0L4.7 50.9c-.9 1.7.3 3.8 2.3 3.8h50c2 0 3.2-2.1 2.3-3.8L32.9 6.3Zm-2.3 14.2a2 2 0 0 1 2.9 0c.3.4.5.9.5 1.4v15.5a2 2 0 0 1-3.9 0V21.9c0-.5.2-1 .5-1.4Zm1.5 28.2a3 3 0 1 1 0-6 3 3 0 0 1 0 6Z" />
+      </svg>
+    </button>
+    <div id="errorIndicatorCallout" class="error-callout" role="dialog" aria-modal="false" aria-labelledby="errorCalloutTitle">
+      <div class="error-callout-header">
+        <div id="errorCalloutTitle"><strong>MST error checks</strong></div>
+        <button id="closeErrorCallout" type="button" aria-label="Close">✕</button>
+      </div>
+      <div id="mstErrorSummary" class="error-summary">
+        <div><strong>MST error checks:</strong></div>
+        <div>Upload your MST file and choose a Work Group set to see flagged counts.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================
        RIGHT FILTER OVERLAY + PANEL
   ========================== -->
   <div id="filterOverlay">
