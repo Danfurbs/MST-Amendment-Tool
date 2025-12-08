@@ -86,15 +86,24 @@
       font-size: 13px;
       line-height: 1.45;
     }
+    .help-box {
+      margin-top: 10px;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 12px 14px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+      color: #111827;
+    }
     .help-box p {
-      margin: 0 0 6px 0;
+      margin: 0 0 8px 0;
       font-weight: 700;
     }
     .help-box ul {
       margin: 0;
-      padding-left: 16px;
+      padding-left: 18px;
       display: grid;
-      gap: 4px;
+      gap: 6px;
     }
     .help-box li {
       list-style: disc;
@@ -538,6 +547,18 @@
             <div id="downloadDateDisplay">Download Date: —</div>
             <div id="downloadDateWarning" style="display:none;"></div>
           </div>
+        </div>
+        <div class="help-box">
+          <p><strong>How to use this tool:</strong></p>
+          <ul>
+            <li>📤 <strong>Upload</strong> your MST Excel or CSV file.</li>
+            <li><span style="color:#10b981;font-weight:bold;">🟩 Green</span> = current MST — click to view or edit details.</li>
+            <li><span style="color:#f59e0b;font-weight:bold;">🟧 Amber</span> = next due date.</li>
+            <li><span style="color:#ef4444;font-weight:bold;">🟥 Red</span> = following due date.</li>
+            <li>➡️ <strong>Drag</strong> green MSTs to move them to a new date.</li>
+            <li>💾 When finished, click <strong>Export MST Changes</strong> to save your amendments.</li>
+            <li>🔄 Use <strong>Reset All Changes</strong> to discard unsaved edits.</li>
+          </ul>
         </div>
       </div>
       <div class="header-bottom">
