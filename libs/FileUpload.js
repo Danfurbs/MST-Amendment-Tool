@@ -44,49 +44,6 @@ document.addEventListener("DOMContentLoaded", function () {
     return "";
   }
 
-  function setIndicatorState(hasErrors) {
-    if (!errorIndicatorWrapper) return;
-    errorIndicatorWrapper.classList.toggle("has-errors", !!hasErrors);
-  }
-
-  function openErrorCallout() {
-    if (errorIndicatorWrapper) {
-      errorIndicatorWrapper.classList.add("open");
-    }
-  }
-
-  function closeErrorCallout() {
-    if (errorIndicatorWrapper) {
-      errorIndicatorWrapper.classList.remove("open");
-    }
-  }
-
-  function toggleErrorCallout() {
-    if (!errorIndicatorWrapper) return;
-    if (errorIndicatorWrapper.classList.contains("open")) {
-      closeErrorCallout();
-    } else {
-      openErrorCallout();
-    }
-  }
-
-  errorIndicatorBtn?.addEventListener("click", (e) => {
-    e.stopPropagation();
-    toggleErrorCallout();
-  });
-
-  closeErrorCalloutBtn?.addEventListener("click", (e) => {
-    e.stopPropagation();
-    closeErrorCallout();
-  });
-
-  document.addEventListener("click", (e) => {
-    if (!errorIndicatorWrapper) return;
-    if (!errorIndicatorWrapper.contains(e.target)) {
-      closeErrorCallout();
-    }
-  });
-
   function parseDownloadDate(value) {
     if (!value) return null;
     if (value instanceof Date) return value;
