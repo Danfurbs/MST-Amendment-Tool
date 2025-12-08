@@ -114,6 +114,91 @@
     window.MST.Views.resetFilters = resetFilters;
   }
 
+  function deriveMstId(row) {
+    if (!row) return '';
+    const concat = (row['CONCAT'] || '').toString().trim();
+    if (concat) return concat;
+
+    const eq = (row['Equipment Number'] || '').toString().trim();
+    const tn = (row['MST Task Number'] || '').toString().padStart(3, '0');
+    if (eq && tn) return `${eq}_${tn}`;
+
+    return '';
+  }
+
+  function setupFlaggedListView() {
+    const calendarEl      = getEl('calendarEl');
+    const listView        = getEl('flaggedListView');
+    const listTitle       = getEl('flaggedListTitle');
+    const listBody        = getEl('flaggedListBody');
+    const backToCalendar  = getEl('backToCalendarBtn');
+
+    const rules = Array.isArray(window.MST?.ErrorFlags?.rules)
+      ? window.MST.ErrorFlags.rules
+      : [];
+
+    const showCalendar = () => {
+      if (calendarEl) calendarEl.style.display = '';
+      if (listView) listView.style.display = 'none';
+    };
+
+    const showFlaggedList = (ruleId) => {
+      if (!listView || !listBody) return;
+
+      const flaggedMap = window.mstErrorFlaggedMap || {};
+      const rows = flaggedMap[ruleId] || [];
+      const rule = rules.find(r => r.id === ruleId);
+
+      listBody.innerHTML = '';
+      if (listTitle) {
+        listTitle.textContent = rule
+          ? `${rule.description || rule.id} (${rows.length})`
+          : `Flagged MSTs (${rows.length})`;
+      }
+
+      if (!rows.length) {
+        const empty = document.createElement('li');
+        empty.textContent = 'No MSTs were flagged for this rule.';
+        listBody.appendChild(empty);
+      } else {
+        rows.forEach(row => {
+          const mstId = deriveMstId(row);
+          const li = document.createElement('li');
+          li.className = 'flagged-row';
+          li.innerHTML = `
+            <div class="title">${row['MST Description 1'] || ''}</div>
+            <div class="meta">
+              ${row['Equipment Number'] || ''} · Task ${row['MST Task Number'] || ''} · ${row['Last Scheduled Date'] || ''}
+            </div>
+          `;
+
+          li.addEventListener('click', () => {
+            if (!mstId) return;
+            const baseEvent = window.calendar?.getEventById(`${mstId}_0`);
+            if (baseEvent && typeof window.MST?.Editor?.openEditorForMST === 'function') {
+              window.MST.Editor.openEditorForMST(mstId, baseEvent);
+              if (window.calendar) {
+                window.calendar.gotoDate(baseEvent.start);
+              }
+            }
+          });
+
+          listBody.appendChild(li);
+        });
+      }
+
+      if (calendarEl) calendarEl.style.display = 'none';
+      listView.style.display = 'block';
+    };
+
+    backToCalendar?.addEventListener('click', showCalendar);
+
+    window.MST = window.MST || {};
+    window.MST.Views = window.MST.Views || {};
+    window.MST.Views.showFlaggedList = showFlaggedList;
+    window.MST.Views.showCalendar = showCalendar;
+  }
+
   function setupGoto() {
     const gotoOverlay     = getEl('gotoOverlay');
     const gotoPanel       = getEl('gotoPanel');
@@ -239,5 +324,6 @@
   document.addEventListener('DOMContentLoaded', () => {
     setupFilters();
     setupGoto();
+    setupFlaggedListView();
   });
 })();
