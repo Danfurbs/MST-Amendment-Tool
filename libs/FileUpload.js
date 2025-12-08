@@ -120,6 +120,65 @@ document.addEventListener("DOMContentLoaded", function () {
     return { annotatedRows, summary, details };
   }
 
+  function openMstFromErrorList(mstId) {
+    if (!mstId) return;
+
+    const baseEvent = window.calendar?.getEventById(`${mstId}_0`);
+    if (!baseEvent) {
+      alert(`MST ${mstId} is not currently loaded on the calendar.`);
+      return;
+    }
+
+    if (typeof window.MST?.Editor?.openEditorForMST === "function") {
+      window.MST.Editor.openEditorForMST(mstId, baseEvent);
+
+      const form = document.getElementById("editForm");
+      if (form) form.scrollIntoView({ behavior: "smooth" });
+    }
+  }
+
+  function reapplyErrorEvaluation(rows) {
+    const { annotatedRows, summary, details } = evaluateErrorFlags(rows);
+
+    window.originalRows = annotatedRows;
+    window.mstErrorFlagSummary = summary;
+    window.mstErrorFlagDetails = details;
+
+    renderErrorSummary(summary, details);
+
+    return annotatedRows;
+  }
+
+  function recheckSingleMst(mstId) {
+    if (!mstId) return;
+
+    const rows = Array.isArray(window.originalRows)
+      ? [...window.originalRows]
+      : [];
+
+    const idx = rows.findIndex(r => r._mstId === mstId);
+    if (idx === -1) return;
+
+    const baseEvent = window.calendar?.getEventById(`${mstId}_0`);
+    if (baseEvent) {
+      const iso = window.MST?.Utils?.dateToInputYYYYMMDD?.(baseEvent.start) || "";
+      if (iso) {
+        rows[idx]["Last Scheduled Date"] = iso.replace(/-/g, "");
+      }
+
+      rows[idx]["Units Required"] = baseEvent.extendedProps.unitsRequired ?? rows[idx]["Units Required"];
+      rows[idx]["MST Description 2"] = baseEvent.extendedProps.desc2 ?? rows[idx]["MST Description 2"];
+      rows[idx]["Work Group Code"] = baseEvent.extendedProps.workGroup ?? rows[idx]["Work Group Code"];
+      rows[idx]["Job Description Code"] = baseEvent.extendedProps.jobDescCode ?? rows[idx]["Job Description Code"];
+      rows[idx]["Protection Type Code"] = baseEvent.extendedProps.protType ?? rows[idx]["Protection Type Code"];
+      rows[idx]["Protection Method Code"] = baseEvent.extendedProps.protMethod ?? rows[idx]["Protection Method Code"];
+      rows[idx]["MST Segment Mileage From"] = baseEvent.extendedProps.segFrom ?? rows[idx]["MST Segment Mileage From"];
+      rows[idx]["MST Segment Mileage To"] = baseEvent.extendedProps.segTo ?? rows[idx]["MST Segment Mileage To"];
+    }
+
+    reapplyErrorEvaluation(rows);
+  }
+
   function renderErrorSummary(summary, details) {
     if (!errorSummaryEl) return;
 
@@ -137,7 +196,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const list = document.createElement("ul");
     const detailBox = document.createElement("div");
     detailBox.className = "error-details";
-    detailBox.textContent = "Click a rule to view the MSTs that were flagged.";
+    detailBox.textContent = "Click a rule to view the MSTs that were flagged. Click a specific MST to open it in the editor.";
 
     const showDetailsForRule = ruleId => {
       if (!detailBox) return;
@@ -158,9 +217,14 @@ document.addEventListener("DOMContentLoaded", function () {
       entries.forEach(entry => {
         const li = document.createElement("li");
         const titleParts = [entry.mstId, entry.desc1, entry.desc2].filter(Boolean);
-        li.textContent = titleParts.length
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "link-btn mst-link";
+        btn.textContent = titleParts.length
           ? titleParts.join(" — ")
           : entry.label;
+        btn.addEventListener("click", () => openMstFromErrorList(entry.mstId));
+        li.appendChild(btn);
         ul.appendChild(li);
       });
 
@@ -309,13 +373,7 @@ document.addEventListener("DOMContentLoaded", function () {
             selected.includes(safeTrim(r["Work Group Set Code"]))
           );
 
-          const { annotatedRows, summary, details } = evaluateErrorFlags(filtered);
-
-          window.originalRows = annotatedRows;
-          window.mstErrorFlagSummary = summary;
-          window.mstErrorFlagDetails = details;
-
-          renderErrorSummary(summary, details);
+          const annotatedRows = reapplyErrorEvaluation(filtered);
 
           populateUnique(document.getElementById("filterWorkGroup"),  annotatedRows, "Work Group Code");
           populateUnique(document.getElementById("filterJobDesc"),    annotatedRows, "Job Description Code");
@@ -346,5 +404,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
     reader.readAsArrayBuffer(file);
   });
+
+  window.MST = window.MST || {};
+  window.MST.ErrorUI = {
+    openMstFromErrorList,
+    recheckSingleMst
+  };
 
 });

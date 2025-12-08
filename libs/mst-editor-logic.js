@@ -822,6 +822,10 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     E.markMSTAsChanged(mstId);
   }
 
+  if (typeof window.MST?.ErrorUI?.recheckSingleMst === "function") {
+    window.MST.ErrorUI.recheckSingleMst(mstId);
+  }
+
   alert("Saved MST: " + mstId);
 };
 
