@@ -17,10 +17,11 @@
   <!-- Your variables + helpers -->
   <script src="libs/mst-variables.js"></script>
   <script src="libs/mst-stdjobs.js"></script>
-    <script src="libs/mst-core-utils.js"></script>
+  <script src="libs/mst-core-utils.js"></script>
+  <script src="libs/mst-error-flags.js"></script>
   <script src="libs/mst-editor-logic.js"></script>
-      <script src="libs/FileUpload.js"></script>
-    <script src="libs/FileExport.js"></script>
+  <script src="libs/FileUpload.js"></script>
+  <script src="libs/FileExport.js"></script>
   
   <!-- shared CSS -->
   <link href="libs/mst-styles.css" rel="stylesheet" />
@@ -195,6 +196,157 @@
     .primary-action-btn:active {
       transform: translateY(1px);
       box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
+    }
+    .error-indicator {
+      position: fixed;
+      top: 16px;
+      left: calc(320px + 20px);
+      z-index: 1250;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      user-select: none;
+    }
+    #errorIndicatorBtn {
+      background: transparent;
+      border: none;
+      padding: 0;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #errorIndicatorIcon {
+      width: 54px;
+      height: 54px;
+      transition: transform 0.1s ease;
+    }
+    .error-indicator:hover #errorIndicatorIcon {
+      transform: scale(1.04);
+    }
+    #errorIndicatorIcon path {
+      fill: #9ca3af;
+    }
+    .error-indicator.has-errors #errorIndicatorIcon path {
+      fill: #dc2626;
+    }
+    .error-callout {
+      position: relative;
+      min-width: 280px;
+      max-width: 360px;
+      padding-left: 8px;
+      display: none;
+    }
+    .error-indicator.open .error-callout {
+      display: block;
+    }
+    .error-summary {
+      margin-top: 6px;
+      padding: 12px 14px;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      color: #111827;
+      font-weight: 600;
+      box-shadow: 0 8px 22px rgba(0, 0, 0, 0.12);
+    }
+    .error-summary ul {
+      margin: 8px 0 0 18px;
+      padding: 0;
+      display: grid;
+      gap: 4px;
+    }
+    .error-summary li {
+      list-style: disc;
+    }
+    .error-summary .error-empty {
+      color: #4b5563;
+      font-weight: 500;
+    }
+    .error-rule-link {
+      background: none;
+      border: none;
+      padding: 0;
+      color: #dc2626;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: left;
+    }
+    .error-indicator:not(.has-errors) .error-rule-link {
+      color: #1f2937;
+    }
+    .error-rule-link:hover {
+      text-decoration: underline;
+    }
+    .error-callout-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    #closeErrorCallout {
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+      line-height: 1;
+      color: #6b7280;
+    }
+    .flagged-list-panel {
+      margin-top: 12px;
+      padding: 12px 14px;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+    }
+    .flagged-list-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .flagged-list-header h3 {
+      margin: 0;
+      font-size: 18px;
+      color: #0f172a;
+    }
+    #backToCalendarBtn {
+      background: #1f2937;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    #flaggedListBody {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      gap: 8px;
+    }
+    .flagged-row {
+      padding: 10px 12px;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      background: #f8fafc;
+      cursor: pointer;
+      transition: background 0.1s ease;
+    }
+    .flagged-row:hover {
+      background: #e2e8f0;
+    }
+    .flagged-row .title {
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .flagged-row .meta {
+      margin-top: 4px;
+      color: #4b5563;
+      font-size: 13px;
     }
     .action-meta {
       display: flex;
@@ -448,6 +600,27 @@
   </div>
 
   <!-- =========================
+       ERROR FLAG INDICATOR
+  ========================== -->
+  <div id="errorIndicatorWrapper" class="error-indicator" aria-live="polite">
+    <button id="errorIndicatorBtn" type="button" title="View MST error checks">
+      <svg id="errorIndicatorIcon" viewBox="0 0 64 64" role="img" aria-hidden="true">
+        <path d="M32.9 6.3c-1-1.8-3.6-1.8-4.6 0L4.7 50.9c-.9 1.7.3 3.8 2.3 3.8h50c2 0 3.2-2.1 2.3-3.8L32.9 6.3Zm-2.3 14.2a2 2 0 0 1 2.9 0c.3.4.5.9.5 1.4v15.5a2 2 0 0 1-3.9 0V21.9c0-.5.2-1 .5-1.4Zm1.5 28.2a3 3 0 1 1 0-6 3 3 0 0 1 0 6Z" />
+      </svg>
+    </button>
+    <div id="errorIndicatorCallout" class="error-callout" role="dialog" aria-modal="false" aria-labelledby="errorCalloutTitle">
+      <div class="error-callout-header">
+        <div id="errorCalloutTitle"><strong>MST error checks</strong></div>
+        <button id="closeErrorCallout" type="button" aria-label="Close">✕</button>
+      </div>
+      <div id="mstErrorSummary" class="error-summary">
+        <div><strong>MST error checks:</strong></div>
+        <div>Upload your MST file and choose a Work Group set to see flagged counts.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================
        RIGHT FILTER OVERLAY + PANEL
   ========================== -->
   <div id="filterOverlay">
@@ -571,6 +744,13 @@
     </button>
 
     <div id="calendarEl"></div>
+    <div id="flaggedListView" class="flagged-list-panel" style="display:none;">
+      <div class="flagged-list-header">
+        <h3 id="flaggedListTitle">Flagged MSTs</h3>
+        <button id="backToCalendarBtn" type="button">Return to Calendar</button>
+      </div>
+      <ul id="flaggedListBody"></ul>
+    </div>
   </div>
   
   <!-- =========================
