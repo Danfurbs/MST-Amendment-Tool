@@ -58,17 +58,33 @@ document.addEventListener("DOMContentLoaded", function () {
     return null;
   }
 
+  function deriveMstId(row) {
+    const concat = safeTrim(row["CONCAT"]);
+    if (concat) return concat;
+
+    const equipmentNo = safeTrim(row["Equipment Number"]);
+    const taskNumber = safeTrim(row["MST Task Number"]);
+
+    if (equipmentNo && taskNumber) {
+      return `${equipmentNo}_${taskNumber.padStart(3, "0")}`;
+    }
+
+    return "";
+  }
+
   function evaluateErrorFlags(rows) {
     const registry = window.MST?.ErrorFlags;
 
     if (!registry || typeof registry.evaluateAll !== "function") {
-      return { annotatedRows: rows, summary: null };
+      return { annotatedRows: rows, summary: null, details: null };
     }
 
     const summary = {};
+    const details = {};
     const ruleList = Array.isArray(registry.rules) ? registry.rules : [];
     ruleList.forEach(rule => {
       summary[rule.id] = 0;
+      details[rule.id] = [];
     });
 
     const annotatedRows = rows.map(row => {
@@ -80,21 +96,31 @@ document.addEventListener("DOMContentLoaded", function () {
         Units: row["Units Required"]
       };
 
+      const mstId = deriveMstId(row);
+      const desc1 = safeTrim(row["MST Description 1"]);
+      const desc2 = safeTrim(row["MST Description 2"]);
+      const label = [mstId, desc1, desc2].filter(Boolean).join(" — ") || "(Unknown MST)";
+
       const matches = registry.evaluateAll(evaluationRow) || [];
       matches.forEach(id => {
         summary[id] = (summary[id] || 0) + 1;
+
+        if (details[id]) {
+          details[id].push({ mstId, desc1, desc2, label });
+        }
       });
 
       return {
         ...row,
-        _errorFlags: matches
+        _errorFlags: matches,
+        _mstId: mstId
       };
     });
 
-    return { annotatedRows, summary };
+    return { annotatedRows, summary, details };
   }
 
-  function renderErrorSummary(summary) {
+  function renderErrorSummary(summary, details) {
     if (!errorSummaryEl) return;
 
     const rules = Array.isArray(window.MST?.ErrorFlags?.rules)
@@ -109,14 +135,58 @@ document.addEventListener("DOMContentLoaded", function () {
     errorSummaryEl.innerHTML = "<div><strong>MST error checks:</strong></div>";
 
     const list = document.createElement("ul");
+    const detailBox = document.createElement("div");
+    detailBox.className = "error-details";
+    detailBox.textContent = "Click a rule to view the MSTs that were flagged.";
+
+    const showDetailsForRule = ruleId => {
+      if (!detailBox) return;
+      const entries = (details && details[ruleId]) || [];
+
+      if (!entries.length) {
+        detailBox.textContent = "No MSTs were flagged for this rule.";
+        return;
+      }
+
+      detailBox.innerHTML = "";
+      const header = document.createElement("h4");
+      const rule = rules.find(r => r.id === ruleId);
+      header.textContent = `${rule?.description || ruleId} — ${entries.length} flagged`;
+      detailBox.appendChild(header);
+
+      const ul = document.createElement("ul");
+      entries.forEach(entry => {
+        const li = document.createElement("li");
+        const titleParts = [entry.mstId, entry.desc1, entry.desc2].filter(Boolean);
+        li.textContent = titleParts.length
+          ? titleParts.join(" — ")
+          : entry.label;
+        ul.appendChild(li);
+      });
+
+      detailBox.appendChild(ul);
+    };
+
     rules.forEach(rule => {
       const count = summary[rule.id] || 0;
       const li = document.createElement("li");
-      li.textContent = `${rule.description || rule.id}: ${count} MST${count === 1 ? "" : "s"}`;
+      const label = `${rule.description || rule.id}: ${count} MST${count === 1 ? "" : "s"}`;
+      li.textContent = label;
+
+      if (details && details[rule.id]?.length) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "link-btn";
+        btn.textContent = "Show list";
+        btn.addEventListener("click", () => showDetailsForRule(rule.id));
+        li.appendChild(btn);
+      }
+
       list.appendChild(li);
     });
 
     errorSummaryEl.appendChild(list);
+    errorSummaryEl.appendChild(detailBox);
   }
 
   function lockFileInput() {
@@ -239,12 +309,13 @@ document.addEventListener("DOMContentLoaded", function () {
             selected.includes(safeTrim(r["Work Group Set Code"]))
           );
 
-          const { annotatedRows, summary } = evaluateErrorFlags(filtered);
+          const { annotatedRows, summary, details } = evaluateErrorFlags(filtered);
 
           window.originalRows = annotatedRows;
           window.mstErrorFlagSummary = summary;
+          window.mstErrorFlagDetails = details;
 
-          renderErrorSummary(summary);
+          renderErrorSummary(summary, details);
 
           populateUnique(document.getElementById("filterWorkGroup"),  annotatedRows, "Work Group Code");
           populateUnique(document.getElementById("filterJobDesc"),    annotatedRows, "Job Description Code");
