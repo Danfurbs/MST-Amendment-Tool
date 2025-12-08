@@ -31,6 +31,10 @@ window.MST.ErrorFlags = (function() {
     return isNaN(d) ? null : d;
   }
 
+  function toTrimmed(value) {
+    return (value ?? "").toString().trim();
+  }
+
   // ----- Core rule registry ---------------------------------------------
   const rules = [
     {
@@ -65,6 +69,41 @@ window.MST.ErrorFlags = (function() {
         const numeric = Number(rawUnits);
         if (Number.isNaN(numeric)) return false;
         return numeric === 0;
+      }
+    },
+    {
+      id: "MissingProtectionMethod",
+      description: "Protection Method code is blank.",
+      evaluate(row) {
+        const protMethod =
+          toTrimmed(row?.ProtectionMethod) ||
+          toTrimmed(row?.["Protection Method Code"]) ||
+          toTrimmed(row?.ProtectionMethodCode);
+
+        return protMethod === "";
+      }
+    },
+    {
+      id: "InvalidJobDescCode",
+      description: "Job Description Code is missing or not in the latest list.",
+      evaluate(row) {
+        const jobDescCode =
+          toTrimmed(row?.JobDescCode) ||
+          toTrimmed(row?.["Job Description Code"]) ||
+          toTrimmed(row?.JobDescriptionCode);
+
+        const list = window.MST_VARIABLES?.jobDescCodes || [];
+        const validCodes = new Set(
+          Array.isArray(list)
+            ? list
+                .map(item => toTrimmed(item?.code))
+                .filter(code => code !== "")
+            : []
+        );
+
+        if (!validCodes.size) return false;
+
+        return jobDescCode === "" || !validCodes.has(jobDescCode);
       }
     }
   ];
