@@ -32,9 +32,6 @@ document.addEventListener("DOMContentLoaded", function () {
   const downloadDateDisplay = document.getElementById("downloadDateDisplay");
   const downloadDateWarning = document.getElementById("downloadDateWarning");
   const errorSummaryEl = document.getElementById("mstErrorSummary");
-  const errorIndicatorWrapper = document.getElementById("errorIndicatorWrapper");
-  const errorIndicatorBtn = document.getElementById("errorIndicatorBtn");
-  const closeErrorCalloutBtn = document.getElementById("closeErrorCallout");
 
   /** Safely coerce any value to a trimmed string */
   function safeTrim(value) {
@@ -108,15 +105,13 @@ document.addEventListener("DOMContentLoaded", function () {
     const registry = window.MST?.ErrorFlags;
 
     if (!registry || typeof registry.evaluateAll !== "function") {
-      return { annotatedRows: rows, summary: null, flaggedMap: {} };
+      return { annotatedRows: rows, summary: null };
     }
 
     const summary = {};
-    const flaggedMap = {};
     const ruleList = Array.isArray(registry.rules) ? registry.rules : [];
     ruleList.forEach(rule => {
       summary[rule.id] = 0;
-      flaggedMap[rule.id] = [];
     });
 
     const annotatedRows = rows.map(row => {
@@ -131,7 +126,6 @@ document.addEventListener("DOMContentLoaded", function () {
       const matches = registry.evaluateAll(evaluationRow) || [];
       matches.forEach(id => {
         summary[id] = (summary[id] || 0) + 1;
-        flaggedMap[id]?.push(row);
       });
 
       return {
@@ -140,7 +134,7 @@ document.addEventListener("DOMContentLoaded", function () {
       };
     });
 
-    return { annotatedRows, summary, flaggedMap };
+    return { annotatedRows, summary };
   }
 
   function renderErrorSummary(summary) {
@@ -150,45 +144,22 @@ document.addEventListener("DOMContentLoaded", function () {
       ? window.MST.ErrorFlags.rules
       : [];
 
-    const hasRules = !!rules.length;
-    const hasSummary = !!summary;
-
-    if (!hasRules) {
+    if (!summary || !rules.length) {
       errorSummaryEl.innerHTML = "<div><strong>MST error checks:</strong></div><div>No error rules are available.</div>";
-      setIndicatorState(false);
-      return;
-    }
-
-    if (!hasSummary) {
-      errorSummaryEl.innerHTML = "<div><strong>MST error checks:</strong></div><div class=\"error-empty\">Upload your MST file and choose a Work Group set to see flagged counts.</div>";
-      setIndicatorState(false);
       return;
     }
 
     errorSummaryEl.innerHTML = "<div><strong>MST error checks:</strong></div>";
 
     const list = document.createElement("ul");
-    const hasErrors = Object.values(summary || {}).some(count => count > 0);
     rules.forEach(rule => {
       const count = summary[rule.id] || 0;
       const li = document.createElement("li");
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "error-rule-link";
-      btn.textContent = `${rule.description || rule.id}: ${count} MST${count === 1 ? "" : "s"}`;
-      btn.addEventListener("click", () => {
-        closeErrorCallout();
-        if (window.MST?.Views?.showFlaggedList) {
-          window.MST.Views.showFlaggedList(rule.id);
-        }
-      });
-
-      li.appendChild(btn);
+      li.textContent = `${rule.description || rule.id}: ${count} MST${count === 1 ? "" : "s"}`;
       list.appendChild(li);
     });
 
     errorSummaryEl.appendChild(list);
-    setIndicatorState(hasErrors);
   }
 
   function lockFileInput() {
@@ -311,11 +282,10 @@ document.addEventListener("DOMContentLoaded", function () {
             selected.includes(safeTrim(r["Work Group Set Code"]))
           );
 
-          const { annotatedRows, summary, flaggedMap } = evaluateErrorFlags(filtered);
+          const { annotatedRows, summary } = evaluateErrorFlags(filtered);
 
           window.originalRows = annotatedRows;
           window.mstErrorFlagSummary = summary;
-          window.mstErrorFlaggedMap = flaggedMap;
 
           renderErrorSummary(summary);
 

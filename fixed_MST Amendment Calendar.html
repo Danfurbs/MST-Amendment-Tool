@@ -31,28 +31,36 @@
      * TOP BAR LAYOUT REFINEMENT
      ******************************************************************/
     .page-header {
-      display: grid;
-      grid-template-columns: 1.2fr 1fr;
-      gap: 16px;
-      align-items: start;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
       background: #f8fafc;
       border: 1px solid #e2e8f0;
       border-radius: 10px;
-      padding: 16px 20px;
+      padding: 14px 16px;
       box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
       margin-bottom: 14px;
     }
+    .header-top {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 12px;
+      align-items: baseline;
+      justify-content: space-between;
+    }
     .header-text h1 {
-      margin: 0 0 4px 0;
-      font-size: 26px;
-      letter-spacing: 0.2px;
+      margin: 0;
+      font-size: 24px;
+      letter-spacing: 0.15px;
       color: #0f172a;
     }
     .download-meta {
       display: flex;
       flex-direction: column;
-      gap: 4px;
-      margin: 6px 0;
+      gap: 2px;
+      margin: 2px 0 0 0;
+      font-size: 13px;
+      line-height: 1.3;
     }
     #downloadDateDisplay {
       font-weight: 700;
@@ -63,9 +71,20 @@
       font-weight: 700;
       max-width: 720px;
     }
-    .header-intro {
-      margin: 6px 0 0 0;
-      color: #374151;
+    .header-bottom {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 12px;
+      align-items: stretch;
+    }
+    .help-box {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 10px 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+      color: #111827;
+      font-size: 13px;
       line-height: 1.45;
     }
     .help-box {
@@ -96,16 +115,18 @@
       background: #fff;
       border: 1px solid #e2e8f0;
       border-radius: 10px;
-      padding: 12px 14px;
+      padding: 10px 12px;
       box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
       display: flex;
       flex-direction: column;
       gap: 8px;
+      min-width: 0;
+      height: 100%;
     }
     .upload-card .label {
       font-weight: 700;
       color: #0f172a;
-      font-size: 13px;
+      font-size: 12.5px;
     }
     .upload-controls {
       display: grid;
@@ -120,12 +141,13 @@
       background: #1e293b;
       color: #fff;
       border-radius: 8px;
-      padding: 10px 12px;
+      padding: 9px 11px;
       font-weight: 700;
       border: none;
       cursor: pointer;
       text-decoration: none;
       box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+      font-size: 13px;
     }
     .file-upload-btn.disabled {
       background: #94a3b8;
@@ -138,7 +160,7 @@
     .batch-field {
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 3px;
     }
     .batch-field label {
       font-size: 12px;
@@ -146,10 +168,10 @@
       color: #334155;
     }
     .batch-field input {
-      padding: 8px 10px;
+      padding: 7px 9px;
       border: 1px solid #cbd5e1;
       border-radius: 6px;
-      font-size: 14px;
+      font-size: 13.5px;
     }
     #exportBtn {
       background: #0ea5e9;
@@ -157,9 +179,10 @@
       border: none;
       border-radius: 8px;
       font-weight: 700;
-      padding: 10px 12px;
+      padding: 9px 12px;
       align-self: flex-start;
       box-shadow: 0 2px 10px rgba(14, 165, 233, 0.25);
+      font-size: 13px;
     }
     .action-bar {
       display: flex;
@@ -197,156 +220,24 @@
       transform: translateY(1px);
       box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
     }
-    .error-indicator {
-      position: fixed;
-      top: 16px;
-      left: calc(320px + 20px);
-      z-index: 1250;
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      user-select: none;
-    }
-    #errorIndicatorBtn {
-      background: transparent;
-      border: none;
-      padding: 0;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-    }
-    #errorIndicatorIcon {
-      width: 54px;
-      height: 54px;
-      transition: transform 0.1s ease;
-    }
-    .error-indicator:hover #errorIndicatorIcon {
-      transform: scale(1.04);
-    }
-    #errorIndicatorIcon path {
-      fill: #9ca3af;
-    }
-    .error-indicator.has-errors #errorIndicatorIcon path {
-      fill: #dc2626;
-    }
-    .error-callout {
-      position: relative;
-      min-width: 280px;
-      max-width: 360px;
-      padding-left: 8px;
-      display: none;
-    }
-    .error-indicator.open .error-callout {
-      display: block;
-    }
     .error-summary {
-      margin-top: 6px;
-      padding: 12px 14px;
-      background: #fff;
-      border: 1px solid #e5e7eb;
+      margin-top: 12px;
+      padding: 10px 12px;
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
       border-radius: 10px;
-      color: #111827;
+      color: #7c2d12;
       font-weight: 600;
-      box-shadow: 0 8px 22px rgba(0, 0, 0, 0.12);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
     }
     .error-summary ul {
-      margin: 8px 0 0 18px;
+      margin: 6px 0 0 18px;
       padding: 0;
       display: grid;
       gap: 4px;
     }
     .error-summary li {
       list-style: disc;
-    }
-    .error-summary .error-empty {
-      color: #4b5563;
-      font-weight: 500;
-    }
-    .error-rule-link {
-      background: none;
-      border: none;
-      padding: 0;
-      color: #dc2626;
-      font-weight: 700;
-      cursor: pointer;
-      text-align: left;
-    }
-    .error-indicator:not(.has-errors) .error-rule-link {
-      color: #1f2937;
-    }
-    .error-rule-link:hover {
-      text-decoration: underline;
-    }
-    .error-callout-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-    }
-    #closeErrorCallout {
-      background: transparent;
-      border: none;
-      cursor: pointer;
-      font-size: 16px;
-      line-height: 1;
-      color: #6b7280;
-    }
-    .flagged-list-panel {
-      margin-top: 12px;
-      padding: 12px 14px;
-      background: #fff;
-      border: 1px solid #e5e7eb;
-      border-radius: 10px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.04);
-    }
-    .flagged-list-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      margin-bottom: 10px;
-    }
-    .flagged-list-header h3 {
-      margin: 0;
-      font-size: 18px;
-      color: #0f172a;
-    }
-    #backToCalendarBtn {
-      background: #1f2937;
-      color: #fff;
-      border: none;
-      border-radius: 6px;
-      padding: 6px 12px;
-      font-weight: 700;
-      cursor: pointer;
-    }
-    #flaggedListBody {
-      list-style: none;
-      margin: 0;
-      padding: 0;
-      display: grid;
-      gap: 8px;
-    }
-    .flagged-row {
-      padding: 10px 12px;
-      border: 1px solid #e5e7eb;
-      border-radius: 8px;
-      background: #f8fafc;
-      cursor: pointer;
-      transition: background 0.1s ease;
-    }
-    .flagged-row:hover {
-      background: #e2e8f0;
-    }
-    .flagged-row .title {
-      font-weight: 700;
-      color: #0f172a;
-    }
-    .flagged-row .meta {
-      margin-top: 4px;
-      color: #4b5563;
-      font-size: 13px;
     }
     .action-meta {
       display: flex;
@@ -691,12 +582,16 @@
   ========================== -->
   <div id="calendar">
     <div class="page-header">
-      <div class="header-text">
-        <h1>MST Amendment Calendar</h1>
-        <div class="download-meta">
-          <div id="downloadDateDisplay">Download Date: —</div>
-          <div id="downloadDateWarning" style="display:none;"></div>
+      <div class="header-top">
+        <div class="header-text">
+          <h1>MST Amendment Calendar</h1>
+          <div class="download-meta">
+            <div id="downloadDateDisplay">Download Date: —</div>
+            <div id="downloadDateWarning" style="display:none;"></div>
+          </div>
         </div>
+      </div>
+      <div class="header-bottom">
         <div class="help-box">
           <p><strong>How to use this tool:</strong></p>
           <ul>
@@ -709,20 +604,20 @@
             <li>🔄 Use <strong>Reset All Changes</strong> to discard unsaved edits.</li>
           </ul>
         </div>
-      </div>
-      <div class="upload-card">
-        <div class="label">Upload + Batch</div>
-        <div class="upload-controls">
-          <label class="file-upload-btn" for="fileInput">
-            <span class="file-upload-label-text">📄 Choose File</span>
-            <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" />
-          </label>
-          <div class="batch-field">
-            <label for="batchNumber">Batch Number</label>
-            <input type="text" id="batchNumber" placeholder="LANDC....." />
+        <div class="upload-card">
+          <div class="label">Upload + Batch</div>
+          <div class="upload-controls">
+            <label class="file-upload-btn" for="fileInput">
+              <span class="file-upload-label-text">📄 Choose File</span>
+              <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" />
+            </label>
+            <div class="batch-field">
+              <label for="batchNumber">Batch Number</label>
+              <input type="text" id="batchNumber" placeholder="LANDC....." />
+            </div>
           </div>
+          <button id="exportBtn">Export MST Changes</button>
         </div>
-        <button id="exportBtn">Export MST Changes</button>
       </div>
     </div>
 
@@ -744,12 +639,9 @@
     </button>
 
     <div id="calendarEl"></div>
-    <div id="flaggedListView" class="flagged-list-panel" style="display:none;">
-      <div class="flagged-list-header">
-        <h3 id="flaggedListTitle">Flagged MSTs</h3>
-        <button id="backToCalendarBtn" type="button">Return to Calendar</button>
-      </div>
-      <ul id="flaggedListBody"></ul>
+    <div id="mstErrorSummary" class="error-summary">
+      <div><strong>MST error checks:</strong></div>
+      <div>Upload your MST file and choose a Work Group set to see flagged counts.</div>
     </div>
   </div>
   
