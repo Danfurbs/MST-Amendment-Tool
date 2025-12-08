@@ -62,15 +62,13 @@ document.addEventListener("DOMContentLoaded", function () {
     const registry = window.MST?.ErrorFlags;
 
     if (!registry || typeof registry.evaluateAll !== "function") {
-      return { annotatedRows: rows, summary: null, flaggedMap: {} };
+      return { annotatedRows: rows, summary: null };
     }
 
     const summary = {};
-    const flaggedMap = {};
     const ruleList = Array.isArray(registry.rules) ? registry.rules : [];
     ruleList.forEach(rule => {
       summary[rule.id] = 0;
-      flaggedMap[rule.id] = [];
     });
 
     const annotatedRows = rows.map(row => {
@@ -85,7 +83,6 @@ document.addEventListener("DOMContentLoaded", function () {
       const matches = registry.evaluateAll(evaluationRow) || [];
       matches.forEach(id => {
         summary[id] = (summary[id] || 0) + 1;
-        flaggedMap[id]?.push(row);
       });
 
       return {
@@ -94,7 +91,7 @@ document.addEventListener("DOMContentLoaded", function () {
       };
     });
 
-    return { annotatedRows, summary, flaggedMap };
+    return { annotatedRows, summary };
   }
 
   function renderErrorSummary(summary) {
@@ -115,17 +112,7 @@ document.addEventListener("DOMContentLoaded", function () {
     rules.forEach(rule => {
       const count = summary[rule.id] || 0;
       const li = document.createElement("li");
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "error-rule-link";
-      btn.textContent = `${rule.description || rule.id}: ${count} MST${count === 1 ? "" : "s"}`;
-      btn.addEventListener("click", () => {
-        if (window.MST?.Views?.showFlaggedList) {
-          window.MST.Views.showFlaggedList(rule.id);
-        }
-      });
-
-      li.appendChild(btn);
+      li.textContent = `${rule.description || rule.id}: ${count} MST${count === 1 ? "" : "s"}`;
       list.appendChild(li);
     });
 
@@ -252,11 +239,10 @@ document.addEventListener("DOMContentLoaded", function () {
             selected.includes(safeTrim(r["Work Group Set Code"]))
           );
 
-          const { annotatedRows, summary, flaggedMap } = evaluateErrorFlags(filtered);
+          const { annotatedRows, summary } = evaluateErrorFlags(filtered);
 
           window.originalRows = annotatedRows;
           window.mstErrorFlagSummary = summary;
-          window.mstErrorFlaggedMap = flaggedMap;
 
           renderErrorSummary(summary);
 
