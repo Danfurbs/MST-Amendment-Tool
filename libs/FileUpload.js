@@ -32,6 +32,83 @@ document.addEventListener("DOMContentLoaded", function () {
   const downloadDateDisplay = document.getElementById("downloadDateDisplay");
   const downloadDateWarning = document.getElementById("downloadDateWarning");
   const errorSummaryEl = document.getElementById("mstErrorSummary");
+  const uploadLogOutput = document.getElementById("uploadLogOutput");
+  const uploadLogDownloadBtn = document.getElementById("uploadLogDownload");
+  const uploadLogCopyBtn = document.getElementById("uploadLogCopy");
+  const uploadLogClearBtn = document.getElementById("uploadLogClear");
+
+  window.mstUploadLog = Array.isArray(window.mstUploadLog) ? window.mstUploadLog : [];
+
+  function stringifyDetails(details) {
+    if (details == null) return "";
+    if (typeof details === "string") return details;
+    try {
+      return JSON.stringify(details);
+    } catch (err) {
+      return String(details);
+    }
+  }
+
+  function appendUploadLog(message, details) {
+    const timestamp = new Date().toISOString();
+    const line = `[${timestamp}] ${message}${details ? ` | ${stringifyDetails(details)}` : ""}`;
+
+    window.mstUploadLog.push(line);
+
+    if (uploadLogOutput) {
+      uploadLogOutput.textContent = window.mstUploadLog.join("\n");
+      uploadLogOutput.scrollTop = uploadLogOutput.scrollHeight;
+    }
+  }
+
+  if (uploadLogDownloadBtn) {
+    uploadLogDownloadBtn.addEventListener("click", () => {
+      const logText = window.mstUploadLog.join("\n") || "No entries recorded.";
+      const blob = new Blob([logText], { type: "text/plain;charset=utf-8" });
+      if (typeof saveAs === "function") {
+        saveAs(blob, `mst-upload-log-${Date.now()}.txt`);
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `mst-upload-log-${Date.now()}.txt`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    });
+  }
+
+  if (uploadLogCopyBtn) {
+    uploadLogCopyBtn.addEventListener("click", async () => {
+      const logText = window.mstUploadLog.join("\n") || "No entries recorded.";
+      try {
+        await navigator.clipboard.writeText(logText);
+        alert("Upload log copied to clipboard.");
+      } catch (err) {
+        alert("Unable to copy automatically. Please select the log and copy manually.");
+      }
+    });
+  }
+
+  if (uploadLogClearBtn) {
+    uploadLogClearBtn.addEventListener("click", () => {
+      window.mstUploadLog = [];
+      if (uploadLogOutput) {
+        uploadLogOutput.textContent = "Waiting for upload…";
+      }
+    });
+  }
+
+  window.addEventListener("error", event => {
+    appendUploadLog("Browser-level error captured", {
+      message: event.message,
+      source: event.filename,
+      line: event.lineno,
+      column: event.colno
+    });
+  });
+
+  appendUploadLog("Uploader initialised and ready");
 
   /** Safely coerce any value to a trimmed string */
   function safeTrim(value) {
@@ -293,21 +370,50 @@ document.addEventListener("DOMContentLoaded", function () {
     const file = e.target.files[0];
     if (!file) return;
 
+    appendUploadLog("File selected", {
+      name: file.name,
+      sizeBytes: file.size,
+      type: file.type
+    });
+
     if (loading) loading.style.display = "block";
 
+    appendUploadLog("Starting FileReader.readAsArrayBuffer");
+
     const reader = new FileReader();
+    reader.onerror = function(err) {
+      console.error("Failed to load MST file", err);
+      appendUploadLog("FileReader error", err?.message || err?.name || "Unknown error");
+      alert("Failed to read MST file. Please verify the download and try again.");
+
+      if (loading) loading.style.display = "none";
+      e.target.value = "";
+    };
+
     reader.onload = function(ev) {
       try {
+        appendUploadLog("FileReader onload fired", { byteLength: ev.target.result?.byteLength });
+
         const data = new Uint8Array(ev.target.result);
-        const workbook = XLSX.read(data, { type: "array" });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        appendUploadLog("Parsing workbook with XLSX", { byteLength: data.byteLength });
+        const workbook = XLSX.read(data, { type: "array", dense: true });
+        const firstSheetName = workbook.SheetNames?.[0];
+        if (!firstSheetName) {
+          throw new Error("No worksheets found in MST file");
+        }
+
+        const sheet = workbook.Sheets[firstSheetName];
+        appendUploadLog("First worksheet located", { sheetName: firstSheetName });
         const json = XLSX.utils.sheet_to_json(sheet);
+        appendUploadLog("Sheet parsed to JSON", { rowCount: json.length });
 
         const fullRows = json;
 
         // Build equipment descriptions from the complete, unfiltered download
         window.fullDownloadRows     = fullRows;
         window.equipmentDescriptions = buildEquipmentDescMap(fullRows);
+
+        appendUploadLog("Equipment descriptions mapped", { uniqueEquip: window.equipmentDescriptions.size });
 
         const downloadDateRaw = fullRows[0]?.["Download Date"];
         const downloadDate = parseDownloadDate(downloadDateRaw);
@@ -391,14 +497,22 @@ document.addEventListener("DOMContentLoaded", function () {
 
           lockFileInput();
 
+          appendUploadLog("Passing filtered rows to MST.Editor.loadMSTs", {
+            selectedWorkGroupSets: selected,
+            rowCount: annotatedRows.length
+          });
+
           MST.Editor.loadMSTs(annotatedRows);
         };
 
       } catch (err) {
         console.error(err);
+        appendUploadLog("Upload failure", err?.message || err);
         alert("Failed to read MST file. Check formatting.");
+        e.target.value = "";
       } finally {
         if (loading) loading.style.display = "none";
+        appendUploadLog("Loading indicator cleared");
       }
     };
 

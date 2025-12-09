@@ -97,7 +97,7 @@
       gap: 6px;
     }
     .page-header.collapsed .download-meta,
-    .page-header.collapsed .header-bottom {
+    .page-header.collapsed .instructions-panel {
       display: none;
     }
     .header-bottom {
@@ -151,10 +151,75 @@
       height: 100%;
       justify-content: space-between;
     }
+    .diagnostic-card {
+      background: #fffef7;
+      border: 1px solid #facc15;
+      border-radius: 10px;
+      padding: 10px 12px;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-width: 0;
+      height: 100%;
+    }
     .upload-card .label {
       font-weight: 700;
       color: #0f172a;
       font-size: 12px;
+    }
+    .diagnostic-card .label {
+      font-weight: 800;
+      color: #854d0e;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .diagnostic-card .label .badge {
+      background: #facc15;
+      color: #1f2937;
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .diagnostic-hint {
+      font-size: 12px;
+      color: #92400e;
+      margin: 0;
+      line-height: 1.35;
+    }
+    .diagnostic-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .diagnostic-actions button {
+      border: 1px solid #e2e8f0;
+      background: #fff;
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-weight: 700;
+      color: #1f2937;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    }
+    .diagnostic-actions button:hover {
+      background: #fef3c7;
+    }
+    #uploadLogOutput {
+      min-height: 120px;
+      max-height: 180px;
+      overflow: auto;
+      background: #fffbeb;
+      border: 1px dashed #f59e0b;
+      border-radius: 8px;
+      padding: 8px;
+      font-family: ui-monospace, SFMono-Regular, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+      color: #78350f;
     }
     .upload-controls {
       display: grid;
@@ -639,7 +704,7 @@
         </div>
         </div>
         <div class="header-bottom">
-          <div class="help-box">
+          <div class="help-box instructions-panel">
             <p><strong>How to use this tool:</strong></p>
             <ul>
             <li>📤 <strong>Upload</strong> your MST Excel or CSV file.</li>
@@ -664,6 +729,19 @@
             </div>
           </div>
           <button id="exportBtn">Export MST Changes</button>
+        </div>
+        <div class="diagnostic-card" aria-live="polite">
+          <div class="label">
+            <span class="badge">NEW</span>
+            Upload diagnostics (temporary)
+          </div>
+          <p class="diagnostic-hint">This panel logs each upload step. Save or copy it after a crash so the team can debug the exact stage.</p>
+          <div id="uploadLogOutput" role="log" aria-label="Upload log output">Waiting for upload…</div>
+          <div class="diagnostic-actions">
+            <button id="uploadLogDownload">💾 Save log as file</button>
+            <button id="uploadLogCopy">📋 Copy log</button>
+            <button id="uploadLogClear">🧹 Clear</button>
+          </div>
         </div>
       </div>
     </div>
@@ -942,11 +1020,11 @@ Hold <strong>Ctrl</strong> (or <strong>Cmd</strong> on Mac) to select multiple
 // ================================
 // HEADER COLLAPSE TOGGLE
 // ================================
-const pageHeader     = document.querySelector(".page-header");
-const headerBottom   = document.querySelector(".header-bottom");
+const pageHeader      = document.querySelector(".page-header");
+const instructionsBox = document.querySelector(".instructions-panel");
 const toggleHeaderBtn = document.getElementById("toggleHeaderBtn");
 
-if (pageHeader && headerBottom && toggleHeaderBtn) {
+if (pageHeader && instructionsBox && toggleHeaderBtn) {
   const updateToggleLabel = (collapsed) => {
     toggleHeaderBtn.setAttribute("aria-expanded", String(!collapsed));
     toggleHeaderBtn.innerHTML = collapsed
