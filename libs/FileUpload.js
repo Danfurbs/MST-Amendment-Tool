@@ -307,8 +307,8 @@ document.addEventListener("DOMContentLoaded", function () {
     const reader = new FileReader();
     reader.onload = function(ev) {
       try {
-        const data = new Uint8Array(ev.target.result);
-        const workbook = XLSX.read(data, { type: "array", sheetRows: MAX_ROWS });
+        const data = ev.target.result;
+        const workbook = XLSX.read(data, { type: "binary", sheetRows: MAX_ROWS });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
 
         if (!sheet) {
@@ -449,7 +449,7 @@ document.addEventListener("DOMContentLoaded", function () {
       alert("There was an error reading the file. Please try again.");
     };
 
-    reader.readAsArrayBuffer(file);
+    reader.readAsBinaryString(file);
   });
 
   window.MST = window.MST || {};
