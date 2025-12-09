@@ -330,6 +330,10 @@ document.addEventListener("DOMContentLoaded", function () {
           blankrows: false
         });
 
+        if (json.length > MAX_ROWS) {
+          throw new Error(`Row limit exceeded (${json.length} > ${MAX_ROWS}). The file is too large to load safely in the browser.`);
+        }
+
         const fullRows = json;
 
         // Build equipment descriptions from the complete, unfiltered download
