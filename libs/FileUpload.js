@@ -33,6 +33,10 @@ document.addEventListener("DOMContentLoaded", function () {
   const downloadDateWarning = document.getElementById("downloadDateWarning");
   const errorSummaryEl = document.getElementById("mstErrorSummary");
 
+  // Defensive limits to avoid allocating enormous buffers that can destabilise the browser
+  const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10 MB
+  const MAX_ROWS = 20000;                    // Hard cap on parsed rows
+
   /** Safely coerce any value to a trimmed string */
   function safeTrim(value) {
     if (value == null) return "";
@@ -293,6 +297,11 @@ document.addEventListener("DOMContentLoaded", function () {
     const file = e.target.files[0];
     if (!file) return;
 
+    if (file.size > MAX_UPLOAD_BYTES) {
+      alert(`The selected file is too large (${(file.size / (1024 * 1024)).toFixed(1)} MB). Please provide a download under ${(MAX_UPLOAD_BYTES / (1024 * 1024))} MB to avoid browser instability.`);
+      return;
+    }
+
     if (loading) loading.style.display = "block";
 
     const reader = new FileReader();
@@ -302,6 +311,10 @@ document.addEventListener("DOMContentLoaded", function () {
         const workbook = XLSX.read(data, { type: "array" });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const json = XLSX.utils.sheet_to_json(sheet);
+
+        if (json.length > MAX_ROWS) {
+          throw new Error(`Row limit exceeded (${json.length} > ${MAX_ROWS}). The file is too large to load safely in the browser.`);
+        }
 
         const fullRows = json;
 
@@ -405,7 +418,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
       } catch (err) {
         console.error(err);
-        alert("Failed to read MST file. Check formatting.");
+        const msg = err?.message || "Failed to read MST file. Check formatting.";
+        alert(msg);
       } finally {
         if (loading) loading.style.display = "none";
       }
