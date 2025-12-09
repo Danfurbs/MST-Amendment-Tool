@@ -341,6 +341,10 @@ document.addEventListener("DOMContentLoaded", function () {
         const wgSelectModal    = document.getElementById("wgSelectModal");
         const wgSelectDropdown = document.getElementById("wgSelectDropdown");
 
+        if (!wgSelectModal || !wgSelectDropdown) {
+          throw new Error("Work Group selection modal controls were not found in the DOM.");
+        }
+
         const wgPairs = new Map();
         fullRows.forEach(r => {
           const code = safeTrim(r["Work Group Set Code"]);
@@ -391,7 +395,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
           lockFileInput();
 
-          MST.Editor.loadMSTs(annotatedRows);
+          try {
+            MST.Editor.loadMSTs(annotatedRows);
+          } catch (err) {
+            console.error("❌ Failed to render MSTs", err);
+            alert("The MSTs could not be displayed. Please retry or contact support.");
+          }
         };
 
       } catch (err) {
@@ -400,6 +409,12 @@ document.addEventListener("DOMContentLoaded", function () {
       } finally {
         if (loading) loading.style.display = "none";
       }
+    };
+
+    reader.onerror = function(event) {
+      console.error("❌ File read error", event);
+      if (loading) loading.style.display = "none";
+      alert("There was an error reading the file. Please try again.");
     };
 
     reader.readAsArrayBuffer(file);
