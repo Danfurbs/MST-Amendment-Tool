@@ -327,7 +327,8 @@ document.addEventListener("DOMContentLoaded", function () {
           if (downloadDate) {
             const diffDays = (Date.now() - downloadDate.getTime()) / 86400000;
             if (diffDays > 7) {
-              downloadDateWarning.textContent = "The MST data is older than 7 days. Please contact your SSM team to refresh the download. Continuing may result in Data Errors — proceed at your own risk.";
+              downloadDateWarning.textContent =
+                "The MST data is older than 7 days. Please contact your SSM team to refresh the download. Continuing may result in Data Errors — proceed at your own risk.";
               downloadDateWarning.style.display = "block";
             }
           }
