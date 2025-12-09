@@ -37,36 +37,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const uploadLogCopyBtn = document.getElementById("uploadLogCopy");
   const uploadLogClearBtn = document.getElementById("uploadLogClear");
 
-  const LOG_STORAGE_KEY = "mstUploadLogPersistent";
-  const MAX_LOG_LINES = 2000;
-  const AUTO_SAVE_INTERVAL_MS = 15000;
-  const AUTO_SAVE_MAX_PER_SESSION = 8;
-
-  let lastBackgroundSave = 0;
-  let backgroundSaves = 0;
-  let backgroundSaveFailed = false;
-
   window.mstUploadLog = Array.isArray(window.mstUploadLog) ? window.mstUploadLog : [];
-
-  function restorePersistedUploadLog() {
-    try {
-      const stored = localStorage.getItem(LOG_STORAGE_KEY);
-      if (!stored) return;
-
-      const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed) && parsed.length) {
-        window.mstUploadLog = parsed;
-        if (uploadLogOutput) {
-          uploadLogOutput.textContent = window.mstUploadLog.join("\n");
-          uploadLogOutput.scrollTop = uploadLogOutput.scrollHeight;
-        }
-      }
-    } catch (err) {
-      console.warn("Failed to restore persisted upload log", err);
-    }
-  }
-
-  restorePersistedUploadLog();
 
   function stringifyDetails(details) {
     if (details == null) return "";
@@ -78,57 +49,11 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  function persistUploadLog() {
-    try {
-      const trimmed = window.mstUploadLog.slice(-MAX_LOG_LINES);
-      window.mstUploadLog = trimmed;
-      localStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(trimmed));
-    } catch (err) {
-      console.warn("Failed to persist upload log", err);
-    }
-  }
-
-  function triggerBackgroundFileSave() {
-    if (backgroundSaveFailed) return;
-
-    const now = Date.now();
-    if (now - lastBackgroundSave < AUTO_SAVE_INTERVAL_MS) return;
-    if (backgroundSaves >= AUTO_SAVE_MAX_PER_SESSION) return;
-
-    lastBackgroundSave = now;
-    backgroundSaves += 1;
-
-    try {
-      const logText = window.mstUploadLog.join("\n") || "No entries recorded.";
-      const blob = new Blob([logText], { type: "text/plain;charset=utf-8" });
-
-      if (typeof navigator.msSaveOrOpenBlob === "function") {
-        navigator.msSaveOrOpenBlob(blob, "mst-upload-log-autosave.txt");
-        return;
-      }
-
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "mst-upload-log-autosave.txt";
-      a.style.display = "none";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      backgroundSaveFailed = true;
-      console.warn("Background log file save failed", err);
-    }
-  }
-
   function appendUploadLog(message, details) {
     const timestamp = new Date().toISOString();
     const line = `[${timestamp}] ${message}${details ? ` | ${stringifyDetails(details)}` : ""}`;
 
     window.mstUploadLog.push(line);
-    persistUploadLog();
-    triggerBackgroundFileSave();
 
     if (uploadLogOutput) {
       uploadLogOutput.textContent = window.mstUploadLog.join("\n");
@@ -168,7 +93,6 @@ document.addEventListener("DOMContentLoaded", function () {
   if (uploadLogClearBtn) {
     uploadLogClearBtn.addEventListener("click", () => {
       window.mstUploadLog = [];
-      persistUploadLog();
       if (uploadLogOutput) {
         uploadLogOutput.textContent = "Waiting for upload…";
       }
@@ -459,7 +383,6 @@ document.addEventListener("DOMContentLoaded", function () {
     const reader = new FileReader();
     reader.onerror = function(err) {
       console.error("Failed to load MST file", err);
-      appendUploadLog("FileReader error", err?.message || err?.name || "Unknown error");
       alert("Failed to read MST file. Please verify the download and try again.");
 
       if (loading) loading.style.display = "none";
@@ -471,7 +394,6 @@ document.addEventListener("DOMContentLoaded", function () {
         appendUploadLog("FileReader onload fired", { byteLength: ev.target.result?.byteLength });
 
         const data = new Uint8Array(ev.target.result);
-        appendUploadLog("Parsing workbook with XLSX", { byteLength: data.byteLength });
         const workbook = XLSX.read(data, { type: "array", dense: true });
         const firstSheetName = workbook.SheetNames?.[0];
         if (!firstSheetName) {
@@ -479,7 +401,6 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         const sheet = workbook.Sheets[firstSheetName];
-        appendUploadLog("First worksheet located", { sheetName: firstSheetName });
         const json = XLSX.utils.sheet_to_json(sheet);
         appendUploadLog("Sheet parsed to JSON", { rowCount: json.length });
 
