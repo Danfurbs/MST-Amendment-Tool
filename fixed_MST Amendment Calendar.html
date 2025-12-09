@@ -48,11 +48,6 @@
       align-items: baseline;
       justify-content: space-between;
     }
-    .header-actions {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
     .header-text h1 {
       margin: 0;
       font-size: 32px;
@@ -75,30 +70,6 @@
       color: #b45309;
       font-weight: 700;
       max-width: 720px;
-    }
-    .collapse-toggle {
-      border: 1px solid #cbd5e1;
-      background: #fff;
-      color: #0f172a;
-      border-radius: 8px;
-      padding: 6px 10px;
-      font-weight: 700;
-      cursor: pointer;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .collapse-toggle:hover {
-      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
-    }
-    .page-header.collapsed {
-      padding: 12px;
-      gap: 6px;
-    }
-    .page-header.collapsed .download-meta,
-    .page-header.collapsed .header-bottom {
-      display: none;
     }
     .header-bottom {
       display: grid;
@@ -622,8 +593,8 @@
        CALENDAR COLUMN
   ========================== -->
   <div id="calendar">
-      <div class="page-header">
-        <div class="header-top">
+    <div class="page-header">
+      <div class="header-top">
         <div class="header-text">
           <h1>MST Amendment Calendar</h1>
           <div class="download-meta">
@@ -631,17 +602,11 @@
             <div id="downloadDateWarning" style="display:none;"></div>
           </div>
         </div>
-        <div class="header-actions">
-          <button id="toggleHeaderBtn" class="collapse-toggle" aria-expanded="true">
-            Hide instructions
-            <span aria-hidden="true">▲</span>
-          </button>
-        </div>
-        </div>
-        <div class="header-bottom">
-          <div class="help-box">
-            <p><strong>How to use this tool:</strong></p>
-            <ul>
+      </div>
+      <div class="header-bottom">
+        <div class="help-box">
+          <p><strong>How to use this tool:</strong></p>
+          <ul>
             <li>📤 <strong>Upload</strong> your MST Excel or CSV file.</li>
             <li><span style="color:#10b981;font-weight:bold;">🟩 Green</span> = current MST — click to view or edit details.</li>
             <li><span style="color:#f59e0b;font-weight:bold;">🟧 Amber</span> = next due date.</li>
@@ -938,27 +903,6 @@ Hold <strong>Ctrl</strong> (or <strong>Cmd</strong> on Mac) to select multiple
     window.originalProps   = {};  // mstId -> source row (snapshot)
     window.changes            = {};  // mstId -> export deltas
     window.originalRows       = [];  // raw uploaded rows
-
-// ================================
-// HEADER COLLAPSE TOGGLE
-// ================================
-const pageHeader     = document.querySelector(".page-header");
-const headerBottom   = document.querySelector(".header-bottom");
-const toggleHeaderBtn = document.getElementById("toggleHeaderBtn");
-
-if (pageHeader && headerBottom && toggleHeaderBtn) {
-  const updateToggleLabel = (collapsed) => {
-    toggleHeaderBtn.setAttribute("aria-expanded", String(!collapsed));
-    toggleHeaderBtn.innerHTML = collapsed
-      ? 'Show instructions <span aria-hidden="true">▼</span>'
-      : 'Hide instructions <span aria-hidden="true">▲</span>';
-  };
-
-  toggleHeaderBtn.addEventListener("click", () => {
-    const collapsed = pageHeader.classList.toggle("collapsed");
-    updateToggleLabel(collapsed);
-  });
-}
 
 // ================================
 // NEW MST MODAL LOGIC
