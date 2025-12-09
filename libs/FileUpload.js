@@ -308,9 +308,27 @@ document.addEventListener("DOMContentLoaded", function () {
     reader.onload = function(ev) {
       try {
         const data = new Uint8Array(ev.target.result);
-        const workbook = XLSX.read(data, { type: "array" });
+        const workbook = XLSX.read(data, { type: "array", sheetRows: MAX_ROWS });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const json = XLSX.utils.sheet_to_json(sheet);
+
+        if (!sheet) {
+          throw new Error("No sheets were found in the uploaded workbook.");
+        }
+
+        let rowCount = 0;
+        if (sheet["!ref"]) {
+          const range = XLSX.utils.decode_range(sheet["!ref"]);
+          rowCount = range.e.r - range.s.r + 1;
+        }
+
+        if (rowCount > MAX_ROWS) {
+          throw new Error(`Row limit exceeded (${rowCount} > ${MAX_ROWS}). The file is too large to load safely in the browser.`);
+        }
+
+        const json = XLSX.utils.sheet_to_json(sheet, {
+          sheetRows: MAX_ROWS,
+          blankrows: false
+        });
 
         if (json.length > MAX_ROWS) {
           throw new Error(`Row limit exceeded (${json.length} > ${MAX_ROWS}). The file is too large to load safely in the browser.`);
