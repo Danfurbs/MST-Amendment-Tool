@@ -84,7 +84,11 @@
   }
 
   function drawResourceChart() {
-    const ctx = resourceCanvas.getContext('2d');
+    const ctx = resourceCanvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) {
+      console.warn('Planned hours chart skipped: unable to obtain 2D canvas context.');
+      return;
+    }
     const { labels, data, rangeStart, rangeEnd } = bucketResourceHours(startOfWeek(resourceWindowStart), 42);
 
     resourceRangeLabel.textContent = `${formatDMY(rangeStart)} → ${formatDMY(rangeEnd)}`;
@@ -111,6 +115,8 @@
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        animation: false,
+        animations: false,
         scales: {
           y: { beginAtZero: true, title: { display: true, text: 'Hours' } },
           x: {
