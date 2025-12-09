@@ -244,7 +244,7 @@ function formatDateTimeStamp(date) {
         if (newKeys.length) {
 
             const newData = Object.values(window.createdMSTs);
-            const ws2 = workbook.addWorksheet("Created_MSTs");
+            const ws2 = workbook.addWorksheet("MST Create");
 
             ws2.columns = mstHeaders.map(h => ({ header: h, key: h, width: 18 }));
 
