@@ -665,7 +665,29 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
      LOAD MSTs
      ---------------------------------------- */
 
- MST.Editor.loadMSTs = function(rows) {
+  MST.Editor.loadMSTs = function(rows) {
+  const MAX_RENDERED_MSTS = 10000; // Avoid overloading the calendar and GPU
+
+  // Trim and remove control characters to prevent rendering crashes on corrupted text
+  const safeText = (value, limit = 160) => {
+    const raw = (value ?? "").toString();
+    const cleaned = raw.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").trim();
+    return cleaned.length > limit ? `${cleaned.slice(0, limit)}…` : cleaned;
+  };
+
+  const clampFrequency = value => {
+    const parsed = Number.parseInt(value, 10);
+    if (!Number.isFinite(parsed) || parsed < 0) return 0;
+    return Math.min(parsed, 3650); // cap to ~10 years to avoid overflow
+  };
+
+  const sourceRows = Array.isArray(rows) ? rows : [];
+  const trimmedRows = sourceRows.slice(0, MAX_RENDERED_MSTS);
+  if (sourceRows.length > MAX_RENDERED_MSTS) {
+    console.warn(`⚠️ Only rendering first ${MAX_RENDERED_MSTS} MSTs to protect browser stability.`);
+    alert(`Only the first ${MAX_RENDERED_MSTS} MSTs will be rendered to avoid crashing the browser.`);
+  }
+
   // Clear state
   window.changes = {};
   if (window.changeCount) window.changeCount.innerText = "";
@@ -678,12 +700,12 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
   window.calendar.batchRendering(() => {
     window.calendar.getEvents().forEach(e => e.remove());
 
-    rows.forEach(r => {
-      let mstId = (r["CONCAT"] || "").toString().trim();
+    trimmedRows.forEach(r => {
+      let mstId = safeText(r["CONCAT"]);
 
       if (!mstId) {
-        const eq = (r["Equipment Number"] || "").trim();
-        const tn = (r["MST Task Number"] || "").toString().padStart(3, "0");
+        const eq = safeText(r["Equipment Number"]);
+        const tn = safeText(r["MST Task Number"] || "").padStart(3, "0");
         if (eq && tn) {
           mstId = `${eq}_${tn}`;
           console.warn(`⚠️ Fallback mstId generated: ${mstId}`);
@@ -693,68 +715,72 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
         }
       }
 
-      const freq = parseInt(r["MST Frequency"]) || 0;
-      const rawLastDate = (r["Last Scheduled Date"] || "").toString().trim();
-      const stdJobNo = (
-        r["Std Job No"] ||
-        r["Standard Job Number"] ||
-        ""
-      ).toString().trim();
-      const stdJobUom = (
-        window.STANDARD_JOBS?.[stdJobNo]?.uom ||
-        ""
-      ).toString().trim();
+      const freq = clampFrequency(r["MST Frequency"]);
+      const rawLastDate = safeText(r["Last Scheduled Date"]);
+      const stdJobNo = safeText(r["Std Job No"] || r["Standard Job Number"]);
+      const stdJobUom = safeText(window.STANDARD_JOBS?.[stdJobNo]?.uom);
       if (!/^[0-9]{8}$/.test(rawLastDate)) return;
 
       const baseDate = MST.Utils.yyyymmddToDate(rawLastDate);
-      if (!baseDate) return;
+      if (!baseDate || !isFinite(baseDate.getTime())) return;
 
       // Force consistent 09:00 time to avoid DST shifts
       const eventStart = new Date(baseDate);
       eventStart.setHours(9, 0, 0, 0);
+      if (!isFinite(eventStart.getTime())) return;
 
       if (typeof MST.Editor.ensureOriginalPropsStored === "function") {
         MST.Editor.ensureOriginalPropsStored(mstId, r);
       }
 
-      window.calendar.addEvent({
-        id: `${mstId}_0`,
-        title: `${r["MST Description 1"] || ""} — ${r["MST Description 2"] || ""}`,
-        start: eventStart,     // ← Correct placement
-        allDay: false,         // ← Prevent DST-shifting behaviour
-        backgroundColor: MST.Utils.BASE_COLOR,
-        borderColor: MST.Utils.BASE_COLOR,
-        extendedProps: {
-          mstId,
-          instance: 0,
-          frequency: freq,
-          desc1: r["MST Description 1"] || "",
-          desc2: (r["MST Description 2"] || "").trimEnd(),
-          equipmentNo: r["Equipment Number"] || "",
-          taskNo: r["MST Task Number"] || "",
-          stdJobNo,
-          stdJobUom,
-          unitMeasure: stdJobUom,
-          equipmentDesc1: r["Equipment Description 1"] || "",
-          workGroup: r["Work Group Code"] || "",
-          jobDescCode: r["Job Description Code"] || "",
-          unitsRequired: r["Units Required"] || "",
-    segFrom: r["MST Segment Mileage From"] || "",
-    segTo: r["MST Segment Mileage To"] || "",
-    protType: r["Protection Type Code"] || "",
-    protMethod: r["Protection Method Code"] || "",
-    resourceHours: parseFloat(r["Resource Hours"] || 0)
-  }
-});
+      const desc1 = safeText(r["MST Description 1"]);
+      const desc2 = safeText(r["MST Description 2"], 200);
+      const equipmentDesc1 = safeText(r["Equipment Description 1"], 200);
+      const workGroup = safeText(r["Work Group Code"]);
+      const jobDescCode = safeText(r["Job Description Code"]);
 
+      try {
+        window.calendar.addEvent({
+          id: `${mstId}_0`,
+          title: `${desc1} — ${desc2}`,
+          start: eventStart,     // ← Correct placement
+          allDay: false,         // ← Prevent DST-shifting behaviour
+          backgroundColor: MST.Utils.BASE_COLOR,
+          borderColor: MST.Utils.BASE_COLOR,
+          extendedProps: {
+            mstId,
+            instance: 0,
+            frequency: freq,
+            desc1,
+            desc2,
+            equipmentNo: safeText(r["Equipment Number"]),
+            taskNo: safeText(r["MST Task Number"]),
+            stdJobNo,
+            stdJobUom,
+            unitMeasure: stdJobUom,
+            equipmentDesc1,
+            workGroup,
+            jobDescCode,
+            unitsRequired: safeText(r["Units Required"]),
+            segFrom: safeText(r["MST Segment Mileage From"]),
+            segTo: safeText(r["MST Segment Mileage To"]),
+            protType: safeText(r["Protection Type Code"]),
+            protMethod: safeText(r["Protection Method Code"]),
+            resourceHours: parseFloat(r["Resource Hours"] || 0)
+          }
+        });
+      } catch (err) {
+        console.error("❌ Failed to add MST event; skipping", mstId, err);
+        return;
+      }
 
       if (typeof MST.Editor.rebuildFutureInstances === "function") {
         MST.Editor.rebuildFutureInstances(
           mstId,
           baseDate,
           freq,
-          r["MST Description 1"] || "",
-          r["MST Description 2"] || ""
+          desc1,
+          desc2
         );
       }
     });
