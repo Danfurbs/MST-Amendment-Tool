@@ -383,7 +383,6 @@ document.addEventListener("DOMContentLoaded", function () {
     const reader = new FileReader();
     reader.onerror = function(err) {
       console.error("Failed to load MST file", err);
-      appendUploadLog("FileReader error", err?.message || err?.name || "Unknown error");
       alert("Failed to read MST file. Please verify the download and try again.");
 
       if (loading) loading.style.display = "none";
@@ -395,7 +394,6 @@ document.addEventListener("DOMContentLoaded", function () {
         appendUploadLog("FileReader onload fired", { byteLength: ev.target.result?.byteLength });
 
         const data = new Uint8Array(ev.target.result);
-        appendUploadLog("Parsing workbook with XLSX", { byteLength: data.byteLength });
         const workbook = XLSX.read(data, { type: "array", dense: true });
         const firstSheetName = workbook.SheetNames?.[0];
         if (!firstSheetName) {
@@ -403,7 +401,6 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         const sheet = workbook.Sheets[firstSheetName];
-        appendUploadLog("First worksheet located", { sheetName: firstSheetName });
         const json = XLSX.utils.sheet_to_json(sheet);
         appendUploadLog("Sheet parsed to JSON", { rowCount: json.length });
 
