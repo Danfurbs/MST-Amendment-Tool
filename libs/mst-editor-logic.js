@@ -44,7 +44,17 @@ window.MST.Editor.ensureOriginalPropsStored = function(mstId, row) {
     return;
   }
 if (!window.originalProps[mstId]) {
-  const clone = structuredClone(row);
+  let clone;
+
+  try {
+    clone = typeof structuredClone === "function"
+      ? structuredClone(row)
+      : JSON.parse(JSON.stringify(row));
+  } catch (err) {
+    console.error("❌ Failed to clone MST row", mstId, err);
+    return;
+  }
+
   clone["MST Description 2"] = (clone["MST Description 2"] || "").trimEnd();
   window.originalProps[mstId] = clone;
 }

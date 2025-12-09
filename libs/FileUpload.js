@@ -327,8 +327,7 @@ document.addEventListener("DOMContentLoaded", function () {
           if (downloadDate) {
             const diffDays = (Date.now() - downloadDate.getTime()) / 86400000;
             if (diffDays > 7) {
-              downloadDateWarning.textContent =
-                "The MST data is older than 7 days. Please contact your SSM team to refresh the download. Continuing may result in Data Errors —proceed at your own risk.";
+              downloadDateWarning.textContent = "The MST data is older than 7 days. Please contact your SSM team to refresh the download. Continuing may result in Data Errors — proceed at your own risk.";
               downloadDateWarning.style.display = "block";
             }
           }
@@ -340,6 +339,10 @@ document.addEventListener("DOMContentLoaded", function () {
         // ========= Work Group Modal =========
         const wgSelectModal    = document.getElementById("wgSelectModal");
         const wgSelectDropdown = document.getElementById("wgSelectDropdown");
+
+        if (!wgSelectModal || !wgSelectDropdown) {
+          throw new Error("Work Group selection modal controls were not found in the DOM.");
+        }
 
         const wgPairs = new Map();
         fullRows.forEach(r => {
@@ -391,7 +394,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
           lockFileInput();
 
-          MST.Editor.loadMSTs(annotatedRows);
+          try {
+            MST.Editor.loadMSTs(annotatedRows);
+          } catch (err) {
+            console.error("❌ Failed to render MSTs", err);
+            alert("The MSTs could not be displayed. Please retry or contact support.");
+          }
         };
 
       } catch (err) {
@@ -400,6 +408,12 @@ document.addEventListener("DOMContentLoaded", function () {
       } finally {
         if (loading) loading.style.display = "none";
       }
+    };
+
+    reader.onerror = function(event) {
+      console.error("❌ File read error", event);
+      if (loading) loading.style.display = "none";
+      alert("There was an error reading the file. Please try again.");
     };
 
     reader.readAsArrayBuffer(file);
