@@ -97,7 +97,7 @@
       gap: 6px;
     }
     .page-header.collapsed .download-meta,
-    .page-header.collapsed .header-bottom {
+    .page-header.collapsed .instructions-panel {
       display: none;
     }
     .header-bottom {
@@ -639,7 +639,7 @@
         </div>
         </div>
         <div class="header-bottom">
-          <div class="help-box">
+          <div class="help-box instructions-panel">
             <p><strong>How to use this tool:</strong></p>
             <ul>
             <li>📤 <strong>Upload</strong> your MST Excel or CSV file.</li>
@@ -942,11 +942,11 @@ Hold <strong>Ctrl</strong> (or <strong>Cmd</strong> on Mac) to select multiple
 // ================================
 // HEADER COLLAPSE TOGGLE
 // ================================
-const pageHeader     = document.querySelector(".page-header");
-const headerBottom   = document.querySelector(".header-bottom");
+const pageHeader      = document.querySelector(".page-header");
+const instructionsBox = document.querySelector(".instructions-panel");
 const toggleHeaderBtn = document.getElementById("toggleHeaderBtn");
 
-if (pageHeader && headerBottom && toggleHeaderBtn) {
+if (pageHeader && instructionsBox && toggleHeaderBtn) {
   const updateToggleLabel = (collapsed) => {
     toggleHeaderBtn.setAttribute("aria-expanded", String(!collapsed));
     toggleHeaderBtn.innerHTML = collapsed
