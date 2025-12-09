@@ -296,24 +296,11 @@ document.addEventListener("DOMContentLoaded", function () {
     if (loading) loading.style.display = "block";
 
     const reader = new FileReader();
-    reader.onerror = function(err) {
-      console.error("Failed to load MST file", err);
-      alert("Failed to read MST file. Please verify the download and try again.");
-
-      if (loading) loading.style.display = "none";
-      e.target.value = "";
-    };
-
     reader.onload = function(ev) {
       try {
         const data = new Uint8Array(ev.target.result);
-        const workbook = XLSX.read(data, { type: "array", dense: true });
-        const firstSheetName = workbook.SheetNames?.[0];
-        if (!firstSheetName) {
-          throw new Error("No worksheets found in MST file");
-        }
-
-        const sheet = workbook.Sheets[firstSheetName];
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const json = XLSX.utils.sheet_to_json(sheet);
 
         const fullRows = json;
@@ -410,7 +397,6 @@ document.addEventListener("DOMContentLoaded", function () {
       } catch (err) {
         console.error(err);
         alert("Failed to read MST file. Check formatting.");
-        e.target.value = "";
       } finally {
         if (loading) loading.style.display = "none";
       }
