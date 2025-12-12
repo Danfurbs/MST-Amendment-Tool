@@ -240,7 +240,6 @@ window.MST.Editor.closeNewMSTModal = function () {
     return;
   }
   
-    const fileInput       = document.getElementById('fileInput');
     const exportBtn       = document.getElementById('exportBtn');
     const resetAllBtn     = document.getElementById('resetAllBtn');
     const changeCount     = document.getElementById('changeCount');
