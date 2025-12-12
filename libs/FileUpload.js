@@ -28,6 +28,9 @@ document.addEventListener("DOMContentLoaded", function () {
   // Paste the SharePoint link that provides the MST download here. The URL should
   // point directly to the file (e.g. the ".xlsx" download link). Include the
   // full https URL. Example: "https://contoso.sharepoint.com/sites/team/.../MST.xlsx"
+  // The request automatically reuses the user's SharePoint session (via cookies)
+  // so the signed-in user's access will be honoured as long as this page is loaded
+  // over HTTP(S) from a trusted host (not file://).
   const SHAREPOINT_FILE_URL = "PUT_SHAREPOINT_LINK_HERE";
 
   const loadSharePointBtn = document.getElementById("loadSharePointBtn");
@@ -482,11 +485,19 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
+    if (window.location.protocol === "file:") {
+      alert("This page is running from a local file (origin null). Please host it on SharePoint or an intranet HTTPS site so your signed-in SharePoint session can be used without CORS errors.");
+      return;
+    }
+
     try {
       debugStep("Starting SharePoint fetch");
       if (loading) loading.style.display = "block";
 
-      const response = await fetch(SHAREPOINT_FILE_URL, { credentials: "include" });
+      const response = await fetch(SHAREPOINT_FILE_URL, {
+        credentials: "include", // reuse the logged-in user's SharePoint cookies
+        mode: "cors"
+      });
       if (!response.ok) {
         throw new Error(`SharePoint responded with ${response.status} ${response.statusText}`);
       }
@@ -507,7 +518,16 @@ document.addEventListener("DOMContentLoaded", function () {
       await parseAndLoadWorkbook(buffer, "array");
     } catch (err) {
       console.error("❌ Failed to load SharePoint file", err);
-      const msg = err?.message || "There was an error loading the SharePoint file. Please try again.";
+      let msg = err?.message || "There was an error loading the SharePoint file. Please try again.";
+
+      if (err instanceof TypeError && msg.toLowerCase().includes("fetch")) {
+        msg = "Unable to reach SharePoint. Please make sure you are signed in to SharePoint in this browser and that the tool is opened over HTTP(S) (not file://).";
+      }
+
+      if (/CORS|Access-Control-Allow-Origin/i.test(msg)) {
+        msg = "SharePoint blocked the request due to CORS. Host this page on SharePoint/your intranet (https) so the request shares the same origin, or ask IT to allow the origin.";
+      }
+
       alert(msg);
     }
   }
