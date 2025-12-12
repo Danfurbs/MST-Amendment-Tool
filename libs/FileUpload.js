@@ -293,8 +293,8 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  if (!fileInput) {
-    console.error("❌ FileUpload.js: #fileInput not found in DOM");
+  if (!loadSharePointBtn) {
+    console.error("❌ FileUpload.js: #loadSharePointBtn not found in DOM");
     return;
   }
 
@@ -522,18 +522,16 @@ document.addEventListener("DOMContentLoaded", function () {
         const msg = err?.message || "Failed to read MST file. Check formatting.";
         alert(msg);
       }
-    };
 
-    reader.onerror = function(event) {
-      debugStep("FileReader error event");
-      console.error("❌ File read error", event);
-      if (loading) loading.style.display = "none";
-      alert("There was an error reading the file. Please try again.");
-    };
+      if (/CORS|Access-Control-Allow-Origin/i.test(msg)) {
+        msg = "SharePoint blocked the request due to CORS. Host this page on SharePoint/your intranet (https) so the request shares the same origin, or ask IT to allow the origin.";
+      }
 
-    debugStep("Initiating file read");
-    reader.readAsBinaryString(file);
-  });
+      alert(msg);
+    }
+  }
+
+  loadSharePointBtn.addEventListener("click", loadFromSharePoint);
 
   async function loadFromSharePoint() {
     if (!SHAREPOINT_FILE_URL || SHAREPOINT_FILE_URL.includes("PASTE_SHAREPOINT_FILE_LINK_HERE")) {
