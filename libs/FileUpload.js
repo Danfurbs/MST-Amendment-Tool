@@ -55,9 +55,11 @@ document.addEventListener("DOMContentLoaded", function () {
     return "";
   }
 
+  const DEBUG_STEPS = Boolean(window.FILE_UPLOAD_DEBUG);
   function debugStep(label) {
+    if (!DEBUG_STEPS) return;
     const prefix = "[FileUpload]";
-    alert(`${prefix} ${label}`);
+    console.debug(`${prefix} ${label}`);
   }
 
   function parseDownloadDate(value) {
@@ -532,6 +534,47 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   loadSharePointBtn.addEventListener("click", loadFromSharePoint);
+
+  async function loadFromSharePoint() {
+    if (!SHAREPOINT_FILE_URL || SHAREPOINT_FILE_URL.includes("PASTE_SHAREPOINT_FILE_LINK_HERE")) {
+      alert("Please set SHAREPOINT_FILE_URL in libs/FileUpload.js (or window.SHAREPOINT_FILE_URL) to your MST download link.");
+      return;
+    }
+
+    if (loading) loading.style.display = "block";
+    if (sharePointStatus) sharePointStatus.textContent = "Contacting SharePoint...";
+
+    try {
+      const resp = await fetch(SHAREPOINT_FILE_URL, { credentials: "include" });
+      if (!resp.ok) {
+        throw new Error(`SharePoint responded with ${resp.status}`);
+      }
+
+      const buffer = await resp.arrayBuffer();
+      const size = buffer.byteLength;
+      if (size > MAX_UPLOAD_BYTES) {
+        throw new Error(`The SharePoint file is too large (${(size / (1024 * 1024)).toFixed(1)} MB).`);
+      }
+
+      const data = new Uint8Array(buffer);
+      parseAndLoadWorkbook(data, "array");
+
+      if (sharePointStatus) sharePointStatus.textContent = "Loaded from SharePoint.";
+    } catch (err) {
+      console.error("❌ SharePoint download failed", err);
+      if (sharePointStatus) sharePointStatus.textContent = "SharePoint load failed.";
+      const msg = err?.message || "Could not download the MST file from SharePoint.";
+      alert(msg);
+    } finally {
+      if (loading) loading.style.display = "none";
+    }
+  }
+
+  if (sharePointBtn) {
+    sharePointBtn.addEventListener("click", () => {
+      loadFromSharePoint();
+    });
+  }
 
   async function loadFromSharePoint() {
     if (!SHAREPOINT_FILE_URL || SHAREPOINT_FILE_URL.includes("PASTE_SHAREPOINT_FILE_LINK_HERE")) {
