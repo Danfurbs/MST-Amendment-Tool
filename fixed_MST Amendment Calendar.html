@@ -643,7 +643,7 @@
         <div class="help-box">
           <p><strong>How to use this tool:</strong></p>
           <ul>
-            <li>📤 <strong>Upload</strong> your MST Excel or CSV file.</li>
+            <li>📤 <strong>Load</strong> the MST Excel/CSV directly from SharePoint (link is set in <code>libs/FileUpload.js</code>).</li>
             <li><span style="color:#10b981;font-weight:bold;">🟩 Green</span> = current MST — click to view or edit details.</li>
             <li><span style="color:#f59e0b;font-weight:bold;">🟧 Amber</span> = next due date.</li>
             <li><span style="color:#ef4444;font-weight:bold;">🟥 Red</span> = following due date.</li>
@@ -655,10 +655,12 @@
         <div class="upload-card">
           <div class="label">Upload MST Download</div>
           <div class="upload-controls">
-            <label class="file-upload-btn" for="fileInput">
-              <span class="file-upload-label-text">📄 Choose File</span>
-              <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" />
-            </label>
+            <button class="file-upload-btn" id="loadSharePointBtn" type="button">
+              <span class="file-upload-label-text">📂 Load from SharePoint</span>
+            </button>
+            <div style="font-size:12px; color:#334155;">
+              Configure the SharePoint download link inside <code>libs/FileUpload.js</code> (look for <code>SHAREPOINT_FILE_URL</code>), and open this tool from SharePoint/your intranet while signed in so your access rights are reused.
+            </div>
             <div class="batch-field">
               <label for="batchNumber">Batch Number</label>
               <input type="text" id="batchNumber" placeholder="LANDC....." />
