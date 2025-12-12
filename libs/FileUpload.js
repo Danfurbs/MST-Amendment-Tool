@@ -25,8 +25,12 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  const fileInput = document.getElementById("fileInput");
-  const fileInputLabel = document.querySelector('label[for="fileInput"]');
+  // Paste the SharePoint link that provides the MST download here. The URL should
+  // point directly to the file (e.g. the ".xlsx" download link). Include the
+  // full https URL. Example: "https://contoso.sharepoint.com/sites/team/.../MST.xlsx"
+  const SHAREPOINT_FILE_URL = "PUT_SHAREPOINT_LINK_HERE";
+
+  const loadSharePointBtn = document.getElementById("loadSharePointBtn");
   const fileInputLabelText = document.querySelector(".file-upload-label-text");
   const loading   = document.getElementById("loading");
   const downloadDateDisplay = document.getElementById("downloadDateDisplay");
@@ -262,14 +266,11 @@ document.addEventListener("DOMContentLoaded", function () {
     errorSummaryEl.appendChild(detailBox);
   }
 
-  function lockFileInput() {
-    if (fileInput) {
-      fileInput.disabled = true;
-    }
-
-    if (fileInputLabel) {
-      fileInputLabel.classList.add("disabled");
-      fileInputLabel.title = "File loaded";
+  function lockDataSourceControl() {
+    if (loadSharePointBtn) {
+      loadSharePointBtn.disabled = true;
+      loadSharePointBtn.classList.add("disabled");
+      loadSharePointBtn.title = "File loaded";
     }
 
     if (fileInputLabelText) {
@@ -277,8 +278,8 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  if (!fileInput) {
-    console.error("❌ FileUpload.js: #fileInput not found in DOM");
+  if (!loadSharePointBtn) {
+    console.error("❌ FileUpload.js: #loadSharePointBtn not found in DOM");
     return;
   }
 
@@ -298,216 +299,220 @@ document.addEventListener("DOMContentLoaded", function () {
     return map;
   }
 
-  fileInput.addEventListener("change", e => {
-    debugStep("File change event fired");
+  function parseAndLoadWorkbook(rawData, workbookType) {
+    debugStep("Workbook data captured");
 
-    const file = e.target.files[0];
-    if (!file) return;
+    try {
+      const workbook = XLSX.read(rawData, { type: workbookType, sheetRows: MAX_ROWS });
+      debugStep("Workbook parsed");
 
-    if (file.size > MAX_UPLOAD_BYTES) {
-      alert(`The selected file is too large (${(file.size / (1024 * 1024)).toFixed(1)} MB). Please provide a download under ${(MAX_UPLOAD_BYTES / (1024 * 1024))} MB to avoid browser instability.`);
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+
+      debugStep("Primary sheet located");
+
+      if (!sheet) {
+        throw new Error("No sheets were found in the uploaded workbook.");
+      }
+
+      let rowCount = 0;
+      if (sheet["!ref"]) {
+        const range = XLSX.utils.decode_range(sheet["!ref"]);
+        rowCount = range.e.r - range.s.r + 1;
+      }
+
+      debugStep("Row count calculated");
+
+      if (rowCount > MAX_ROWS) {
+        throw new Error(`Row limit exceeded (${rowCount} > ${MAX_ROWS}). The file is too large to load safely in the browser.`);
+      }
+
+      debugStep("Row count validated");
+
+      const json = XLSX.utils.sheet_to_json(sheet, {
+        sheetRows: MAX_ROWS,
+        blankrows: false
+      });
+
+      debugStep("Sheet converted to JSON");
+
+      if (json.length > MAX_ROWS) {
+        throw new Error(`Row limit exceeded (${json.length} > ${MAX_ROWS}). The file is too large to load safely in the browser.`);
+      }
+
+      const fullRows = json;
+
+      // Build equipment descriptions from the complete, unfiltered download
+      window.fullDownloadRows     = fullRows;
+      window.equipmentDescriptions = buildEquipmentDescMap(fullRows);
+
+      debugStep("Master rows stored and equipment map built");
+
+      const downloadDateRaw = fullRows[0]?.["Download Date"];
+      const downloadDate = parseDownloadDate(downloadDateRaw);
+
+      debugStep("Download date parsed");
+
+      if (downloadDateDisplay) {
+        if (downloadDate) {
+          downloadDateDisplay.textContent = `Download Date: ${downloadDate.toLocaleDateString()}`;
+        } else {
+          downloadDateDisplay.textContent = "Download Date: Not found";
+        }
+      }
+
+      if (downloadDateWarning) {
+        downloadDateWarning.style.display = "none";
+        downloadDateWarning.textContent = "";
+
+        if (downloadDate) {
+          const diffDays = (Date.now() - downloadDate.getTime()) / 86400000;
+          if (diffDays > 7) {
+            downloadDateWarning.textContent =
+              "The MST data is older than 7 days. Please contact your SSM team to refresh the download. Continuing may result in Data Errors — proceed at your own risk.";
+            downloadDateWarning.style.display = "block";
+          }
+        }
+      }
+
+      // Save master rows
+      window.originalRows = fullRows;
+
+      // ========= Work Group Modal =========
+      const wgSelectModal    = document.getElementById("wgSelectModal");
+      const wgSelectDropdown = document.getElementById("wgSelectDropdown");
+
+      if (!wgSelectModal || !wgSelectDropdown) {
+        throw new Error("Work Group selection modal controls were not found in the DOM.");
+      }
+
+      debugStep("Work group modal found");
+
+      const wgPairs = new Map();
+      fullRows.forEach(r => {
+        const code = safeTrim(r["Work Group Set Code"]);
+        const desc = safeTrim(r["Work Group Description"]);
+        if (code && desc) wgPairs.set(code, desc);
+      });
+
+      debugStep("Work group options built");
+
+      wgSelectDropdown.innerHTML = "";
+      [...wgPairs.entries()]
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .forEach(([code, desc]) => {
+          const opt = document.createElement("option");
+          opt.value = code;
+          opt.textContent = `${code} — ${desc}`;
+          wgSelectDropdown.appendChild(opt);
+        });
+
+      debugStep("Work group dropdown populated");
+
+      wgSelectModal.style.display = "flex";
+
+      debugStep("Work group modal displayed");
+
+      document.getElementById("wgSelectConfirm").onclick = () => {
+        debugStep("Work group confirmation clicked");
+
+        const selected = [...wgSelectDropdown.selectedOptions].map(o => o.value);
+        if (!selected.length) {
+          alert("Please select at least one Work Group Set.");
+          return;
+        }
+
+        wgSelectModal.style.display = "none";
+
+        debugStep("Work group modal hidden");
+
+        const filtered = fullRows.filter(r =>
+          selected.includes(safeTrim(r["Work Group Set Code"]))
+        );
+
+        debugStep("Rows filtered by work group");
+
+        const annotatedRows = reapplyErrorEvaluation(filtered);
+
+        debugStep("Error flags applied");
+
+        populateUnique(document.getElementById("filterWorkGroup"),  annotatedRows, "Work Group Code");
+        populateUnique(document.getElementById("filterJobDesc"),    annotatedRows, "Job Description Code");
+        populateUnique(document.getElementById("filterDesc1"),      annotatedRows, "MST Description 1");
+        populateUnique(document.getElementById("filterDesc2"),      annotatedRows, "MST Description 2");
+        populateUnique(document.getElementById("filterProtType"),   annotatedRows, "Protection Type Code");
+        populateUnique(document.getElementById("filterProtMethod"), annotatedRows, "Protection Method Code");
+        populateUnique(document.getElementById("filterEquipDesc1"), annotatedRows, "Equipment Description 1");
+
+        debugStep("Filter dropdowns populated");
+
+        // Keep the equipment number pool unfiltered so description lookups work for
+        // any record contained in the original download
+        window.allEquipNumbers = [...new Set(
+          (window.fullDownloadRows || []).map(r => safeTrim(r["Equipment Number"]))
+        )];
+
+        debugStep("Equipment numbers cached");
+
+        lockDataSourceControl();
+
+        debugStep("Data source control locked");
+
+        try {
+          debugStep("Requesting MST render");
+          MST.Editor.loadMSTs(annotatedRows);
+          debugStep("MST render requested successfully");
+        } catch (err) {
+          console.error("❌ Failed to render MSTs", err);
+          alert("The MSTs could not be displayed. Please retry or contact support.");
+        }
+      };
+
+    } catch (err) {
+      console.error(err);
+      const msg = err?.message || "Failed to read MST file. Check formatting.";
+      alert(msg);
+    } finally {
+      if (loading) loading.style.display = "none";
+    }
+  }
+
+  async function loadFromSharePoint() {
+    if (!SHAREPOINT_FILE_URL || SHAREPOINT_FILE_URL === "PUT_SHAREPOINT_LINK_HERE") {
+      alert("Please set SHAREPOINT_FILE_URL in libs/FileUpload.js to your SharePoint download link.");
       return;
     }
 
-    debugStep("File size validated");
+    try {
+      debugStep("Starting SharePoint fetch");
+      if (loading) loading.style.display = "block";
 
-    if (loading) loading.style.display = "block";
-
-    debugStep("Loading indicator shown");
-
-    const reader = new FileReader();
-
-    debugStep("FileReader created");
-    reader.onload = function(ev) {
-      debugStep("FileReader onload triggered");
-
-      try {
-        const data = ev.target.result;
-        debugStep("File data captured");
-
-        const workbook = XLSX.read(data, { type: "binary", sheetRows: MAX_ROWS });
-        debugStep("Workbook parsed");
-
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-
-        debugStep("Primary sheet located");
-
-        if (!sheet) {
-          throw new Error("No sheets were found in the uploaded workbook.");
-        }
-
-        let rowCount = 0;
-        if (sheet["!ref"]) {
-          const range = XLSX.utils.decode_range(sheet["!ref"]);
-          rowCount = range.e.r - range.s.r + 1;
-        }
-
-        debugStep("Row count calculated");
-
-        if (rowCount > MAX_ROWS) {
-          throw new Error(`Row limit exceeded (${rowCount} > ${MAX_ROWS}). The file is too large to load safely in the browser.`);
-        }
-
-        debugStep("Row count validated");
-
-        const json = XLSX.utils.sheet_to_json(sheet, {
-          sheetRows: MAX_ROWS,
-          blankrows: false
-        });
-
-        debugStep("Sheet converted to JSON");
-
-        if (json.length > MAX_ROWS) {
-          throw new Error(`Row limit exceeded (${json.length} > ${MAX_ROWS}). The file is too large to load safely in the browser.`);
-        }
-
-        const fullRows = json;
-
-        // Build equipment descriptions from the complete, unfiltered download
-        window.fullDownloadRows     = fullRows;
-        window.equipmentDescriptions = buildEquipmentDescMap(fullRows);
-
-        debugStep("Master rows stored and equipment map built");
-
-        const downloadDateRaw = fullRows[0]?.["Download Date"];
-        const downloadDate = parseDownloadDate(downloadDateRaw);
-
-        debugStep("Download date parsed");
-
-        if (downloadDateDisplay) {
-          if (downloadDate) {
-            downloadDateDisplay.textContent = `Download Date: ${downloadDate.toLocaleDateString()}`;
-          } else {
-            downloadDateDisplay.textContent = "Download Date: Not found";
-          }
-        }
-
-        if (downloadDateWarning) {
-          downloadDateWarning.style.display = "none";
-          downloadDateWarning.textContent = "";
-
-          if (downloadDate) {
-            const diffDays = (Date.now() - downloadDate.getTime()) / 86400000;
-            if (diffDays > 7) {
-              downloadDateWarning.textContent =
-                "The MST data is older than 7 days. Please contact your SSM team to refresh the download. Continuing may result in Data Errors — proceed at your own risk.";
-              downloadDateWarning.style.display = "block";
-            }
-          }
-        }
-
-        // Save master rows
-        window.originalRows = fullRows;
-
-        // ========= Work Group Modal =========
-        const wgSelectModal    = document.getElementById("wgSelectModal");
-        const wgSelectDropdown = document.getElementById("wgSelectDropdown");
-
-        if (!wgSelectModal || !wgSelectDropdown) {
-          throw new Error("Work Group selection modal controls were not found in the DOM.");
-        }
-
-        debugStep("Work group modal found");
-
-        const wgPairs = new Map();
-        fullRows.forEach(r => {
-          const code = safeTrim(r["Work Group Set Code"]);
-          const desc = safeTrim(r["Work Group Description"]);
-          if (code && desc) wgPairs.set(code, desc);
-        });
-
-        debugStep("Work group options built");
-
-        wgSelectDropdown.innerHTML = "";
-        [...wgPairs.entries()]
-          .sort((a, b) => a[0].localeCompare(b[0]))
-          .forEach(([code, desc]) => {
-            const opt = document.createElement("option");
-            opt.value = code;
-            opt.textContent = `${code} — ${desc}`;
-            wgSelectDropdown.appendChild(opt);
-          });
-
-        debugStep("Work group dropdown populated");
-
-        wgSelectModal.style.display = "flex";
-
-        debugStep("Work group modal displayed");
-
-        document.getElementById("wgSelectConfirm").onclick = () => {
-          debugStep("Work group confirmation clicked");
-
-          const selected = [...wgSelectDropdown.selectedOptions].map(o => o.value);
-          if (!selected.length) {
-            alert("Please select at least one Work Group Set.");
-            return;
-          }
-
-          wgSelectModal.style.display = "none";
-
-          debugStep("Work group modal hidden");
-
-          const filtered = fullRows.filter(r =>
-            selected.includes(safeTrim(r["Work Group Set Code"]))
-          );
-
-          debugStep("Rows filtered by work group");
-
-          const annotatedRows = reapplyErrorEvaluation(filtered);
-
-          debugStep("Error flags applied");
-
-          populateUnique(document.getElementById("filterWorkGroup"),  annotatedRows, "Work Group Code");
-          populateUnique(document.getElementById("filterJobDesc"),    annotatedRows, "Job Description Code");
-          populateUnique(document.getElementById("filterDesc1"),      annotatedRows, "MST Description 1");
-          populateUnique(document.getElementById("filterDesc2"),      annotatedRows, "MST Description 2");
-          populateUnique(document.getElementById("filterProtType"),   annotatedRows, "Protection Type Code");
-          populateUnique(document.getElementById("filterProtMethod"), annotatedRows, "Protection Method Code");
-          populateUnique(document.getElementById("filterEquipDesc1"), annotatedRows, "Equipment Description 1");
-
-          debugStep("Filter dropdowns populated");
-
-          // Keep the equipment number pool unfiltered so description lookups work for
-          // any record contained in the original download
-          window.allEquipNumbers = [...new Set(
-            (window.fullDownloadRows || []).map(r => safeTrim(r["Equipment Number"]))
-          )];
-
-          debugStep("Equipment numbers cached");
-
-          lockFileInput();
-
-          debugStep("File input locked");
-
-          try {
-            debugStep("Requesting MST render");
-            MST.Editor.loadMSTs(annotatedRows);
-            debugStep("MST render requested successfully");
-          } catch (err) {
-            console.error("❌ Failed to render MSTs", err);
-            alert("The MSTs could not be displayed. Please retry or contact support.");
-          }
-        };
-
-      } catch (err) {
-        console.error(err);
-        const msg = err?.message || "Failed to read MST file. Check formatting.";
-        alert(msg);
-      } finally {
-        if (loading) loading.style.display = "none";
+      const response = await fetch(SHAREPOINT_FILE_URL, { credentials: "include" });
+      if (!response.ok) {
+        throw new Error(`SharePoint responded with ${response.status} ${response.statusText}`);
       }
-    };
 
-    reader.onerror = function(event) {
-      debugStep("FileReader error event");
-      console.error("❌ File read error", event);
-      if (loading) loading.style.display = "none";
-      alert("There was an error reading the file. Please try again.");
-    };
+      const contentLengthHeader = response.headers.get("content-length");
+      const declaredBytes = contentLengthHeader ? parseInt(contentLengthHeader, 10) : null;
+      if (declaredBytes && declaredBytes > MAX_UPLOAD_BYTES) {
+        throw new Error(`The SharePoint file is too large (${(declaredBytes / (1024 * 1024)).toFixed(1)} MB). Please keep downloads under ${(MAX_UPLOAD_BYTES / (1024 * 1024))} MB to avoid browser instability.`);
+      }
 
-    debugStep("Initiating file read");
-    reader.readAsBinaryString(file);
-  });
+      const buffer = await response.arrayBuffer();
+      if (buffer.byteLength > MAX_UPLOAD_BYTES) {
+        throw new Error(`The SharePoint file is too large once downloaded (${(buffer.byteLength / (1024 * 1024)).toFixed(1)} MB). Please keep downloads under ${(MAX_UPLOAD_BYTES / (1024 * 1024))} MB to avoid browser instability.`);
+      }
+
+      debugStep("SharePoint file downloaded");
+
+      await parseAndLoadWorkbook(buffer, "array");
+    } catch (err) {
+      console.error("❌ Failed to load SharePoint file", err);
+      const msg = err?.message || "There was an error loading the SharePoint file. Please try again.";
+      alert(msg);
+    }
+  }
+
+  loadSharePointBtn.addEventListener("click", loadFromSharePoint);
 
   window.MST = window.MST || {};
   window.MST.ErrorUI = {
