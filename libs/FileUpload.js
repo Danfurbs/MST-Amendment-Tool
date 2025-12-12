@@ -48,6 +48,11 @@ document.addEventListener("DOMContentLoaded", function () {
     return "";
   }
 
+  function debugStep(label) {
+    const prefix = "[FileUpload]";
+    alert(`${prefix} ${label}`);
+  }
+
   function parseDownloadDate(value) {
     if (!value) return null;
     if (value instanceof Date) return value;
@@ -294,6 +299,8 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   fileInput.addEventListener("change", e => {
+    debugStep("File change event fired");
+
     const file = e.target.files[0];
     if (!file) return;
 
@@ -302,14 +309,28 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
+    debugStep("File size validated");
+
     if (loading) loading.style.display = "block";
 
+    debugStep("Loading indicator shown");
+
     const reader = new FileReader();
+
+    debugStep("FileReader created");
     reader.onload = function(ev) {
+      debugStep("FileReader onload triggered");
+
       try {
-        const data = new Uint8Array(ev.target.result);
-        const workbook = XLSX.read(data, { type: "array", sheetRows: MAX_ROWS });
+        const data = ev.target.result;
+        debugStep("File data captured");
+
+        const workbook = XLSX.read(data, { type: "binary", sheetRows: MAX_ROWS });
+        debugStep("Workbook parsed");
+
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
+
+        debugStep("Primary sheet located");
 
         if (!sheet) {
           throw new Error("No sheets were found in the uploaded workbook.");
@@ -321,14 +342,20 @@ document.addEventListener("DOMContentLoaded", function () {
           rowCount = range.e.r - range.s.r + 1;
         }
 
+        debugStep("Row count calculated");
+
         if (rowCount > MAX_ROWS) {
           throw new Error(`Row limit exceeded (${rowCount} > ${MAX_ROWS}). The file is too large to load safely in the browser.`);
         }
+
+        debugStep("Row count validated");
 
         const json = XLSX.utils.sheet_to_json(sheet, {
           sheetRows: MAX_ROWS,
           blankrows: false
         });
+
+        debugStep("Sheet converted to JSON");
 
         if (json.length > MAX_ROWS) {
           throw new Error(`Row limit exceeded (${json.length} > ${MAX_ROWS}). The file is too large to load safely in the browser.`);
@@ -340,8 +367,12 @@ document.addEventListener("DOMContentLoaded", function () {
         window.fullDownloadRows     = fullRows;
         window.equipmentDescriptions = buildEquipmentDescMap(fullRows);
 
+        debugStep("Master rows stored and equipment map built");
+
         const downloadDateRaw = fullRows[0]?.["Download Date"];
         const downloadDate = parseDownloadDate(downloadDateRaw);
+
+        debugStep("Download date parsed");
 
         if (downloadDateDisplay) {
           if (downloadDate) {
@@ -376,12 +407,16 @@ document.addEventListener("DOMContentLoaded", function () {
           throw new Error("Work Group selection modal controls were not found in the DOM.");
         }
 
+        debugStep("Work group modal found");
+
         const wgPairs = new Map();
         fullRows.forEach(r => {
           const code = safeTrim(r["Work Group Set Code"]);
           const desc = safeTrim(r["Work Group Description"]);
           if (code && desc) wgPairs.set(code, desc);
         });
+
+        debugStep("Work group options built");
 
         wgSelectDropdown.innerHTML = "";
         [...wgPairs.entries()]
@@ -393,9 +428,15 @@ document.addEventListener("DOMContentLoaded", function () {
             wgSelectDropdown.appendChild(opt);
           });
 
+        debugStep("Work group dropdown populated");
+
         wgSelectModal.style.display = "flex";
 
+        debugStep("Work group modal displayed");
+
         document.getElementById("wgSelectConfirm").onclick = () => {
+          debugStep("Work group confirmation clicked");
+
           const selected = [...wgSelectDropdown.selectedOptions].map(o => o.value);
           if (!selected.length) {
             alert("Please select at least one Work Group Set.");
@@ -404,11 +445,17 @@ document.addEventListener("DOMContentLoaded", function () {
 
           wgSelectModal.style.display = "none";
 
+          debugStep("Work group modal hidden");
+
           const filtered = fullRows.filter(r =>
             selected.includes(safeTrim(r["Work Group Set Code"]))
           );
 
+          debugStep("Rows filtered by work group");
+
           const annotatedRows = reapplyErrorEvaluation(filtered);
+
+          debugStep("Error flags applied");
 
           populateUnique(document.getElementById("filterWorkGroup"),  annotatedRows, "Work Group Code");
           populateUnique(document.getElementById("filterJobDesc"),    annotatedRows, "Job Description Code");
@@ -418,16 +465,24 @@ document.addEventListener("DOMContentLoaded", function () {
           populateUnique(document.getElementById("filterProtMethod"), annotatedRows, "Protection Method Code");
           populateUnique(document.getElementById("filterEquipDesc1"), annotatedRows, "Equipment Description 1");
 
+          debugStep("Filter dropdowns populated");
+
           // Keep the equipment number pool unfiltered so description lookups work for
           // any record contained in the original download
           window.allEquipNumbers = [...new Set(
             (window.fullDownloadRows || []).map(r => safeTrim(r["Equipment Number"]))
           )];
 
+          debugStep("Equipment numbers cached");
+
           lockFileInput();
 
+          debugStep("File input locked");
+
           try {
+            debugStep("Requesting MST render");
             MST.Editor.loadMSTs(annotatedRows);
+            debugStep("MST render requested successfully");
           } catch (err) {
             console.error("❌ Failed to render MSTs", err);
             alert("The MSTs could not be displayed. Please retry or contact support.");
@@ -444,12 +499,14 @@ document.addEventListener("DOMContentLoaded", function () {
     };
 
     reader.onerror = function(event) {
+      debugStep("FileReader error event");
       console.error("❌ File read error", event);
       if (loading) loading.style.display = "none";
       alert("There was an error reading the file. Please try again.");
     };
 
-    reader.readAsArrayBuffer(file);
+    debugStep("Initiating file read");
+    reader.readAsBinaryString(file);
   });
 
   window.MST = window.MST || {};
