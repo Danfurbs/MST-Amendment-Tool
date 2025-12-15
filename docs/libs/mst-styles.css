@@ -107,6 +107,61 @@ input, button {
   display: inline-block;
 }
 
+.tv-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.tv-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.tv-btn {
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tv-btn.tv-remove-btn {
+  background: #ef4444;
+}
+
+.tv-btn.tv-secondary-btn {
+  background: #e5e7eb;
+  color: #1f2937;
+  border: 1px solid #d1d5db;
+}
+
+.tv-form {
+  display: none;
+  background: #eef2ff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+
+.tv-form.visible {
+  display: block;
+}
+
+.tv-form .field-block {
+  margin-bottom: 10px;
+}
+
+.tv-form-actions {
+  display: flex;
+  gap: 8px;
+}
+
 /* Calendar region */
 #calendar {
   flex: 1;
