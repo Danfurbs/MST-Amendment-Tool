@@ -144,7 +144,7 @@ function formatDateTimeStamp(date) {
 
             const changeData = Object.values(window.changes);
 
-            const dateFields = new Set(["Last Scheduled Date"]);
+            const dateFields = new Set(["Last Scheduled Date", "TV Expiry Date"]);
 
             function safeValue(value, fieldLabel) {
                 if (value == null || value === "") return "";
@@ -172,7 +172,9 @@ function formatDateTimeStamp(date) {
               ["Units Required", "Old_Units_Required", "New_Units_Required"],
               ["Allow Multiple workorders", "Old_Allow_Multiple_Workorders", "New_Allow_Multiple_Workorders"],
               ["Segment Mileage From", "Old_Segment_From", "New_Segment_From"],
-              ["Segment Mileage To", "Old_Segment_To", "New_Segment_To"]
+              ["Segment Mileage To", "Old_Segment_To", "New_Segment_To"],
+              ["TV Reference", "Old_TV_Reference", "New_TV_Reference"],
+              ["TV Expiry Date", "Old_TV_Expiry_Date", "New_TV_Expiry_Date"]
           ];
 
                 fieldsToCheck.forEach(([label, oldKey, newKey]) => {
@@ -223,6 +225,8 @@ function formatDateTimeStamp(date) {
                           (h === "ProtectionType" && (row.New_Protection_Type_Code || row.Old_Protection_Type_Code || orig["Protection Type Code"] || "")) ||
                           (h === "Allow Multiple workorders" && (row.New_Allow_Multiple_Workorders || row.Old_Allow_Multiple_Workorders || orig["Allow Multiple workorders"] || "")) ||
                           (h === "ProtectionMethod" && (row.New_Protection_Method_Code || row.Old_Protection_Method_Code || orig["Protection Method Code"] || "")) ||
+                          (h === "TV Reference" && (row.New_TV_Reference || row.Old_TV_Reference || orig["TV Reference"] || orig["Temp Var Reference Number"] || "")) ||
+                          (h === "TV Expiry Date" && (row.New_TV_Expiry_Date || row.Old_TV_Expiry_Date || orig["TV Expiry Date"] || "")) ||
                           orig[h] || "";
 
                     if (["LSD", "NSD", "LPD", "TV Expiry Date"].includes(h)) {
