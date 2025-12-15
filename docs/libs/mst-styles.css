@@ -93,18 +93,78 @@ input, button {
 
 .tv-applied-label {
   display: none;
-  margin-top: -6px;
-  margin-bottom: 12px;
+  margin: 0;
   padding: 8px 10px;
   border-radius: 6px;
   background: #c0d9fb;
   color: #0f3b73;
   font-weight: 700;
   letter-spacing: 0.3px;
+  align-items: center;
 }
 
 .tv-applied-label.visible {
-  display: inline-block;
+  display: inline-flex;
+}
+
+.tv-actions {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 0 0 12px 0;
+}
+
+.tv-actions.visible {
+  display: flex;
+}
+
+.tv-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.tv-btn {
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tv-btn.tv-remove-btn {
+  background: #ef4444;
+}
+
+.tv-btn.tv-secondary-btn {
+  background: #e5e7eb;
+  color: #1f2937;
+  border: 1px solid #d1d5db;
+}
+
+.tv-form {
+  display: none;
+  background: #eef2ff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+
+.tv-form.visible {
+  display: block;
+}
+
+.tv-form .field-block {
+  margin-bottom: 10px;
+}
+
+.tv-form-actions {
+  display: flex;
+  gap: 8px;
 }
 
 /* Calendar region */
