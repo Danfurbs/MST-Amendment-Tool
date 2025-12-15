@@ -33,10 +33,6 @@ document.addEventListener("DOMContentLoaded", function () {
   const downloadDateWarning = document.getElementById("downloadDateWarning");
   const errorSummaryEl = document.getElementById("mstErrorSummary");
 
-  // Defensive limits to avoid allocating enormous buffers that can destabilise the browser
-  const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10 MB
-  const MAX_ROWS = 20000;                    // Hard cap on parsed rows
-
   /** Safely coerce any value to a trimmed string */
   function safeTrim(value) {
     if (value == null) return "";
@@ -299,7 +295,7 @@ document.addEventListener("DOMContentLoaded", function () {
     debugStep("Workbook data captured");
 
     try {
-      const workbook = XLSX.read(rawData, { type: workbookType, sheetRows: MAX_ROWS });
+      const workbook = XLSX.read(rawData, { type: workbookType });
       debugStep("Workbook parsed");
 
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -310,30 +306,11 @@ document.addEventListener("DOMContentLoaded", function () {
         throw new Error("No sheets were found in the uploaded workbook.");
       }
 
-      let rowCount = 0;
-      if (sheet["!ref"]) {
-        const range = XLSX.utils.decode_range(sheet["!ref"]);
-        rowCount = range.e.r - range.s.r + 1;
-      }
-
-      debugStep("Row count calculated");
-
-      if (rowCount > MAX_ROWS) {
-        throw new Error(`Row limit exceeded (${rowCount} > ${MAX_ROWS}). The file is too large to load safely in the browser.`);
-      }
-
-      debugStep("Row count validated");
-
       const json = XLSX.utils.sheet_to_json(sheet, {
-        sheetRows: MAX_ROWS,
         blankrows: false
       });
 
       debugStep("Sheet converted to JSON");
-
-      if (json.length > MAX_ROWS) {
-        throw new Error(`Row limit exceeded (${json.length} > ${MAX_ROWS}). The file is too large to load safely in the browser.`);
-      }
 
       const fullRows = json;
 
@@ -477,13 +454,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const file = e.target.files[0];
     if (!file) return;
-
-    if (file.size > MAX_UPLOAD_BYTES) {
-      alert(`The selected file is too large (${(file.size / (1024 * 1024)).toFixed(1)} MB). Please keep downloads under ${(MAX_UPLOAD_BYTES / (1024 * 1024))} MB to avoid browser instability.`);
-      return;
-    }
-
-    debugStep("File size validated");
 
     if (loading) loading.style.display = "block";
 
