@@ -6,6 +6,7 @@ window.MST = window.MST || {};
 window.MST.Utils = {
 
   BASE_COLOR: "#10b981",
+  TV_COLOR: "#93c5fd",
 
   yyyymmddToDate(str) {
     const normalized = (str ?? "").toString();
