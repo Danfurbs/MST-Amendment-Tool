@@ -220,7 +220,7 @@ input, button {
 #newMSTForm {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 20px 40px;
+  gap: 12px 40px;
   align-items: start;
   justify-items: stretch;
 }
@@ -501,3 +501,4 @@ input, button {
   50%  { background-color: #fff176; }
   100% { background-color: #f9f9f9; }
 }
+
