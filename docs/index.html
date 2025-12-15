@@ -247,7 +247,7 @@
     }
     .collapsed-controls {
       display: none;
-      align-items: flex-end;
+      align-items: center;
       gap: 10px;
       flex-wrap: wrap;
       padding-left: 10px;
@@ -255,6 +255,18 @@
     }
     .action-bar.header-collapsed .collapsed-controls {
       display: flex;
+    }
+    .compact-batch-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 240px;
+    }
+    .compact-batch-row label {
+      font-size: 13px;
+      font-weight: 700;
+      color: #0f172a;
+      white-space: nowrap;
     }
     .compact-batch {
       min-width: 200px;
@@ -352,6 +364,12 @@
     #controls {
       text-align: initial;
       margin-bottom: 0;
+    }
+
+    /* FullCalendar spacing */
+    #calendarEl .fc-header-toolbar {
+      margin-top: 8px;
+      padding-top: 6px;
     }
 
     /******************************************************************
@@ -751,9 +769,9 @@
           <div id="loading">Loading MSTs...</div>
         </div>
         <div id="collapsedHeaderControls" class="collapsed-controls">
-          <div class="batch-field compact-batch">
+          <div class="compact-batch-row">
             <label for="batchNumberCompact">Batch Number</label>
-            <input type="text" id="batchNumberCompact" placeholder="LANDC....." />
+            <input class="compact-batch" type="text" id="batchNumberCompact" placeholder="LANDC....." />
           </div>
           <button id="exportBtnCompact">Export MST Changes</button>
         </div>
