@@ -114,9 +114,10 @@ document.addEventListener("DOMContentLoaded", function () {
         safeTrim(row["Temp Var Reference Number"]) ||
         safeTrim(row["TV Reference"]);
       const normalizeDate = window.MST?.Utils?.normalizeDateInput;
+      const rawTvExpiry = row["TV Expiry Date"] ?? row["Temp Var Expiry Date"];
       const tvExpiryNormalized = typeof normalizeDate === "function"
-        ? normalizeDate(row["TV Expiry Date"])
-        : safeTrim(row["TV Expiry Date"]);
+        ? normalizeDate(rawTvExpiry)
+        : safeTrim(rawTvExpiry);
 
       const evaluationRow = {
         ...row,

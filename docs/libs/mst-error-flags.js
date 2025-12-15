@@ -80,7 +80,8 @@ window.MST.ErrorFlags = (function() {
           toTrimmed(row?.tvExpiryNormalized) ||
           toTrimmed(row?.TVExpiryDate) ||
           toTrimmed(row?.TV_Expiry_Date) ||
-          toTrimmed(row?.["TV Expiry Date"]);
+          toTrimmed(row?.["TV Expiry Date"]) ||
+          toTrimmed(row?.["Temp Var Expiry Date"]);
 
         if (!rawExpiry || rawExpiry === "2001-01-01") return false;
 
