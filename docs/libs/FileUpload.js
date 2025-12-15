@@ -25,24 +25,13 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  // Paste your SharePoint direct download link here. It must point to the MST Excel/CSV
-  // file and be accessible to the signed-in user running this page locally. You can also
-  // set `window.SHAREPOINT_FILE_URL` before this script loads to override the value.
-  const SHAREPOINT_FILE_URL = window.SHAREPOINT_FILE_URL || "PASTE_SHAREPOINT_FILE_LINK_HERE";
-
   const fileInput = document.getElementById("fileInput");
   const fileInputLabel = document.querySelector('label[for="fileInput"]');
   const fileInputLabelText = document.querySelector(".file-upload-label-text");
-  const sharePointBtn = document.getElementById("loadSharePointBtn");
-  const sharePointStatus = document.getElementById("sharePointStatus");
-  const loading   = document.getElementById("loading");
+  const loading = document.getElementById("loading");
   const downloadDateDisplay = document.getElementById("downloadDateDisplay");
   const downloadDateWarning = document.getElementById("downloadDateWarning");
   const errorSummaryEl = document.getElementById("mstErrorSummary");
-
-  // Defensive limits to avoid allocating enormous buffers that can destabilise the browser
-  const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10 MB
-  const MAX_ROWS = 20000;                    // Hard cap on parsed rows
 
   /** Safely coerce any value to a trimmed string */
   function safeTrim(value) {
@@ -284,20 +273,6 @@ document.addEventListener("DOMContentLoaded", function () {
     if (fileInputLabelText) {
       fileInputLabelText.textContent = "\ud83d\udd12";
     }
-
-    if (sharePointBtn) {
-      sharePointBtn.disabled = true;
-      sharePointBtn.textContent = "Loaded";
-    }
-
-    if (sharePointStatus) {
-      sharePointStatus.textContent = "Data source loaded.";
-    }
-  }
-
-  if (!loadSharePointBtn) {
-    console.error("❌ FileUpload.js: #loadSharePointBtn not found in DOM");
-    return;
   }
 
   function buildEquipmentDescMap(rows) {
@@ -320,7 +295,7 @@ document.addEventListener("DOMContentLoaded", function () {
     debugStep("Workbook data captured");
 
     try {
-      const workbook = XLSX.read(rawData, { type: workbookType, sheetRows: MAX_ROWS });
+      const workbook = XLSX.read(rawData, { type: workbookType });
       debugStep("Workbook parsed");
 
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -331,30 +306,11 @@ document.addEventListener("DOMContentLoaded", function () {
         throw new Error("No sheets were found in the uploaded workbook.");
       }
 
-      let rowCount = 0;
-      if (sheet["!ref"]) {
-        const range = XLSX.utils.decode_range(sheet["!ref"]);
-        rowCount = range.e.r - range.s.r + 1;
-      }
-
-      debugStep("Row count calculated");
-
-      if (rowCount > MAX_ROWS) {
-        throw new Error(`Row limit exceeded (${rowCount} > ${MAX_ROWS}). The file is too large to load safely in the browser.`);
-      }
-
-      debugStep("Row count validated");
-
       const json = XLSX.utils.sheet_to_json(sheet, {
-        sheetRows: MAX_ROWS,
         blankrows: false
       });
 
       debugStep("Sheet converted to JSON");
-
-      if (json.length > MAX_ROWS) {
-        throw new Error(`Row limit exceeded (${json.length} > ${MAX_ROWS}). The file is too large to load safely in the browser.`);
-      }
 
       const fullRows = json;
 
@@ -499,13 +455,6 @@ document.addEventListener("DOMContentLoaded", function () {
     const file = e.target.files[0];
     if (!file) return;
 
-    if (file.size > MAX_UPLOAD_BYTES) {
-      alert(`The selected file is too large (${(file.size / (1024 * 1024)).toFixed(1)} MB). Please keep downloads under ${(MAX_UPLOAD_BYTES / (1024 * 1024))} MB to avoid browser instability.`);
-      return;
-    }
-
-    debugStep("File size validated");
-
     if (loading) loading.style.display = "block";
 
     debugStep("Loading indicator shown");
@@ -523,99 +472,12 @@ document.addEventListener("DOMContentLoaded", function () {
         console.error(err);
         const msg = err?.message || "Failed to read MST file. Check formatting.";
         alert(msg);
+        if (loading) loading.style.display = "none";
       }
+    };
 
-      if (/CORS|Access-Control-Allow-Origin/i.test(msg)) {
-        msg = "SharePoint blocked the request due to CORS. Host this page on SharePoint/your intranet (https) so the request shares the same origin, or ask IT to allow the origin.";
-      }
-
-      alert(msg);
-    }
-  }
-
-  loadSharePointBtn.addEventListener("click", loadFromSharePoint);
-
-  async function loadFromSharePoint() {
-    if (!SHAREPOINT_FILE_URL || SHAREPOINT_FILE_URL.includes("PASTE_SHAREPOINT_FILE_LINK_HERE")) {
-      alert("Please set SHAREPOINT_FILE_URL in libs/FileUpload.js (or window.SHAREPOINT_FILE_URL) to your MST download link.");
-      return;
-    }
-
-    if (loading) loading.style.display = "block";
-    if (sharePointStatus) sharePointStatus.textContent = "Contacting SharePoint...";
-
-    try {
-      const resp = await fetch(SHAREPOINT_FILE_URL, { credentials: "include" });
-      if (!resp.ok) {
-        throw new Error(`SharePoint responded with ${resp.status}`);
-      }
-
-      const buffer = await resp.arrayBuffer();
-      const size = buffer.byteLength;
-      if (size > MAX_UPLOAD_BYTES) {
-        throw new Error(`The SharePoint file is too large (${(size / (1024 * 1024)).toFixed(1)} MB).`);
-      }
-
-      const data = new Uint8Array(buffer);
-      parseAndLoadWorkbook(data, "array");
-
-      if (sharePointStatus) sharePointStatus.textContent = "Loaded from SharePoint.";
-    } catch (err) {
-      console.error("❌ SharePoint download failed", err);
-      if (sharePointStatus) sharePointStatus.textContent = "SharePoint load failed.";
-      const msg = err?.message || "Could not download the MST file from SharePoint.";
-      alert(msg);
-    } finally {
-      if (loading) loading.style.display = "none";
-    }
-  }
-
-  if (sharePointBtn) {
-    sharePointBtn.addEventListener("click", () => {
-      loadFromSharePoint();
-    });
-  }
-
-  async function loadFromSharePoint() {
-    if (!SHAREPOINT_FILE_URL || SHAREPOINT_FILE_URL.includes("PASTE_SHAREPOINT_FILE_LINK_HERE")) {
-      alert("Please set SHAREPOINT_FILE_URL in libs/FileUpload.js (or window.SHAREPOINT_FILE_URL) to your MST download link.");
-      return;
-    }
-
-    if (loading) loading.style.display = "block";
-    if (sharePointStatus) sharePointStatus.textContent = "Contacting SharePoint...";
-
-    try {
-      const resp = await fetch(SHAREPOINT_FILE_URL, { credentials: "include" });
-      if (!resp.ok) {
-        throw new Error(`SharePoint responded with ${resp.status}`);
-      }
-
-      const buffer = await resp.arrayBuffer();
-      const size = buffer.byteLength;
-      if (size > MAX_UPLOAD_BYTES) {
-        throw new Error(`The SharePoint file is too large (${(size / (1024 * 1024)).toFixed(1)} MB).`);
-      }
-
-      const data = new Uint8Array(buffer);
-      parseAndLoadWorkbook(data, "array");
-
-      if (sharePointStatus) sharePointStatus.textContent = "Loaded from SharePoint.";
-    } catch (err) {
-      console.error("❌ SharePoint download failed", err);
-      if (sharePointStatus) sharePointStatus.textContent = "SharePoint load failed.";
-      const msg = err?.message || "Could not download the MST file from SharePoint.";
-      alert(msg);
-    } finally {
-      if (loading) loading.style.display = "none";
-    }
-  }
-
-  if (sharePointBtn) {
-    sharePointBtn.addEventListener("click", () => {
-      loadFromSharePoint();
-    });
-  }
+    reader.readAsBinaryString(file);
+  });
 
   window.MST = window.MST || {};
   window.MST.ErrorUI = {
