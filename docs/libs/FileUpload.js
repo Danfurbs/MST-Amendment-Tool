@@ -67,6 +67,12 @@ document.addEventListener("DOMContentLoaded", function () {
         return new Date(excelEpoch.getTime() + numeric * 86400000);
       }
 
+      if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) {
+        const [dd, mm, yyyy] = trimmed.split("/").map(part => Number(part));
+        const parsed = new Date(yyyy, mm - 1, dd);
+        return isNaN(parsed) ? null : parsed;
+      }
+
       const parsed = new Date(trimmed);
       return isNaN(parsed) ? null : parsed;
     }
