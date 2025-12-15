@@ -433,7 +433,28 @@
   ========================== -->
   <div id="sidebar">
     <h2>MST Details</h2>
-    <div id="tvAppliedLabel" class="tv-applied-label">TV Applied</div>
+    <div id="tvActions" class="tv-actions">
+      <div id="tvAppliedLabel" class="tv-applied-label">TV Applied</div>
+      <div class="tv-buttons">
+        <button id="applyTvBtn" class="tv-btn" type="button">Apply TV</button>
+        <button id="editTvBtn" class="tv-btn" type="button">Edit TV</button>
+        <button id="removeTvBtn" class="tv-btn tv-remove-btn" type="button">Remove TV</button>
+      </div>
+    </div>
+    <div id="tvForm" class="tv-form">
+      <div class="field-block">
+        <label for="tvReferenceInput">TV Reference</label>
+        <input id="tvReferenceInput" type="text" />
+      </div>
+      <div class="field-block">
+        <label for="tvExpiryInput">Expiry Date</label>
+        <input id="tvExpiryInput" type="date" />
+      </div>
+      <div class="tv-form-actions">
+        <button id="saveTvBtn" class="tv-btn" type="button">Save TV</button>
+        <button id="cancelTvBtn" class="tv-btn tv-secondary-btn" type="button">Cancel</button>
+      </div>
+    </div>
 
     <div id="detailsIntro">
       <p>Select a <strong>GREEN</strong> MST (light blue if it has a TV Reference) in the calendar to view or edit details.</p>
