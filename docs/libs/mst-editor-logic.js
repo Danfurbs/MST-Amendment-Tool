@@ -4,6 +4,15 @@
    =========================================================== */
 const U = MST.Utils;
 
+const MAX_DESC2_LENGTH = 45;
+const clampDesc2 = (value = "") => value.toString().slice(0, MAX_DESC2_LENGTH);
+const updateCharCounter = (inputEl, counterEl, max = MAX_DESC2_LENGTH) => {
+  if (!inputEl || !counterEl) return;
+
+  const currentLength = (inputEl.value || "").length;
+  counterEl.textContent = `${currentLength}/${max}`;
+};
+
 const normalizeAllowMultipleFlag = (value) =>
   String(value || "").trim().toUpperCase() === "YES" ? "YES" : "";
 
@@ -329,6 +338,7 @@ window.nextDateCalc = nextDateCalc;
     const lastDatePerf       = document.getElementById('lastDatePerf');
     const freqInput          = document.getElementById('freqInput');
     const desc2Input         = document.getElementById('desc2Input');
+    const desc2Counter       = document.getElementById('desc2Counter');
     const wgInput            = document.getElementById('wgInput');
     const jobDescCodeInput   = document.getElementById('jobDescCodeInput');
     const unitsRequiredInput = document.getElementById('unitsRequiredInput');
@@ -363,7 +373,10 @@ window.nextDateCalc = nextDateCalc;
 	const filterDesc2       = document.getElementById('filterDesc2');
 	const filterProtType    = document.getElementById('filterProtType');
 	const filterProtMethod  = document.getElementById('filterProtMethod');
-	const filterEquipDesc1  = document.getElementById('filterEquipDesc1');
+        const filterEquipDesc1  = document.getElementById('filterEquipDesc1');
+
+    const newDesc2Input     = document.getElementById('newDesc2');
+    const newDesc2Counter   = document.getElementById('newDesc2Counter');
 
 	
       //add DOMS as Global
@@ -375,6 +388,7 @@ window.nextDateCalc = nextDateCalc;
       window.lastDatePerf = lastDatePerf;
       window.freqInput = freqInput;
       window.desc2Input = desc2Input;
+      window.desc2Counter = desc2Counter;
       window.wgInput = wgInput;
       window.jobDescCodeInput = jobDescCodeInput;
       window.unitsRequiredInput = unitsRequiredInput;
@@ -396,6 +410,8 @@ window.nextDateCalc = nextDateCalc;
       window.editForm = editForm;
       window.sidebarEl = sidebar;
       window.changeCount = changeCount;
+      window.newDesc2Input = newDesc2Input;
+      window.newDesc2Counter = newDesc2Counter;
       toggleTvButtons(false);
       setTvControlsVisible(false);
 
@@ -410,6 +426,25 @@ window.nextDateCalc = nextDateCalc;
     window.mileageToInput.addEventListener("blur", () => {
       window.mileageToInput.value = formatMileageValue(window.mileageToInput.value);
     });
+    if (window.desc2Input) {
+      const handleDesc2EditInput = () => {
+        window.desc2Input.value = clampDesc2(window.desc2Input.value);
+        updateCharCounter(window.desc2Input, window.desc2Counter);
+      };
+
+      window.desc2Input.addEventListener("input", handleDesc2EditInput);
+      handleDesc2EditInput();
+    }
+
+    if (window.newDesc2Input) {
+      const handleNewDesc2Input = () => {
+        window.newDesc2Input.value = clampDesc2(window.newDesc2Input.value);
+        updateCharCounter(window.newDesc2Input, window.newDesc2Counter);
+      };
+
+      window.newDesc2Input.addEventListener("input", handleNewDesc2Input);
+      handleNewDesc2Input();
+    }
     if (exportBtn && MST?.Export?.exportChanges) {
       exportBtn.addEventListener("click", MST.Export.exportChanges);
     }
@@ -725,10 +760,12 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
         window.allowMultipleInput.checked = allowMultipleVal === "YES";
       }
 	
-    window.desc2Input.value =
-  (baseEvent.extendedProps.desc2 ||
-   orig["MST Description 2"] ||
-   "").trimEnd();
+    window.desc2Input.value = clampDesc2(
+      (baseEvent.extendedProps.desc2 ||
+       orig["MST Description 2"] ||
+       "").trimEnd()
+    );
+    updateCharCounter(window.desc2Input, window.desc2Counter);
 
     window.wgInput.value = baseEvent.extendedProps.workGroup || orig["Work Group Code"] || "";
     window.unitsRequiredInput.value = baseEvent.extendedProps.unitsRequired || orig["Units Required"] || "";
@@ -960,7 +997,7 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
       }
 
       const desc1 = safeText(r["MST Description 1"]);
-      const desc2 = safeText(r["MST Description 2"], 200);
+      const desc2 = clampDesc2(safeText(r["MST Description 2"], MAX_DESC2_LENGTH));
       const equipmentDesc1 = safeText(r["Equipment Description 1"], 200);
       const workGroup = safeText(r["Work Group Code"]);
       const jobDescCode = safeText(r["Job Description Code"]);
@@ -1047,7 +1084,7 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
   window.mileageToInput.value   = formattedSegTo;
 
   baseEvent.setExtendedProp("frequency", freq);
-  baseEvent.setExtendedProp("desc2", window.desc2Input.value.trimEnd());
+  baseEvent.setExtendedProp("desc2", clampDesc2(window.desc2Input.value.trimEnd()));
   baseEvent.setExtendedProp("workGroup", window.wgInput.value.trim());
   baseEvent.setExtendedProp("jobDescCode", window.jobDescCodeInput.value.trim());
   baseEvent.setExtendedProp("unitsRequired", window.unitsRequiredInput.value);
@@ -1081,7 +1118,7 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
   if (isNew && window.createdMSTs?.[mstId]) {
     Object.assign(window.createdMSTs[mstId], {
       "Freq": freq,
-      "MST Desc 2": window.desc2Input.value.trim(),
+      "MST Desc 2": clampDesc2(window.desc2Input.value.trim()),
       "Job Desc Code": window.jobDescCodeInput.value.trim(),
       "Work Group": window.wgInput.value.trim(),
       "Unit Required": window.unitsRequiredInput.value,
@@ -1227,7 +1264,7 @@ MST.Editor.addNewMST = function () {
     ""
   ).toString().trim();
   const desc1       = document.getElementById("newDesc1").value.trim();
-  const desc2       = document.getElementById("newDesc2").value.trim();
+  const desc2       = clampDesc2(document.getElementById("newDesc2").value.trim());
   const jobDescCode = document.getElementById("newJobCode").value.trim();
   const freq        = parseInt(document.getElementById("newFreq").value.trim(), 10);
   const lastDateStr = document.getElementById("newLastDate").value;
