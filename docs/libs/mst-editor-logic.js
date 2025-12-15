@@ -44,6 +44,7 @@ const isActiveTv = (reference, expiry) => {
 
 const toggleTvButtons = (hasActiveTv) => {
   if (window.applyTvBtn) window.applyTvBtn.style.display = hasActiveTv ? "none" : "inline-flex";
+  if (window.editTvBtn) window.editTvBtn.style.display = hasActiveTv ? "inline-flex" : "none";
   if (window.removeTvBtn) window.removeTvBtn.style.display = hasActiveTv ? "inline-flex" : "none";
 };
 
@@ -351,6 +352,7 @@ window.nextDateCalc = nextDateCalc;
     const tvActions          = document.getElementById('tvActions');
     const tvAppliedLabel     = document.getElementById('tvAppliedLabel');
     const applyTvBtn         = document.getElementById('applyTvBtn');
+    const editTvBtn          = document.getElementById('editTvBtn');
     const removeTvBtn        = document.getElementById('removeTvBtn');
     const tvForm             = document.getElementById('tvForm');
     const tvReferenceInput   = document.getElementById('tvReferenceInput');
@@ -400,6 +402,7 @@ window.nextDateCalc = nextDateCalc;
       window.tvActions = tvActions;
       window.tvAppliedLabel = tvAppliedLabel;
       window.applyTvBtn = applyTvBtn;
+      window.editTvBtn = editTvBtn;
       window.removeTvBtn = removeTvBtn;
       window.tvForm = tvForm;
       window.tvReferenceInput = tvReferenceInput;
@@ -410,8 +413,6 @@ window.nextDateCalc = nextDateCalc;
       window.editForm = editForm;
       window.sidebarEl = sidebar;
       window.changeCount = changeCount;
-      window.newDesc2Input = newDesc2Input;
-      window.newDesc2Counter = newDesc2Counter;
       toggleTvButtons(false);
       setTvControlsVisible(false);
 
@@ -459,6 +460,29 @@ window.nextDateCalc = nextDateCalc;
         alert('Select an MST before applying a TV.');
         return;
       }
+      if (window.tvForm) window.tvForm.classList.add('visible');
+      window.tvReferenceInput?.focus();
+    });
+
+    editTvBtn?.addEventListener('click', () => {
+      const mstId = window.mstIdDisplay?.value || window.currentMstId;
+      const baseEvent = window.calendar?.getEventById(`${mstId}_0`);
+
+      if (!mstId || !baseEvent) {
+        alert('Select an MST before editing a TV.');
+        return;
+      }
+
+      const reference = normalizeTvReference(baseEvent.extendedProps.tvReference);
+      const expiry = normalizeTvExpiry(baseEvent.extendedProps.tvExpiryDate);
+
+      if (!isActiveTv(reference, expiry)) {
+        alert('This MST does not have a TV to edit.');
+        return;
+      }
+
+      if (window.tvReferenceInput) window.tvReferenceInput.value = reference;
+      if (window.tvExpiryInput) window.tvExpiryInput.value = expiry;
       if (window.tvForm) window.tvForm.classList.add('visible');
       window.tvReferenceInput?.focus();
     });
@@ -856,13 +880,8 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     const expiryRaw = window.tvExpiryInput?.value;
     const expiry = normalizeTvExpiry(expiryRaw);
 
-    if (!reference) {
-      alert("Please enter a TV Reference.");
-      return;
-    }
-
-    if (!expiry) {
-      alert("Please enter an expiry date.");
+    if (!reference || !expiry) {
+      alert("Please enter both a TV Reference and an expiry date. Use Remove TV to clear TV information from the MST.");
       return;
     }
 
