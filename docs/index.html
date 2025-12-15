@@ -202,7 +202,8 @@
       border-radius: 6px;
       font-size: 13px;
     }
-    #exportBtn {
+    #exportBtn,
+    #exportBtnCompact {
       background: #0ea5e9;
       color: #fff;
       border: none;
@@ -230,6 +231,39 @@
       align-items: center;
       gap: 6px;
       flex-wrap: wrap;
+    }
+    .action-meta {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .action-status {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .collapsed-controls {
+      display: none;
+      align-items: flex-end;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding-left: 10px;
+      border-left: 1px solid #e2e8f0;
+    }
+    .action-bar.header-collapsed .collapsed-controls {
+      display: flex;
+    }
+    .compact-batch {
+      min-width: 200px;
+    }
+    #batchNumberCompact {
+      padding: 6px 8px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 13px;
     }
     .primary-action-btn {
       background: #2c3e50;
@@ -302,13 +336,15 @@
       margin: 0 0 0 18px;
       gap: 2px;
     }
-    .action-meta {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-weight: 700;
-      color: #1f2937;
-    }
+      .action-meta {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 12px;
+        flex-wrap: wrap;
+        font-weight: 700;
+        color: #1f2937;
+      }
     #changeCount {
       font-weight: 700;
       color: #0f172a;
@@ -707,16 +743,22 @@
         <button id="openFilterBtn">⚙️ Filters</button>
         <button id="openGotoBtn" class="primary-action-btn">Go to MST</button>
         <button id="openResourceBtn" class="primary-action-btn">Planned Hours Graph</button>
+        <button id="newMSTBtn" class="primary-action-btn">+ New MST</button>
       </div>
       <div class="action-meta">
-        <span id="changeCount"></span>
-        <div id="loading">Loading MSTs...</div>
+        <div class="action-status">
+          <span id="changeCount"></span>
+          <div id="loading">Loading MSTs...</div>
+        </div>
+        <div id="collapsedHeaderControls" class="collapsed-controls">
+          <div class="batch-field compact-batch">
+            <label for="batchNumberCompact">Batch Number</label>
+            <input type="text" id="batchNumberCompact" placeholder="LANDC....." />
+          </div>
+          <button id="exportBtnCompact">Export MST Changes</button>
+        </div>
       </div>
     </div>
-
-    <button id="newMSTBtn" class="primary-action-btn" style="margin-bottom:10px;">
-      + New MST
-    </button>
 
     <div id="calendarEl"></div>
     <div id="mstErrorSummary" class="error-summary">
@@ -982,13 +1024,34 @@ Hold <strong>Ctrl</strong> (or <strong>Cmd</strong> on Mac) to select multiple
     window.originalRows       = [];  // raw uploaded rows
 
 // ================================
-// HEADER COLLAPSE TOGGLE
+// HEADER COLLAPSE TOGGLE + COMPACT CONTROLS
 // ================================
-const pageHeader     = document.querySelector(".page-header");
-const headerBottom   = document.querySelector(".header-bottom");
+const pageHeader      = document.querySelector(".page-header");
 const toggleHeaderBtn = document.getElementById("toggleHeaderBtn");
+const actionBar       = document.getElementById("controls");
+const compactControls = document.getElementById("collapsedHeaderControls");
+const batchNumber     = document.getElementById("batchNumber");
+const batchNumberCompact = document.getElementById("batchNumberCompact");
 
-if (pageHeader && headerBottom && toggleHeaderBtn) {
+const syncBatchToCompact = () => {
+  if (batchNumber && batchNumberCompact) {
+    batchNumberCompact.value = batchNumber.value;
+  }
+};
+
+const syncBatchToPrimary = () => {
+  if (batchNumber && batchNumberCompact) {
+    batchNumber.value = batchNumberCompact.value;
+  }
+};
+
+if (batchNumber && batchNumberCompact) {
+  batchNumber.addEventListener("input", syncBatchToCompact);
+  batchNumberCompact.addEventListener("input", syncBatchToPrimary);
+  syncBatchToCompact();
+}
+
+if (pageHeader && toggleHeaderBtn) {
   const updateToggleLabel = (collapsed) => {
     toggleHeaderBtn.setAttribute("aria-expanded", String(!collapsed));
     toggleHeaderBtn.innerHTML = collapsed
@@ -996,9 +1059,19 @@ if (pageHeader && headerBottom && toggleHeaderBtn) {
       : 'Hide instructions <span aria-hidden="true">▲</span>';
   };
 
-  toggleHeaderBtn.addEventListener("click", () => {
-    const collapsed = pageHeader.classList.toggle("collapsed");
+  const setCollapsedState = (collapsed) => {
+    pageHeader.classList.toggle("collapsed", collapsed);
     updateToggleLabel(collapsed);
+    if (actionBar) actionBar.classList.toggle("header-collapsed", collapsed);
+    if (compactControls) compactControls.style.display = collapsed ? "flex" : "none";
+    if (collapsed) syncBatchToCompact();
+  };
+
+  setCollapsedState(pageHeader.classList.contains("collapsed"));
+
+  toggleHeaderBtn.addEventListener("click", () => {
+    const collapsed = !pageHeader.classList.contains("collapsed");
+    setCollapsedState(collapsed);
   });
 }
 
@@ -1006,15 +1079,15 @@ if (pageHeader && headerBottom && toggleHeaderBtn) {
 // NEW MST MODAL LOGIC
 // ================================
 
-const newMSTBtn      = document.getElementById("newMSTBtn");
 const newMSTModal    = document.getElementById("newMSTModal");
 const addMSTBtn      = document.getElementById("addMSTBtn");
 const cancelMSTBtn   = document.getElementById("cancelMSTBtn");
 
 // Add MST
-if (newMSTBtn) newMSTBtn.addEventListener("click", () => MST.Editor.openNewMSTModal());
 if (addMSTBtn) addMSTBtn.addEventListener("click", () => MST.Editor.addNewMST());
 if (cancelMSTBtn) cancelMSTBtn.addEventListener("click", () => MST.Editor.closeNewMSTModal());
+
+document.getElementById("newMSTBtn")?.addEventListener("click", () => MST.Editor.openNewMSTModal());
 
   </script>
 
