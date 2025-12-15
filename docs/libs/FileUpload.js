@@ -65,6 +65,20 @@ document.addEventListener("DOMContentLoaded", function () {
     return null;
   }
 
+  function getDownloadDateValue(row) {
+    if (!row || typeof row !== "object") return null;
+
+    if (Object.prototype.hasOwnProperty.call(row, "Download Date")) {
+      return row["Download Date"];
+    }
+
+    const matchingKey = Object.keys(row).find(key => {
+      return typeof key === "string" && key.trim().toLowerCase() === "download date";
+    });
+
+    return matchingKey ? row[matchingKey] : null;
+  }
+
   function deriveMstId(row) {
     const concat = safeTrim(row["CONCAT"]);
     if (concat) return concat;
@@ -326,7 +340,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
       debugStep("Master rows stored and equipment map built");
 
-      const downloadDateRaw = fullRows[0]?.["Download Date"];
+      const downloadDateRaw = getDownloadDateValue(fullRows[0]);
       const downloadDate = parseDownloadDate(downloadDateRaw);
 
       debugStep("Download date parsed");
