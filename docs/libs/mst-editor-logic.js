@@ -48,6 +48,24 @@ const toggleTvButtons = (hasActiveTv) => {
   if (window.removeTvBtn) window.removeTvBtn.style.display = hasActiveTv ? "inline-flex" : "none";
 };
 
+const resolveStdJobUom = (stdJobNo, baseEvent, orig = {}) => {
+  const rawStdJobNo = (stdJobNo ?? "").toString().trim();
+  const normalizedStdJobNo = rawStdJobNo.replace(/^0+/, "") || rawStdJobNo;
+
+  const fromExtended = baseEvent?.extendedProps?.stdJobUom || baseEvent?.extendedProps?.unitMeasure;
+  const fromStdJobs =
+    window.STANDARD_JOBS?.[rawStdJobNo]?.uom ||
+    (normalizedStdJobNo !== rawStdJobNo ? window.STANDARD_JOBS?.[normalizedStdJobNo]?.uom : "");
+  const fromOriginal =
+    orig["Unit of Work"] ||
+    orig["Unit of work"] ||
+    orig["Unit of Measure"] ||
+    orig["Unit Measure"] ||
+    "";
+
+  return (fromExtended || fromStdJobs || fromOriginal || "").toString().trim();
+};
+
 const setTvControlsVisible = (visible) => {
   if (window.tvActions?.classList) {
     window.tvActions.classList.toggle("visible", !!visible);
@@ -705,12 +723,9 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     window.currentMstId = mstId;
     setTvControlsVisible(true);
 
-    const stdJobUom = (
-      baseEvent.extendedProps.stdJobUom ||
-      window.STANDARD_JOBS?.[stdJobNo]?.uom ||
-      baseEvent.extendedProps.unitMeasure ||
-      ""
-    ).toString().trim();
+    const stdJobUom = resolveStdJobUom(stdJobNo, baseEvent, orig);
+    baseEvent.setExtendedProp("stdJobUom", stdJobUom);
+    baseEvent.setExtendedProp("unitMeasure", stdJobUom);
 
     if (window.tvReferenceInput) window.tvReferenceInput.value = hasTvReference ? tvReference : "";
     if (window.tvExpiryInput) window.tvExpiryInput.value = hasTvReference ? tvExpiryDate : "";
@@ -1000,7 +1015,7 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
       const freq = clampFrequency(r["MST Frequency"]);
       const rawLastDate = safeText(r["Last Scheduled Date"]);
       const stdJobNo = safeText(r["Std Job No"] || r["Standard Job Number"]);
-      const stdJobUom = safeText(window.STANDARD_JOBS?.[stdJobNo]?.uom);
+      const stdJobUom = resolveStdJobUom(stdJobNo, null, r);
       if (!/^[0-9]{8}$/.test(rawLastDate)) return;
 
       const baseDate = MST.Utils.yyyymmddToDate(rawLastDate);
