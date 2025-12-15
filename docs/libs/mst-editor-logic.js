@@ -4,6 +4,9 @@
    =========================================================== */
 const U = MST.Utils;
 
+const normalizeAllowMultipleFlag = (value) =>
+  String(value || "").trim().toUpperCase() === "YES" ? "YES" : "";
+
 window.MST = window.MST || {};
 window.MST.Editor = window.MST.Editor || {};
 window.MST.Resources = window.MST.Resources || {};
@@ -102,6 +105,7 @@ window.MST.Editor.openNewMSTModal = function () {
   const jobSel        = document.getElementById("newJobCode");
   const protTypeSel   = document.getElementById("newProtType");
   const protMethodSel = document.getElementById("newProtMethod");
+  const allowMultipleToggle = document.getElementById("newAllowMultiple");
 
   // Rebuild dropdowns each time modal opens
   if (jobSel) {
@@ -132,6 +136,10 @@ window.MST.Editor.openNewMSTModal = function () {
       opt.textContent = `${pm.code} — ${pm.desc}`;
       protMethodSel.appendChild(opt);
     });
+  }
+
+  if (allowMultipleToggle) {
+    allowMultipleToggle.checked = false;
   }
 
   // ---- Standard Job → Desc1 + UOM auto-fill ----
@@ -254,14 +262,15 @@ window.MST.Editor.closeNewMSTModal = function () {
 const nextDateCalc = document.getElementById('nextDateCalc');
 window.nextDateCalc = nextDateCalc;
 
-    const lastDateInput   = document.getElementById('lastDateInput');
-	const lastDatePerf   = document.getElementById('lastDatePerf');
-    const freqInput       = document.getElementById('freqInput');
-    const desc2Input      = document.getElementById('desc2Input');
-    const wgInput         = document.getElementById('wgInput');
-    const jobDescCodeInput= document.getElementById('jobDescCodeInput');
+    const lastDateInput      = document.getElementById('lastDateInput');
+    const lastDatePerf       = document.getElementById('lastDatePerf');
+    const freqInput          = document.getElementById('freqInput');
+    const desc2Input         = document.getElementById('desc2Input');
+    const wgInput            = document.getElementById('wgInput');
+    const jobDescCodeInput   = document.getElementById('jobDescCodeInput');
     const unitsRequiredInput = document.getElementById('unitsRequiredInput');
     const unitsRequiredLabel = document.getElementById('unitsRequiredLabel');
+    const allowMultipleInput = document.getElementById('allowMultipleInput');
     const mileageFromInput   = document.getElementById('mileageFromInput');
     const mileageToInput     = document.getElementById('mileageToInput');
     const protTypeInput      = document.getElementById('protTypeInput');
@@ -285,25 +294,26 @@ window.nextDateCalc = nextDateCalc;
 	const filterEquipDesc1  = document.getElementById('filterEquipDesc1');
 
 	
-	//add DOMS as Global
-	window.equipDisplay = equipDisplay;
-window.taskDisplay = taskDisplay;
-window.mstIdDisplay = mstIdDisplay;
-window.desc1Display = desc1Display;
-window.lastDateInput = lastDateInput;
-window.lastDatePerf = lastDatePerf;
-window.freqInput = freqInput;
-window.desc2Input = desc2Input;
-window.wgInput = wgInput;
-window.jobDescCodeInput = jobDescCodeInput;
-window.unitsRequiredInput = unitsRequiredInput;
-window.mileageFromInput = mileageFromInput;
-window.mileageToInput = mileageToInput;
-window.protTypeInput = protTypeInput;
-    window.protMethodInput = protMethodInput;
-    window.detailsIntro = detailsIntro;
-    window.editForm = editForm;
-    window.changeCount = changeCount;
+      //add DOMS as Global
+      window.equipDisplay = equipDisplay;
+      window.taskDisplay = taskDisplay;
+      window.mstIdDisplay = mstIdDisplay;
+      window.desc1Display = desc1Display;
+      window.lastDateInput = lastDateInput;
+      window.lastDatePerf = lastDatePerf;
+      window.freqInput = freqInput;
+      window.desc2Input = desc2Input;
+      window.wgInput = wgInput;
+      window.jobDescCodeInput = jobDescCodeInput;
+      window.unitsRequiredInput = unitsRequiredInput;
+      window.allowMultipleInput = allowMultipleInput;
+      window.mileageFromInput = mileageFromInput;
+      window.mileageToInput = mileageToInput;
+      window.protTypeInput = protTypeInput;
+      window.protMethodInput = protMethodInput;
+      window.detailsIntro = detailsIntro;
+      window.editForm = editForm;
+      window.changeCount = changeCount;
 
 // ----------------------
     // HOOK EVENTS
@@ -525,30 +535,33 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     }
 
     // Reset form visually
-    [
-      window.equipDisplay,
-      window.taskDisplay,
-      window.mstIdDisplay,
-      window.desc1Display,
-      window.lastDateInput,
-      window.lastDatePerf,
-      window.freqInput,
-      window.desc2Input,
-      window.wgInput,
-      window.jobDescCodeInput,
-      window.unitsRequiredInput,
-      window.mileageFromInput,
-      window.mileageToInput,
-      window.protTypeInput,
-      window.protMethodInput
-    ].forEach(input => {
-      if (!input) return;
-      if (input.tagName === "SELECT") {
-        input.innerHTML = "";
-      } else {
-        input.value = "";
-      }
-    });
+      [
+        window.equipDisplay,
+        window.taskDisplay,
+        window.mstIdDisplay,
+        window.desc1Display,
+        window.lastDateInput,
+        window.lastDatePerf,
+        window.freqInput,
+        window.allowMultipleInput,
+        window.desc2Input,
+        window.wgInput,
+        window.jobDescCodeInput,
+        window.unitsRequiredInput,
+        window.mileageFromInput,
+        window.mileageToInput,
+        window.protTypeInput,
+        window.protMethodInput
+      ].forEach(input => {
+        if (!input) return;
+        if (input.tagName === "SELECT") {
+          input.innerHTML = "";
+        } else if (input.type === "checkbox") {
+          input.checked = false;
+        } else {
+          input.value = "";
+        }
+      });
 
     window.detailsIntro.style.display = "none";
     window.editForm.style.display = "block";
@@ -573,7 +586,14 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
 
     /* ----- EDITABLE FIELDS ----- */
     window.lastDateInput.value = U.dateToInputYYYYMMDD(baseEvent.start) || "";
-    window.freqInput.value = baseEvent.extendedProps.frequency || orig["MST Frequency"] || 0;
+      window.freqInput.value = baseEvent.extendedProps.frequency || orig["MST Frequency"] || 0;
+
+      const allowMultipleVal = normalizeAllowMultipleFlag(
+        baseEvent.extendedProps.allowMultiple || orig["Allow Multiple workorders"]
+      );
+      if (window.allowMultipleInput) {
+        window.allowMultipleInput.checked = allowMultipleVal === "YES";
+      }
 	
     window.desc2Input.value =
   (baseEvent.extendedProps.desc2 ||
@@ -765,6 +785,7 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
             segTo: safeText(r["MST Segment Mileage To"]),
             protType: safeText(r["Protection Type Code"]),
             protMethod: safeText(r["Protection Method Code"]),
+            allowMultiple: normalizeAllowMultipleFlag(r["Allow Multiple workorders"]),
             resourceHours: parseFloat(r["Resource Hours"] || 0)
           }
         });
@@ -801,6 +822,7 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
 
   const newDateStr = window.lastDateInput.value;           // yyyy-mm-dd
   const freq       = parseInt(window.freqInput.value || "0", 10);
+  const allowMultiple = window.allowMultipleInput?.checked ? "YES" : "";
 
   // Update props
   const formattedSegFrom = formatMileageValue(window.mileageFromInput.value);
@@ -818,6 +840,7 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
   baseEvent.setExtendedProp("segTo", formattedSegTo);
   baseEvent.setExtendedProp("protType", window.protTypeInput.value.trim());
   baseEvent.setExtendedProp("protMethod", window.protMethodInput.value.trim());
+  baseEvent.setExtendedProp("allowMultiple", normalizeAllowMultipleFlag(allowMultiple));
 
   // Date update
   let newBase = baseEvent.start;
@@ -847,6 +870,7 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
       "Job Desc Code": window.jobDescCodeInput.value.trim(),
       "Work Group": window.wgInput.value.trim(),
       "Unit Required": window.unitsRequiredInput.value,
+      "Allow Multiple workorders": normalizeAllowMultipleFlag(allowMultiple),
       "Segment From": formattedSegFrom,
       "Segment To": formattedSegTo,
       "ProtectionType": window.protTypeInput.value.trim(),
@@ -903,7 +927,8 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
         segFrom: orig["MST Segment Mileage From"] || "",
         segTo: orig["MST Segment Mileage To"] || "",
         protType: orig["Protection Type Code"] || "",
-        protMethod: orig["Protection Method Code"] || ""
+        protMethod: orig["Protection Method Code"] || "",
+        allowMultiple: normalizeAllowMultipleFlag(orig["Allow Multiple workorders"])
       }
     });
 
@@ -979,10 +1004,13 @@ MST.Editor.addNewMST = function () {
   const jobDescCode = document.getElementById("newJobCode").value.trim();
   const freq        = parseInt(document.getElementById("newFreq").value.trim(), 10);
   const lastDateStr = document.getElementById("newLastDate").value;
-  const unitsReq    = document.getElementById("newUnits").value.trim();
-  const protType    = document.getElementById("newProtType").value.trim();
-  const protMethod  = document.getElementById("newProtMethod").value.trim();
-  const wgCode      = document.getElementById("newWorkGroup").value.trim();
+    const unitsReq    = document.getElementById("newUnits").value.trim();
+    const protType    = document.getElementById("newProtType").value.trim();
+    const protMethod  = document.getElementById("newProtMethod").value.trim();
+    const wgCode      = document.getElementById("newWorkGroup").value.trim();
+    const allowMultiple = normalizeAllowMultipleFlag(
+      document.getElementById("newAllowMultiple")?.checked ? "YES" : ""
+    );
 
   // Validation
   if (!equipNo || !stdJobNo || !desc1 || !jobDescCode ||
@@ -1016,14 +1044,15 @@ MST.Editor.addNewMST = function () {
       unitsRequired: unitsReq,
       stdJobUom,
       segFrom: document.getElementById("newFrom").value.trim(),
-      segTo: document.getElementById("newTo").value.trim(),
-      protType,
-      protMethod,
-      unitMeasure: stdJobUom,
-      instance: 0,
-      isNew: true
-    }
-  });
+        segTo: document.getElementById("newTo").value.trim(),
+        protType,
+        protMethod,
+        allowMultiple,
+        unitMeasure: stdJobUom,
+        instance: 0,
+        isNew: true
+      }
+    });
 
   // Build amber + red future instances
   if (typeof E.rebuildFutureInstances === "function") {
@@ -1046,7 +1075,7 @@ MST.Editor.addNewMST = function () {
     "Job Desc Code": jobDescCode,
     "MST Type": "",
     "StatutoryMST": "",
-    "Allow Multiple workorders": "",
+    "Allow Multiple workorders": allowMultiple,
     "MST Desc 1": desc1,
     "MST Desc 2": desc2,
     "Freq": freq,
@@ -1097,7 +1126,8 @@ MST.Editor.addNewMST = function () {
       segFrom: baseEvent.extendedProps.segFrom,
       segTo: baseEvent.extendedProps.segTo,
       pt: baseEvent.extendedProps.protType,
-      pm: baseEvent.extendedProps.protMethod
+      pm: baseEvent.extendedProps.protMethod,
+      allowMultiple: normalizeAllowMultipleFlag(baseEvent.extendedProps.allowMultiple)
     };
 
     const normalizedLastSched = U.normalizeDateInput(orig["Last Scheduled Date"] || "");
@@ -1111,6 +1141,8 @@ MST.Editor.addNewMST = function () {
 
     const normalizedSegToOld = U.normalizeNumericField(orig["MST Segment Mileage To"] || "");
     const normalizedSegToNew = U.normalizeNumericField(cur.segTo);
+    const origAllowMultiple = normalizeAllowMultipleFlag(orig["Allow Multiple workorders"]);
+    const curAllowMultiple = cur.allowMultiple;
 
     return {
       MST_ID: mstId,
@@ -1125,7 +1157,6 @@ MST.Editor.addNewMST = function () {
 
       Old_Desc2: (orig["MST Description 2"] || "").trimEnd(),
       New_Desc2: (cur.desc2 || "").trimEnd(),
-
 
       Old_Last_Scheduled_Date: normalizedLastSched,
       New_Last_Scheduled_Date: normalizedCurLastSched,
@@ -1149,7 +1180,10 @@ MST.Editor.addNewMST = function () {
       New_Protection_Type_Code: cur.pt,
 
       Old_Protection_Method_Code: orig["Protection Method Code"] || "",
-      New_Protection_Method_Code: cur.pm
+      New_Protection_Method_Code: cur.pm,
+
+      Old_Allow_Multiple_Workorders: origAllowMultiple,
+      New_Allow_Multiple_Workorders: curAllowMultiple
     };
   };
 
@@ -1167,7 +1201,8 @@ MST.Editor.addNewMST = function () {
       row.New_Segment_From != row.Old_Segment_From ||
       row.New_Segment_To != row.Old_Segment_To ||
       row.New_Protection_Type_Code !== row.Old_Protection_Type_Code ||
-      row.New_Protection_Method_Code !== row.Old_Protection_Method_Code;
+      row.New_Protection_Method_Code !== row.Old_Protection_Method_Code ||
+      row.New_Allow_Multiple_Workorders !== row.Old_Allow_Multiple_Workorders;
 
     if (changed) {
       window.changes[mstId] = row;
@@ -1182,22 +1217,22 @@ MST.Editor.addNewMST = function () {
 
     const originalTitle = baseEvent.title.replace(/\*Amended\*/gi, "").trim();
 
-if (changed) {
-  baseEvent.setProp("title", `*Amended* ${originalTitle}`);
+    if (changed) {
+      baseEvent.setProp("title", `*Amended* ${originalTitle}`);
 
-  // Apply "changed" class without breaking FC v6
-  const existing = baseEvent.classNames || [];
-  if (!existing.includes("changed-mst")) {
-    baseEvent.setProp("classNames", [...existing, "changed-mst"]);
-  }
+      // Apply "changed" class without breaking FC v6
+      const existing = baseEvent.classNames || [];
+      if (!existing.includes("changed-mst")) {
+        baseEvent.setProp("classNames", [...existing, "changed-mst"]);
+      }
 
-} else {
-  baseEvent.setProp("title", originalTitle);
+    } else {
+      baseEvent.setProp("title", originalTitle);
 
-  // Remove the class safely
-  const filtered = (baseEvent.classNames || []).filter(c => c !== "changed-mst");
-  baseEvent.setProp("classNames", filtered);
-}
+      // Remove the class safely
+      const filtered = (baseEvent.classNames || []).filter(c => c !== "changed-mst");
+      baseEvent.setProp("classNames", filtered);
+    }
 
   };
 

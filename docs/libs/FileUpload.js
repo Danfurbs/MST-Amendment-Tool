@@ -171,22 +171,23 @@ document.addEventListener("DOMContentLoaded", function () {
     const idx = rows.findIndex(r => r._mstId === mstId);
     if (idx === -1) return;
 
-    const baseEvent = window.calendar?.getEventById(`${mstId}_0`);
-    if (baseEvent) {
-      const iso = window.MST?.Utils?.dateToInputYYYYMMDD?.(baseEvent.start) || "";
-      if (iso) {
-        rows[idx]["Last Scheduled Date"] = iso.replace(/-/g, "");
-      }
+      const baseEvent = window.calendar?.getEventById(`${mstId}_0`);
+      if (baseEvent) {
+        const iso = window.MST?.Utils?.dateToInputYYYYMMDD?.(baseEvent.start) || "";
+        if (iso) {
+          rows[idx]["Last Scheduled Date"] = iso.replace(/-/g, "");
+        }
 
-      rows[idx]["Units Required"] = baseEvent.extendedProps.unitsRequired ?? rows[idx]["Units Required"];
-      rows[idx]["MST Description 2"] = baseEvent.extendedProps.desc2 ?? rows[idx]["MST Description 2"];
-      rows[idx]["Work Group Code"] = baseEvent.extendedProps.workGroup ?? rows[idx]["Work Group Code"];
-      rows[idx]["Job Description Code"] = baseEvent.extendedProps.jobDescCode ?? rows[idx]["Job Description Code"];
-      rows[idx]["Protection Type Code"] = baseEvent.extendedProps.protType ?? rows[idx]["Protection Type Code"];
-      rows[idx]["Protection Method Code"] = baseEvent.extendedProps.protMethod ?? rows[idx]["Protection Method Code"];
-      rows[idx]["MST Segment Mileage From"] = baseEvent.extendedProps.segFrom ?? rows[idx]["MST Segment Mileage From"];
-      rows[idx]["MST Segment Mileage To"] = baseEvent.extendedProps.segTo ?? rows[idx]["MST Segment Mileage To"];
-    }
+        rows[idx]["Units Required"] = baseEvent.extendedProps.unitsRequired ?? rows[idx]["Units Required"];
+        rows[idx]["MST Description 2"] = baseEvent.extendedProps.desc2 ?? rows[idx]["MST Description 2"];
+        rows[idx]["Work Group Code"] = baseEvent.extendedProps.workGroup ?? rows[idx]["Work Group Code"];
+        rows[idx]["Job Description Code"] = baseEvent.extendedProps.jobDescCode ?? rows[idx]["Job Description Code"];
+        rows[idx]["Protection Type Code"] = baseEvent.extendedProps.protType ?? rows[idx]["Protection Type Code"];
+        rows[idx]["Protection Method Code"] = baseEvent.extendedProps.protMethod ?? rows[idx]["Protection Method Code"];
+        rows[idx]["MST Segment Mileage From"] = baseEvent.extendedProps.segFrom ?? rows[idx]["MST Segment Mileage From"];
+        rows[idx]["MST Segment Mileage To"] = baseEvent.extendedProps.segTo ?? rows[idx]["MST Segment Mileage To"];
+        rows[idx]["Allow Multiple workorders"] = baseEvent.extendedProps.allowMultiple ?? rows[idx]["Allow Multiple workorders"];
+      }
 
     reapplyErrorEvaluation(rows);
   }
