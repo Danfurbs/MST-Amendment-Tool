@@ -38,8 +38,28 @@ window.MST.Utils = {
       return value.toISOString().slice(0, 10); // yyyy-mm-dd
     }
 
+    const excelSerialToIso = (num) => {
+      if (Number.isNaN(num)) return "";
+      if (num < 30000 || num > 80000) return ""; // sanity range for Excel serial dates
+      const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+      const date = new Date(excelEpoch.getTime() + num * 86400000);
+      return isNaN(date) ? "" : date.toISOString().slice(0, 10);
+    };
+
+    if (typeof value === "number") {
+      const iso = excelSerialToIso(value);
+      if (iso) return iso;
+      return value.toString().trim();
+    }
+
     const str = (value ?? "").toString().trim();
     if (!str) return "";
+
+    const numeric = Number(str);
+    if (!Number.isNaN(numeric)) {
+      const iso = excelSerialToIso(numeric);
+      if (iso) return iso;
+    }
 
     // Already yyyy-mm-dd
     if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;

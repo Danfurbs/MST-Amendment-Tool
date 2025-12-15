@@ -61,6 +61,49 @@ window.MST.ErrorFlags = (function() {
       }
     },
     {
+      id: "ExpiredTv",
+      description: "TV expiry date has passed.",
+      evaluate(row) {
+        const tvRef =
+          toTrimmed(row?.tvReference) ||
+          toTrimmed(row?.TVReference) ||
+          toTrimmed(row?.TV_Reference) ||
+          toTrimmed(row?.TVReferenceNumber) ||
+          toTrimmed(row?.TVReferenceNo) ||
+          toTrimmed(row?.TempVarReferenceNumber) ||
+          toTrimmed(row?.["Temp Var Reference Number"]) ||
+          toTrimmed(row?.["TV Reference"]);
+
+        if (!tvRef || tvRef.toUpperCase() === "NULL") return false;
+
+        const rawExpiry =
+          toTrimmed(row?.tvExpiryNormalized) ||
+          toTrimmed(row?.TVExpiryDate) ||
+          toTrimmed(row?.TV_Expiry_Date) ||
+          toTrimmed(row?.["TV Expiry Date"]) ||
+          toTrimmed(row?.["Temp Var Expiry Date"]);
+
+        if (!rawExpiry || rawExpiry === "2001-01-01") return false;
+
+        const expiryDate = toDate(rawExpiry);
+        if (!expiryDate) return false;
+
+        const today = new Date();
+        const normalizedExpiry = new Date(Date.UTC(
+          expiryDate.getUTCFullYear(),
+          expiryDate.getUTCMonth(),
+          expiryDate.getUTCDate()
+        ));
+        const todayNormalized = new Date(Date.UTC(
+          today.getUTCFullYear(),
+          today.getUTCMonth(),
+          today.getUTCDate()
+        ));
+
+        return normalizedExpiry < todayNormalized;
+      }
+    },
+    {
       id: "ObsoleteAsset",
       description: "Asset Status Code indicates the asset is obsolete.",
       evaluate(row) {

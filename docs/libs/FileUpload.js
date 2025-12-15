@@ -59,7 +59,21 @@ document.addEventListener("DOMContentLoaded", function () {
       return new Date(excelEpoch.getTime() + value * 86400000);
     }
     if (typeof value === "string") {
-      const parsed = new Date(value);
+      const trimmed = value.trim();
+      const numeric = Number(trimmed);
+
+      if (!Number.isNaN(numeric) && /^\d+(\.\d+)?$/.test(trimmed)) {
+        const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+        return new Date(excelEpoch.getTime() + numeric * 86400000);
+      }
+
+      if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) {
+        const [dd, mm, yyyy] = trimmed.split("/").map(part => Number(part));
+        const parsed = new Date(yyyy, mm - 1, dd);
+        return isNaN(parsed) ? null : parsed;
+      }
+
+      const parsed = new Date(trimmed);
       return isNaN(parsed) ? null : parsed;
     }
     return null;
@@ -77,6 +91,20 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     return matchingKey ? row[matchingKey] : null;
+  }
+
+  function findFirstDownloadDate(rows) {
+    if (!Array.isArray(rows)) return null;
+
+    for (const row of rows) {
+      const raw = getDownloadDateValue(row);
+      if (raw == null) continue;
+
+      const trimmed = safeTrim(raw);
+      if (trimmed !== "") return raw;
+    }
+
+    return null;
   }
 
   function deriveMstId(row) {
@@ -110,6 +138,14 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const annotatedRows = rows.map(row => {
       const assetStatus = safeTrim(row["Asset Status Code"]) || safeTrim(row["Asset Status"]);
+      const tvRef =
+        safeTrim(row["Temp Var Reference Number"]) ||
+        safeTrim(row["TV Reference"]);
+      const normalizeDate = window.MST?.Utils?.normalizeDateInput;
+      const rawTvExpiry = row["TV Expiry Date"] ?? row["Temp Var Expiry Date"];
+      const tvExpiryNormalized = typeof normalizeDate === "function"
+        ? normalizeDate(rawTvExpiry)
+        : safeTrim(rawTvExpiry);
 
       const evaluationRow = {
         ...row,
@@ -118,7 +154,9 @@ document.addEventListener("DOMContentLoaded", function () {
         UnitsRequired: row["Units Required"],
         Units: row["Units Required"],
         AssetStatusCode: assetStatus,
-        AssetStatus: assetStatus
+        AssetStatus: assetStatus,
+        tvReference: tvRef,
+        tvExpiryNormalized
       };
 
       const mstId = deriveMstId(row);
@@ -221,24 +259,22 @@ document.addEventListener("DOMContentLoaded", function () {
     errorSummaryEl.innerHTML = "<div><strong>MST error checks:</strong></div>";
 
     const list = document.createElement("ul");
-    const detailBox = document.createElement("div");
-    detailBox.className = "error-details";
-    detailBox.textContent = "Click a rule to view the MSTs that were flagged. Click a specific MST to open it in the editor.";
 
-    const showDetailsForRule = ruleId => {
-      if (!detailBox) return;
+    const renderDetailsForRule = (container, ruleId) => {
+      if (!container) return;
       const entries = (details && details[ruleId]) || [];
 
+      container.innerHTML = "";
+
       if (!entries.length) {
-        detailBox.textContent = "No MSTs were flagged for this rule.";
+        container.textContent = "No MSTs were flagged for this rule.";
         return;
       }
 
-      detailBox.innerHTML = "";
       const header = document.createElement("h4");
       const rule = rules.find(r => r.id === ruleId);
       header.textContent = `${rule?.description || ruleId} — ${entries.length} flagged`;
-      detailBox.appendChild(header);
+      container.appendChild(header);
 
       const ul = document.createElement("ul");
       entries.forEach(entry => {
@@ -255,7 +291,7 @@ document.addEventListener("DOMContentLoaded", function () {
         ul.appendChild(li);
       });
 
-      detailBox.appendChild(ul);
+      container.appendChild(ul);
     };
 
     rules.forEach(rule => {
@@ -269,15 +305,27 @@ document.addEventListener("DOMContentLoaded", function () {
         btn.type = "button";
         btn.className = "link-btn";
         btn.textContent = "Show list";
-        btn.addEventListener("click", () => showDetailsForRule(rule.id));
+        const detailBox = document.createElement("div");
+        detailBox.className = "error-details";
+        detailBox.style.display = "none";
+
+        btn.addEventListener("click", () => {
+          const isHidden = detailBox.style.display === "none";
+          if (isHidden) {
+            renderDetailsForRule(detailBox, rule.id);
+            detailBox.style.display = "block";
+          } else {
+            detailBox.style.display = "none";
+          }
+        });
         li.appendChild(btn);
+        li.appendChild(detailBox);
       }
 
       list.appendChild(li);
     });
 
     errorSummaryEl.appendChild(list);
-    errorSummaryEl.appendChild(detailBox);
   }
 
   function lockDataSourceControl() {
@@ -340,7 +388,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
       debugStep("Master rows stored and equipment map built");
 
-      const downloadDateRaw = getDownloadDateValue(fullRows[0]);
+      const downloadDateRaw = findFirstDownloadDate(fullRows);
       const downloadDate = parseDownloadDate(downloadDateRaw);
 
       debugStep("Download date parsed");
