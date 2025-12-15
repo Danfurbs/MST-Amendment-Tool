@@ -79,6 +79,18 @@ input, button {
   margin-top: 0;
 }
 
+#sidebar.has-tv-reference {
+  background: #e0f2fe;
+  border-right-color: #bfdbfe;
+}
+
+#editForm.has-tv-reference {
+  background: #e0f2fe;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 0 -12px;
+}
+
 /* Calendar region */
 #calendar {
   flex: 1;
