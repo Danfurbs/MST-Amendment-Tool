@@ -59,7 +59,15 @@ document.addEventListener("DOMContentLoaded", function () {
       return new Date(excelEpoch.getTime() + value * 86400000);
     }
     if (typeof value === "string") {
-      const parsed = new Date(value);
+      const trimmed = value.trim();
+      const numeric = Number(trimmed);
+
+      if (!Number.isNaN(numeric) && /^\d+(\.\d+)?$/.test(trimmed)) {
+        const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+        return new Date(excelEpoch.getTime() + numeric * 86400000);
+      }
+
+      const parsed = new Date(trimmed);
       return isNaN(parsed) ? null : parsed;
     }
     return null;
@@ -77,6 +85,20 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     return matchingKey ? row[matchingKey] : null;
+  }
+
+  function findFirstDownloadDate(rows) {
+    if (!Array.isArray(rows)) return null;
+
+    for (const row of rows) {
+      const raw = getDownloadDateValue(row);
+      if (raw == null) continue;
+
+      const trimmed = safeTrim(raw);
+      if (trimmed !== "") return raw;
+    }
+
+    return null;
   }
 
   function deriveMstId(row) {
@@ -360,7 +382,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
       debugStep("Master rows stored and equipment map built");
 
-      const downloadDateRaw = getDownloadDateValue(fullRows[0]);
+      const downloadDateRaw = findFirstDownloadDate(fullRows);
       const downloadDate = parseDownloadDate(downloadDateRaw);
 
       debugStep("Download date parsed");
