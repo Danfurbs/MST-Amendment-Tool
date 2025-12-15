@@ -61,6 +61,20 @@ window.MST.ErrorFlags = (function() {
       }
     },
     {
+      id: "ObsoleteAsset",
+      description: "Asset Status Code indicates the asset is obsolete.",
+      evaluate(row) {
+        const statusCode =
+          toTrimmed(row?.AssetStatusCode) ||
+          toTrimmed(row?.["Asset Status Code"]) ||
+          toTrimmed(row?.AssetStatus);
+
+        if (statusCode === "") return false;
+
+        return statusCode.toUpperCase() === "OR";
+      }
+    },
+    {
       id: "0Units",
       description: "Units required is zero or missing.",
       evaluate(row) {

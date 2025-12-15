@@ -95,12 +95,16 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     const annotatedRows = rows.map(row => {
+      const assetStatus = safeTrim(row["Asset Status Code"]) || safeTrim(row["Asset Status"]);
+
       const evaluationRow = {
         ...row,
         LastScheduledDate: row["Last Scheduled Date"],
         LSD: row["Last Scheduled Date"],
         UnitsRequired: row["Units Required"],
-        Units: row["Units Required"]
+        Units: row["Units Required"],
+        AssetStatusCode: assetStatus,
+        AssetStatus: assetStatus
       };
 
       const mstId = deriveMstId(row);
@@ -150,6 +154,7 @@ document.addEventListener("DOMContentLoaded", function () {
     window.originalRows = annotatedRows;
     window.mstErrorFlagSummary = summary;
     window.mstErrorFlagDetails = details;
+    window.mstErrorFlaggedMap = details;
 
     renderErrorSummary(summary, details);
 
