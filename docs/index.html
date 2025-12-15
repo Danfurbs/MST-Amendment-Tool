@@ -479,6 +479,46 @@
       line-height: 1;
       color: #444;
     }
+
+    /* SQL reference block */
+    .sql-callout {
+      margin-top: 16px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 12px 14px;
+      box-shadow: 0 3px 12px rgba(0, 0, 0, 0.05);
+    }
+    .sql-callout summary {
+      font-weight: 800;
+      font-size: 14px;
+      color: #0f172a;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .sql-callout summary:hover {
+      color: #0b2948;
+    }
+    .sql-callout p {
+      margin: 8px 0 10px 0;
+      color: #1f2937;
+      font-weight: 600;
+      line-height: 1.45;
+    }
+    .sql-code-block {
+      margin: 0;
+      padding: 12px;
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 12.5px;
+      line-height: 1.4;
+      white-space: pre;
+    }
   </style>
 </head>
 <body>
@@ -782,6 +822,189 @@
     <div id="mstErrorSummary" class="error-summary">
       <div><strong>MST error checks:</strong></div>
       <div>Upload your MST file and choose a Work Group set to see flagged counts.</div>
+    </div>
+
+    <div class="sql-callout">
+      <details>
+        <summary>SSM's, click here to view SQL Code required for collecting the MSTs for the tool.</summary>
+        <p>This should be run weekly and distributed to Planners via your preferred distribution method.</p>
+        <pre class="sql-code-block"><code>SELECT
+    MSTs.equip_no                                                AS "Equipment Number",
+    asset.item_name_1                                            AS "Equipment Description 1",
+    asset.equip_status                                           AS "Asset Status Code",
+
+    MSTs.comp_code                                               AS "Component Code",
+    cmpcddesc.table_desc                                         AS "Component Description",
+    MSTs.comp_mod_code                                           AS "Component Modifier Code",
+    cmpmdcddesc.table_desc                                       AS "Component Modifier Description",
+
+    MSTs.maint_sch_task                                          AS "MST Task Number",
+    MSTs.job_desc_code                                           AS "Job Description Code",
+    jdccode.table_desc                                           AS "Job Description",
+
+    MSTs.sched_desc_1                                            AS "MST Description 1",
+    MSTs.sched_desc_2                                            AS "MST Description 2",
+
+    wgset.table_code                                             AS "Work Group Set Code",
+    wgset.table_desc                                             AS "Work Group Set Description",
+
+    MSTs.work_group                                              AS "Work Group Code",
+    wg.work_grp_desc                                             AS "Work Group Description",
+
+    MSTs.sched_freq_1                                            AS "MST Frequency",
+    MSTs.sched_ind_700                                           AS "Scheduling Indicator Code",
+    schind.table_desc                                            AS "Scheduling Indicator Desc",
+
+    MSTs.last_sch_date                                           AS "Last Scheduled Date",
+    MSTs.last_perf_date                                          AS "Last Performed Date",
+    MSTs.next_sch_date                                           AS "Next Scheduled Date",
+
+    MSTs.std_job_no                                              AS "Standard Job Number",
+    MSTs.next_sch_ind                                            AS "Next Scheduled Date Indicator",
+
+    MSTs.dstrct_code                                             AS "District Code",
+    stdjob.calc_lab_hrs                                          AS "Norm Time",
+    ROUND(stdjob.calc_lab_hrs * NVL(MSTs.std_units_required, 1), 2) AS "Resource Hours",
+
+    RTRIM(LTRIM(district.dstrct_name))                           AS "District Name",
+
+    MSTs.assign_person                                           AS "Assigned to Person ID",
+    RTRIM(LTRIM(assignto.first_name) || ' ' || RTRIM(assignto.surname))
+                                                                 AS "Assigned To Individual Name",
+
+    MSTs.std_units_required                                      AS "Units Required",
+    MSTs.sch_seg_fr                                              AS "MST Segment Mileage From",
+    MSTs.sch_seg_to                                              AS "MST Segment Mileage To",
+
+    NVL(RTRIM(msttype.property_value), 'false')                  AS "MST Type Code",
+    NVL(RTRIM(MSTs.statutory_flg), 'N')                          AS "Statutory Flag",
+
+    NVL(RTRIM(fxsch.fixed_scheduling), 'N')                      AS "Fixed Scheduling",
+    NVL(RTRIM(fxsch.allow_multiple), 'N')                        AS "Allow Multiple Work Orders",
+
+    prottypecd.property_value                                    AS "Protection Type Code",
+    prottypeds.table_desc                                        AS "Protection Type Description",
+
+    protmethcd.property_value                                    AS "Protection Method Code",
+    protmethds.table_desc                                        AS "Protection Method Description",
+
+    tvref.property_value                                         AS "Temp Var Reference Number",
+    TO_CHAR(TO_DATE(tvdate.property_value, 'YYYYMMDD'), 'DD/MM/YYYY')
+                                                                 AS "Temp Var Expiry Date",
+
+    TRIM(MSTs.equip_no) || TRIM(MSTs.comp_code) || TRIM(MSTs.comp_mod_code) || TRIM(MSTs.maint_sch_task)
+                                                                 AS "CONCAT",
+
+    engineer.table_desc                                          AS "Engineer",
+    TO_CHAR(SYSDATE, 'DD/MM/YYYY')                               AS "Download Date"
+FROM
+    msf700 MSTs
+
+    /* Work group */
+    LEFT JOIN msf720 wg
+        ON wg.work_group = MSTs.work_group
+
+    /* Equipment (single join used for both description + status) */
+    LEFT JOIN msf600 asset
+        ON asset.equip_no = MSTs.equip_no
+
+    /* Work group set */
+    LEFT JOIN msf010 wgset
+        ON SUBSTR(wg.work_group_set, 1, 8) = SUBSTR(wgset.table_code, 1, 8)
+       AND wgset.table_type = 'WGST'
+
+    /* Engineer */
+    LEFT JOIN msf010 engineer
+        ON SUBSTR(wgset.assoc_rec, 3, 4) = SUBSTR(engineer.table_code, 1, 4)
+       AND engineer.table_type = '+ME '
+
+    /* Delivery Unit – changed to INNER JOIN because you filter on it (big speedup) */
+    INNER JOIN msf010 delivery_unit
+        ON SUBSTR(engineer.assoc_rec, 1, 2) = SUBSTR(delivery_unit.table_code, 1, 2)
+       AND delivery_unit.table_type = '+MDU'
+       AND delivery_unit.table_desc LIKE '%Lancs%'
+
+    /* Other MSF010 lookups */
+    LEFT JOIN msf010 jdccode
+        ON MSTs.job_desc_code = SUBSTR(jdccode.table_code, 1, 2)
+       AND jdccode.table_type = 'JD  '
+
+    LEFT JOIN msf010 schind
+        ON MSTs.sched_ind_700 = SUBSTR(schind.table_code, 1, 1)
+       AND schind.table_type = 'MI  '
+
+    LEFT JOIN msf810 assignto
+        ON assignto.employee_id = MSTs.assign_person
+
+    LEFT JOIN msf000_dc0001 district
+        ON district.dstrct_code = MSTs.dstrct_code
+
+    LEFT JOIN msf010 cmpcddesc
+        ON cmpcddesc.table_code = MSTs.comp_code
+       AND cmpcddesc.table_type = 'CO  '
+
+    LEFT JOIN msf010 cmpmdcddesc
+        ON cmpmdcddesc.table_code = MSTs.comp_mod_code
+       AND cmpmdcddesc.table_type = 'MO  '
+
+    /* MST Extended Attributes – rewritten to column joins (big speedup) */
+    LEFT JOIN mst_extended_attr fxsch
+        ON fxsch.equip_no        = MSTs.equip_no
+       AND fxsch.maint_sch_task  = MSTs.maint_sch_task
+       AND fxsch.comp_code       = MSTs.comp_code
+       AND fxsch.comp_mod_code   = MSTs.comp_mod_code
+
+    /* Standard Job */
+    LEFT JOIN msf690 stdjob
+        ON stdjob.std_job_no  = MSTs.std_job_no
+       AND stdjob.dstrct_code = MSTs.dstrct_code
+
+    /* MST Type */
+    LEFT JOIN msf0p5 msttype
+        ON TRIM(msttype.entity_key) = TRIM(MSTs.equip_no || MSTs.maint_sch_task || MSTs.rec_700_type)
+       AND msttype.entity_type = 'MSTService.MST.ZMSTTYPE'
+
+    /* Protection type + method (still SUBSTR-based because entity_key is encoded) */
+    LEFT JOIN msf0p5 prottypecd
+        ON prottypecd.entity_type = 'MSTService.MST.zProtType'
+       AND SUBSTR(RTRIM(prottypecd.entity_key), 1, 4)  = MSTs.comp_code
+       AND SUBSTR(RTRIM(prottypecd.entity_key), 5, 2)  = MSTs.comp_mod_code
+       AND SUBSTR(RTRIM(prottypecd.entity_key), 7, 12) = MSTs.equip_no
+       AND SUBSTR(RTRIM(prottypecd.entity_key), 19, 4) = MSTs.maint_sch_task
+
+    LEFT JOIN msf010 prottypeds
+        ON RTRIM(prottypeds.table_code) = RTRIM(prottypecd.property_value)
+       AND prottypeds.table_type = 'W8'
+
+    LEFT JOIN msf0p5 protmethcd
+        ON protmethcd.entity_type = 'MSTService.MST.zProtMethod'
+       AND SUBSTR(RTRIM(protmethcd.entity_key), 1, 4)  = MSTs.comp_code
+       AND SUBSTR(RTRIM(protmethcd.entity_key), 5, 2)  = MSTs.comp_mod_code
+       AND SUBSTR(RTRIM(protmethcd.entity_key), 7, 12) = MSTs.equip_no
+       AND SUBSTR(RTRIM(protmethcd.entity_key), 19, 4) = MSTs.maint_sch_task
+
+    LEFT JOIN msf010 protmethds
+        ON RTRIM(protmethds.table_code) = RTRIM(protmethcd.property_value)
+       AND protmethds.table_type = 'W9'
+
+    /* Temp Var ref/date */
+    LEFT JOIN msf0p5 tvref
+        ON tvref.entity_type = 'MSTService.MST.zTVRef'
+       AND SUBSTR(RTRIM(tvref.entity_key), 1, 4)   = MSTs.comp_code
+       AND SUBSTR(RTRIM(tvref.entity_key), 5, 2)   = MSTs.comp_mod_code
+       AND SUBSTR(RTRIM(tvref.entity_key), 7, 12)  = MSTs.equip_no
+       AND SUBSTR(RTRIM(tvref.entity_key), 19, 4)  = MSTs.maint_sch_task
+
+    LEFT JOIN msf0p5 tvdate
+        ON tvdate.entity_type = 'MSTService.MST.zTVDate'
+       AND SUBSTR(RTRIM(tvdate.entity_key), 1, 4)  = MSTs.comp_code
+       AND SUBSTR(RTRIM(tvdate.entity_key), 5, 2)  = MSTs.comp_mod_code
+       AND SUBSTR(RTRIM(tvdate.entity_key), 7, 12) = MSTs.equip_no
+       AND SUBSTR(RTRIM(tvdate.entity_key), 19, 4) = MSTs.maint_sch_task
+WHERE
+    MSTs.work_group LIKE 'D%' /ADD START OF WORKGROUPS HERE
+    AND MSTs.sched_ind_700 = 1</code></pre>
+      </details>
     </div>
   </div>
   
