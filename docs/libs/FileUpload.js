@@ -110,6 +110,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const annotatedRows = rows.map(row => {
       const assetStatus = safeTrim(row["Asset Status Code"]) || safeTrim(row["Asset Status"]);
+      const tvRef =
+        safeTrim(row["Temp Var Reference Number"]) ||
+        safeTrim(row["TV Reference"]);
+      const normalizeDate = window.MST?.Utils?.normalizeDateInput;
+      const tvExpiryNormalized = typeof normalizeDate === "function"
+        ? normalizeDate(row["TV Expiry Date"])
+        : safeTrim(row["TV Expiry Date"]);
 
       const evaluationRow = {
         ...row,
@@ -118,7 +125,9 @@ document.addEventListener("DOMContentLoaded", function () {
         UnitsRequired: row["Units Required"],
         Units: row["Units Required"],
         AssetStatusCode: assetStatus,
-        AssetStatus: assetStatus
+        AssetStatus: assetStatus,
+        tvReference: tvRef,
+        tvExpiryNormalized
       };
 
       const mstId = deriveMstId(row);
@@ -221,24 +230,22 @@ document.addEventListener("DOMContentLoaded", function () {
     errorSummaryEl.innerHTML = "<div><strong>MST error checks:</strong></div>";
 
     const list = document.createElement("ul");
-    const detailBox = document.createElement("div");
-    detailBox.className = "error-details";
-    detailBox.textContent = "Click a rule to view the MSTs that were flagged. Click a specific MST to open it in the editor.";
 
-    const showDetailsForRule = ruleId => {
-      if (!detailBox) return;
+    const renderDetailsForRule = (container, ruleId) => {
+      if (!container) return;
       const entries = (details && details[ruleId]) || [];
 
+      container.innerHTML = "";
+
       if (!entries.length) {
-        detailBox.textContent = "No MSTs were flagged for this rule.";
+        container.textContent = "No MSTs were flagged for this rule.";
         return;
       }
 
-      detailBox.innerHTML = "";
       const header = document.createElement("h4");
       const rule = rules.find(r => r.id === ruleId);
       header.textContent = `${rule?.description || ruleId} — ${entries.length} flagged`;
-      detailBox.appendChild(header);
+      container.appendChild(header);
 
       const ul = document.createElement("ul");
       entries.forEach(entry => {
@@ -255,7 +262,7 @@ document.addEventListener("DOMContentLoaded", function () {
         ul.appendChild(li);
       });
 
-      detailBox.appendChild(ul);
+      container.appendChild(ul);
     };
 
     rules.forEach(rule => {
@@ -269,15 +276,27 @@ document.addEventListener("DOMContentLoaded", function () {
         btn.type = "button";
         btn.className = "link-btn";
         btn.textContent = "Show list";
-        btn.addEventListener("click", () => showDetailsForRule(rule.id));
+        const detailBox = document.createElement("div");
+        detailBox.className = "error-details";
+        detailBox.style.display = "none";
+
+        btn.addEventListener("click", () => {
+          const isHidden = detailBox.style.display === "none";
+          if (isHidden) {
+            renderDetailsForRule(detailBox, rule.id);
+            detailBox.style.display = "block";
+          } else {
+            detailBox.style.display = "none";
+          }
+        });
         li.appendChild(btn);
+        li.appendChild(detailBox);
       }
 
       list.appendChild(li);
     });
 
     errorSummaryEl.appendChild(list);
-    errorSummaryEl.appendChild(detailBox);
   }
 
   function lockDataSourceControl() {
