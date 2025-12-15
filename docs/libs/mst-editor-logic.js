@@ -130,12 +130,36 @@ const bindMileageFormatter = (inputEl) => {
   });
 };
 
+const bindBatchMirroring = (primaryInput, compactInput) => {
+  if (!primaryInput || !compactInput) return;
+
+  const syncPrimaryToCompact = () => {
+    compactInput.value = primaryInput.value;
+  };
+
+  const syncCompactToPrimary = () => {
+    primaryInput.value = compactInput.value;
+  };
+
+  primaryInput.addEventListener("input", syncPrimaryToCompact);
+  compactInput.addEventListener("input", syncCompactToPrimary);
+  syncPrimaryToCompact();
+};
+
+const bindExportButton = (btn) => {
+  if (btn && MST?.Export?.exportChanges) {
+    btn.addEventListener("click", MST.Export.exportChanges);
+  }
+};
+
 const getDomElements = () => ({
   allowMultipleInput: document.getElementById("allowMultipleInput"),
   applyFiltersBtn: document.getElementById("applyFiltersBtn"),
   applyTvBtn: document.getElementById("applyTvBtn"),
   cancelTvBtn: document.getElementById("cancelTvBtn"),
   calEl: document.getElementById("calendarEl"),
+  batchNumber: document.getElementById("batchNumber"),
+  batchNumberCompact: document.getElementById("batchNumberCompact"),
   changeCount: document.getElementById("changeCount"),
   closeFilterBtn: document.getElementById("closeFilterBtn"),
   deactivateBtn: document.getElementById("deactivateBtn"),
@@ -147,6 +171,7 @@ const getDomElements = () => ({
   editTvBtn: document.getElementById("editTvBtn"),
   equipDisplay: document.getElementById("equipDisplay"),
   exportBtn: document.getElementById("exportBtn"),
+  exportBtnCompact: document.getElementById("exportBtnCompact"),
   filterDesc1: document.getElementById("filterDesc1"),
   filterDesc2: document.getElementById("filterDesc2"),
   filterEquipDesc1: document.getElementById("filterEquipDesc1"),
@@ -547,6 +572,9 @@ window.MST.Editor.closeNewMSTModal = function () {
     const {
       calEl,
       exportBtn,
+      exportBtnCompact,
+      batchNumber,
+      batchNumberCompact,
       resetAllBtn,
       lastDateInput,
       freqInput,
@@ -573,9 +601,9 @@ window.MST.Editor.closeNewMSTModal = function () {
     bindDesc2Limiter(desc2Input, desc2Counter);
     bindDesc2Limiter(newDesc2Input, newDesc2Counter);
 
-    if (exportBtn && MST?.Export?.exportChanges) {
-      exportBtn.addEventListener("click", MST.Export.exportChanges);
-    }
+    bindBatchMirroring(batchNumber, batchNumberCompact);
+    bindExportButton(exportBtn);
+    bindExportButton(exportBtnCompact);
 
     resetAllBtn?.addEventListener("click", MST.Editor.resetAllChanges);
 
