@@ -103,6 +103,227 @@ const applyTvStyling = (baseEvent, hasTv) => {
   toggleTvButtons(hasTv);
 };
 
+const formatMileageValue = (val) => {
+  if (val === null || val === undefined) return "";
+  const num = parseFloat(val);
+  if (Number.isNaN(num)) return "";
+  return num.toFixed(4);
+};
+
+const bindDesc2Limiter = (inputEl, counterEl) => {
+  if (!inputEl) return;
+
+  const handleInput = () => {
+    inputEl.value = clampDesc2(inputEl.value);
+    updateCharCounter(inputEl, counterEl);
+  };
+
+  inputEl.addEventListener("input", handleInput);
+  handleInput();
+};
+
+const bindMileageFormatter = (inputEl) => {
+  if (!inputEl) return;
+
+  inputEl.addEventListener("blur", () => {
+    inputEl.value = formatMileageValue(inputEl.value);
+  });
+};
+
+const getDomElements = () => ({
+  allowMultipleInput: document.getElementById("allowMultipleInput"),
+  applyFiltersBtn: document.getElementById("applyFiltersBtn"),
+  applyTvBtn: document.getElementById("applyTvBtn"),
+  cancelTvBtn: document.getElementById("cancelTvBtn"),
+  calEl: document.getElementById("calendarEl"),
+  changeCount: document.getElementById("changeCount"),
+  closeFilterBtn: document.getElementById("closeFilterBtn"),
+  deactivateBtn: document.getElementById("deactivateBtn"),
+  desc1Display: document.getElementById("desc1Display"),
+  desc2Counter: document.getElementById("desc2Counter"),
+  desc2Input: document.getElementById("desc2Input"),
+  detailsIntro: document.getElementById("detailsIntro"),
+  editForm: document.getElementById("editForm"),
+  editTvBtn: document.getElementById("editTvBtn"),
+  equipDisplay: document.getElementById("equipDisplay"),
+  exportBtn: document.getElementById("exportBtn"),
+  filterDesc1: document.getElementById("filterDesc1"),
+  filterDesc2: document.getElementById("filterDesc2"),
+  filterEquipDesc1: document.getElementById("filterEquipDesc1"),
+  filterJobDesc: document.getElementById("filterJobDesc"),
+  filterOverlay: document.getElementById("filterOverlay"),
+  filterProtMethod: document.getElementById("filterProtMethod"),
+  filterProtType: document.getElementById("filterProtType"),
+  filterWorkGroup: document.getElementById("filterWorkGroup"),
+  freqInput: document.getElementById("freqInput"),
+  jobDescCodeInput: document.getElementById("jobDescCodeInput"),
+  lastDateInput: document.getElementById("lastDateInput"),
+  lastDatePerf: document.getElementById("lastDatePerf"),
+  loading: document.getElementById("loading"),
+  mileageFromInput: document.getElementById("mileageFromInput"),
+  mileageToInput: document.getElementById("mileageToInput"),
+  mstIdDisplay: document.getElementById("mstIdDisplay"),
+  newDesc2Counter: document.getElementById("newDesc2Counter"),
+  newDesc2Input: document.getElementById("newDesc2"),
+  nextDateCalc: document.getElementById("nextDateCalc"),
+  openFilterBtn: document.getElementById("openFilterBtn"),
+  protMethodInput: document.getElementById("protMethodInput"),
+  protTypeInput: document.getElementById("protTypeInput"),
+  removeTvBtn: document.getElementById("removeTvBtn"),
+  resetAllBtn: document.getElementById("resetAllBtn"),
+  resetFiltersBtn: document.getElementById("resetFiltersBtn"),
+  revertBtn: document.getElementById("revertBtn"),
+  saveBtn: document.getElementById("saveBtn"),
+  saveTvBtn: document.getElementById("saveTvBtn"),
+  sidebar: document.getElementById("sidebar"),
+  taskDisplay: document.getElementById("taskDisplay"),
+  tvActions: document.getElementById("tvActions"),
+  tvAppliedLabel: document.getElementById("tvAppliedLabel"),
+  tvExpiryInput: document.getElementById("tvExpiryInput"),
+  tvForm: document.getElementById("tvForm"),
+  tvReferenceInput: document.getElementById("tvReferenceInput"),
+  unitsRequiredInput: document.getElementById("unitsRequiredInput"),
+  unitsRequiredLabel: document.getElementById("unitsRequiredLabel"),
+  wgInput: document.getElementById("wgInput"),
+});
+
+const exposeDomElements = (elements) => {
+  const {
+    allowMultipleInput,
+    applyTvBtn,
+    cancelTvBtn,
+    changeCount,
+    desc1Display,
+    desc2Counter,
+    desc2Input,
+    detailsIntro,
+    deactivateBtn,
+    editForm,
+    editTvBtn,
+    equipDisplay,
+    freqInput,
+    jobDescCodeInput,
+    lastDateInput,
+    lastDatePerf,
+    mileageFromInput,
+    mileageToInput,
+    mstIdDisplay,
+    protMethodInput,
+    protTypeInput,
+    removeTvBtn,
+    revertBtn,
+    saveBtn,
+    saveTvBtn,
+    sidebar,
+    taskDisplay,
+    tvActions,
+    tvAppliedLabel,
+    tvExpiryInput,
+    tvForm,
+    tvReferenceInput,
+    unitsRequiredInput,
+    unitsRequiredLabel,
+    wgInput,
+    nextDateCalc,
+    loading,
+  } = elements;
+
+  window.allowMultipleInput = allowMultipleInput;
+  window.applyTvBtn = applyTvBtn;
+  window.cancelTvBtn = cancelTvBtn;
+  window.changeCount = changeCount;
+  window.deactivateBtn = deactivateBtn;
+  window.desc1Display = desc1Display;
+  window.desc2Counter = desc2Counter;
+  window.desc2Input = desc2Input;
+  window.detailsIntro = detailsIntro;
+  window.editForm = editForm;
+  window.editTvBtn = editTvBtn;
+  window.equipDisplay = equipDisplay;
+  window.freqInput = freqInput;
+  window.jobDescCodeInput = jobDescCodeInput;
+  window.lastDateInput = lastDateInput;
+  window.lastDatePerf = lastDatePerf;
+  window.mileageFromInput = mileageFromInput;
+  window.mileageToInput = mileageToInput;
+  window.mstIdDisplay = mstIdDisplay;
+  window.protMethodInput = protMethodInput;
+  window.protTypeInput = protTypeInput;
+  window.removeTvBtn = removeTvBtn;
+  window.revertBtn = revertBtn;
+  window.saveBtn = saveBtn;
+  window.saveTvBtn = saveTvBtn;
+  window.sidebarEl = sidebar;
+  window.taskDisplay = taskDisplay;
+  window.tvActions = tvActions;
+  window.tvAppliedLabel = tvAppliedLabel;
+  window.tvExpiryInput = tvExpiryInput;
+  window.tvForm = tvForm;
+  window.tvReferenceInput = tvReferenceInput;
+  window.unitsRequiredInput = unitsRequiredInput;
+  window.unitsRequiredLabel = unitsRequiredLabel;
+  window.wgInput = wgInput;
+  window.nextDateCalc = nextDateCalc;
+  window.loading = loading;
+
+  toggleTvButtons(false);
+  setTvControlsVisible(false);
+};
+
+const bindTvButtons = (elements) => {
+  const { applyTvBtn, editTvBtn, removeTvBtn, saveTvBtn, cancelTvBtn } = elements;
+
+  applyTvBtn?.addEventListener("click", () => {
+    const mstId = window.mstIdDisplay?.value || window.currentMstId;
+    if (!mstId) {
+      alert("Select an MST before applying a TV.");
+      return;
+    }
+
+    if (window.tvForm) window.tvForm.classList.add("visible");
+    window.tvReferenceInput?.focus();
+  });
+
+  editTvBtn?.addEventListener("click", () => {
+    const mstId = window.mstIdDisplay?.value || window.currentMstId;
+    const baseEvent = window.calendar?.getEventById(`${mstId}_0`);
+
+    if (!mstId || !baseEvent) {
+      alert("Select an MST before editing a TV.");
+      return;
+    }
+
+    const reference = normalizeTvReference(baseEvent.extendedProps.tvReference);
+    const expiry = normalizeTvExpiry(baseEvent.extendedProps.tvExpiryDate);
+
+    if (!isActiveTv(reference, expiry)) {
+      alert("This MST does not have a TV to edit.");
+      return;
+    }
+
+    if (window.tvReferenceInput) window.tvReferenceInput.value = reference;
+    if (window.tvExpiryInput) window.tvExpiryInput.value = expiry;
+    if (window.tvForm) window.tvForm.classList.add("visible");
+    window.tvReferenceInput?.focus();
+  });
+
+  cancelTvBtn?.addEventListener("click", closeTvForm);
+
+  saveTvBtn?.addEventListener("click", () => {
+    const mstId = window.mstIdDisplay?.value || window.currentMstId;
+    MST.Editor.applyTvToMst(mstId);
+  });
+
+  removeTvBtn?.addEventListener("click", () => {
+    const mstId = window.mstIdDisplay?.value || window.currentMstId;
+    if (!mstId) {
+      alert("Select an MST before removing a TV.");
+      return;
+    }
+    MST.Editor.removeTvFromMst(mstId);
+  });
+};
+
 // Calculate and display the next scheduled date from Last Scheduled Date + Frequency
 window.MST.Editor.refreshNextScheduledDisplay = function() {
   if (!window.lastDateInput || !window.freqInput || !window.nextDateCalc) return;
@@ -319,209 +540,46 @@ window.MST.Editor.closeNewMSTModal = function () {
 
   const U = window.MST.Utils;
   const E = window.MST.Editor;
-
-  const formatMileageValue = (val) => {
-    if (val === null || val === undefined) return "";
-    const num = parseFloat(val);
-    if (Number.isNaN(num)) return "";
-    return num.toFixed(4);
-  };
   
     document.addEventListener('DOMContentLoaded', function () {
 
-    /******************************************************************
-     * DOM ELEMENTS
-     ******************************************************************/
-    const calEl           = document.getElementById('calendarEl');
-	  if (!calEl) {
-    console.error("❌ #calendar element not found");
-    return;
-  }
-  
-    const exportBtn       = document.getElementById('exportBtn');
-    const resetAllBtn     = document.getElementById('resetAllBtn');
-    const changeCount     = document.getElementById('changeCount');
-    const loading         = document.getElementById('loading');
-    window.detailsIntro   = document.getElementById('detailsIntro');
-    window.editForm       = document.getElementById('editForm');
-    const sidebar         = document.getElementById('sidebar');
+    const dom = getDomElements();
+    const {
+      calEl,
+      exportBtn,
+      resetAllBtn,
+      lastDateInput,
+      freqInput,
+      desc2Input,
+      desc2Counter,
+      newDesc2Input,
+      newDesc2Counter,
+      mileageFromInput,
+      mileageToInput,
+    } = dom;
 
-    const equipDisplay    = document.getElementById('equipDisplay');
-    const taskDisplay     = document.getElementById('taskDisplay');
-    const mstIdDisplay    = document.getElementById('mstIdDisplay');
-    const desc1Display    = document.getElementById('desc1Display');
-const nextDateCalc = document.getElementById('nextDateCalc');
-window.nextDateCalc = nextDateCalc;
-
-    const lastDateInput      = document.getElementById('lastDateInput');
-    const lastDatePerf       = document.getElementById('lastDatePerf');
-    const freqInput          = document.getElementById('freqInput');
-    const desc2Input         = document.getElementById('desc2Input');
-    const desc2Counter       = document.getElementById('desc2Counter');
-    const wgInput            = document.getElementById('wgInput');
-    const jobDescCodeInput   = document.getElementById('jobDescCodeInput');
-    const unitsRequiredInput = document.getElementById('unitsRequiredInput');
-    const unitsRequiredLabel = document.getElementById('unitsRequiredLabel');
-    const allowMultipleInput = document.getElementById('allowMultipleInput');
-    const mileageFromInput   = document.getElementById('mileageFromInput');
-    const mileageToInput     = document.getElementById('mileageToInput');
-    const protTypeInput      = document.getElementById('protTypeInput');
-    const protMethodInput    = document.getElementById('protMethodInput');
-    const tvActions          = document.getElementById('tvActions');
-    const tvAppliedLabel     = document.getElementById('tvAppliedLabel');
-    const applyTvBtn         = document.getElementById('applyTvBtn');
-    const editTvBtn          = document.getElementById('editTvBtn');
-    const removeTvBtn        = document.getElementById('removeTvBtn');
-    const tvForm             = document.getElementById('tvForm');
-    const tvReferenceInput   = document.getElementById('tvReferenceInput');
-    const tvExpiryInput      = document.getElementById('tvExpiryInput');
-    const saveTvBtn          = document.getElementById('saveTvBtn');
-    const cancelTvBtn        = document.getElementById('cancelTvBtn');
-
-    const saveBtn         = document.getElementById('saveBtn');
-    const revertBtn       = document.getElementById('revertBtn');
-
-    // Filter DOM
-    const filterOverlay   = document.getElementById('filterOverlay');
-    const closeFilterBtn  = document.getElementById('closeFilterBtn');
-    const openFilterBtn   = document.getElementById('openFilterBtn');
-    const applyFiltersBtn = document.getElementById('applyFiltersBtn');
-    const resetFiltersBtn = document.getElementById('resetFiltersBtn');
-    const filterWorkGroup = document.getElementById('filterWorkGroup');
-    const filterJobDesc   = document.getElementById('filterJobDesc');
-	const filterDesc1       = document.getElementById('filterDesc1');
-	const filterDesc2       = document.getElementById('filterDesc2');
-	const filterProtType    = document.getElementById('filterProtType');
-	const filterProtMethod  = document.getElementById('filterProtMethod');
-        const filterEquipDesc1  = document.getElementById('filterEquipDesc1');
-
-    const newDesc2Input     = document.getElementById('newDesc2');
-    const newDesc2Counter   = document.getElementById('newDesc2Counter');
-
-	
-      //add DOMS as Global
-      window.equipDisplay = equipDisplay;
-      window.taskDisplay = taskDisplay;
-      window.mstIdDisplay = mstIdDisplay;
-      window.desc1Display = desc1Display;
-      window.lastDateInput = lastDateInput;
-      window.lastDatePerf = lastDatePerf;
-      window.freqInput = freqInput;
-      window.desc2Input = desc2Input;
-      window.desc2Counter = desc2Counter;
-      window.wgInput = wgInput;
-      window.jobDescCodeInput = jobDescCodeInput;
-      window.unitsRequiredInput = unitsRequiredInput;
-      window.allowMultipleInput = allowMultipleInput;
-      window.mileageFromInput = mileageFromInput;
-      window.mileageToInput = mileageToInput;
-      window.protTypeInput = protTypeInput;
-      window.protMethodInput = protMethodInput;
-      window.tvActions = tvActions;
-      window.tvAppliedLabel = tvAppliedLabel;
-      window.applyTvBtn = applyTvBtn;
-      window.editTvBtn = editTvBtn;
-      window.removeTvBtn = removeTvBtn;
-      window.tvForm = tvForm;
-      window.tvReferenceInput = tvReferenceInput;
-      window.tvExpiryInput = tvExpiryInput;
-      window.saveTvBtn = saveTvBtn;
-      window.cancelTvBtn = cancelTvBtn;
-      window.detailsIntro = detailsIntro;
-      window.editForm = editForm;
-      window.sidebarEl = sidebar;
-      window.changeCount = changeCount;
-      toggleTvButtons(false);
-      setTvControlsVisible(false);
-
-// ----------------------
-    // HOOK EVENTS
-    // ----------------------
-    window.lastDateInput.addEventListener("input",  E.refreshNextScheduledDisplay);
-    window.freqInput.addEventListener("input",       E.refreshNextScheduledDisplay);
-    window.mileageFromInput.addEventListener("blur", () => {
-      window.mileageFromInput.value = formatMileageValue(window.mileageFromInput.value);
-    });
-    window.mileageToInput.addEventListener("blur", () => {
-      window.mileageToInput.value = formatMileageValue(window.mileageToInput.value);
-    });
-    if (window.desc2Input) {
-      const handleDesc2EditInput = () => {
-        window.desc2Input.value = clampDesc2(window.desc2Input.value);
-        updateCharCounter(window.desc2Input, window.desc2Counter);
-      };
-
-      window.desc2Input.addEventListener("input", handleDesc2EditInput);
-      handleDesc2EditInput();
+    if (!calEl) {
+      console.error("❌ #calendar element not found");
+      return;
     }
 
-    if (window.newDesc2Input) {
-      const handleNewDesc2Input = () => {
-        window.newDesc2Input.value = clampDesc2(window.newDesc2Input.value);
-        updateCharCounter(window.newDesc2Input, window.newDesc2Counter);
-      };
+    exposeDomElements(dom);
 
-      window.newDesc2Input.addEventListener("input", handleNewDesc2Input);
-      handleNewDesc2Input();
-    }
+    lastDateInput?.addEventListener("input", E.refreshNextScheduledDisplay);
+    freqInput?.addEventListener("input", E.refreshNextScheduledDisplay);
+
+    bindMileageFormatter(mileageFromInput);
+    bindMileageFormatter(mileageToInput);
+    bindDesc2Limiter(desc2Input, desc2Counter);
+    bindDesc2Limiter(newDesc2Input, newDesc2Counter);
+
     if (exportBtn && MST?.Export?.exportChanges) {
       exportBtn.addEventListener("click", MST.Export.exportChanges);
     }
 
-    if (resetAllBtn) {
-      resetAllBtn.addEventListener('click', MST.Editor.resetAllChanges);
-    }
+    resetAllBtn?.addEventListener("click", MST.Editor.resetAllChanges);
 
-    applyTvBtn?.addEventListener('click', () => {
-      const mstId = window.mstIdDisplay?.value || window.currentMstId;
-      if (!mstId) {
-        alert('Select an MST before applying a TV.');
-        return;
-      }
-      if (window.tvForm) window.tvForm.classList.add('visible');
-      window.tvReferenceInput?.focus();
-    });
-
-    editTvBtn?.addEventListener('click', () => {
-      const mstId = window.mstIdDisplay?.value || window.currentMstId;
-      const baseEvent = window.calendar?.getEventById(`${mstId}_0`);
-
-      if (!mstId || !baseEvent) {
-        alert('Select an MST before editing a TV.');
-        return;
-      }
-
-      const reference = normalizeTvReference(baseEvent.extendedProps.tvReference);
-      const expiry = normalizeTvExpiry(baseEvent.extendedProps.tvExpiryDate);
-
-      if (!isActiveTv(reference, expiry)) {
-        alert('This MST does not have a TV to edit.');
-        return;
-      }
-
-      if (window.tvReferenceInput) window.tvReferenceInput.value = reference;
-      if (window.tvExpiryInput) window.tvExpiryInput.value = expiry;
-      if (window.tvForm) window.tvForm.classList.add('visible');
-      window.tvReferenceInput?.focus();
-    });
-
-    cancelTvBtn?.addEventListener('click', () => {
-      closeTvForm();
-    });
-
-    saveTvBtn?.addEventListener('click', () => {
-      const mstId = window.mstIdDisplay?.value || window.currentMstId;
-      MST.Editor.applyTvToMst(mstId);
-    });
-
-    removeTvBtn?.addEventListener('click', () => {
-      const mstId = window.mstIdDisplay?.value || window.currentMstId;
-      if (!mstId) {
-        alert('Select an MST before removing a TV.');
-        return;
-      }
-      MST.Editor.removeTvFromMst(mstId);
-    });
+    bindTvButtons(dom);
 
     // ----------------------
     // INITIALIZE FULLCALENDAR
@@ -574,9 +632,6 @@ eventContent: function(arg) {
 
     eventClick(info) {
       const ev = info.event;
-      console.log("Clicked event:", ev);
-      console.log("Instance value:", ev.extendedProps.instance);
-
       const mstId = ev.extendedProps.mstId;
 
       // Always edit the base (green) MST instance so edits apply to the correct row
@@ -732,6 +787,7 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     closeTvForm();
     applyTvStyling(baseEvent, hasTvReference);
 
+    const unitsRequiredLabel = window.unitsRequiredLabel;
     if (unitsRequiredLabel) {
       unitsRequiredLabel.textContent = stdJobUom
         ? `Units Required (${stdJobUom})`
