@@ -162,17 +162,18 @@ function formatDateTimeStamp(date) {
                 const taskNo = orig["MST Task Number"] || "";
                 const mstDesc1 = row.MST_Description_1 || orig["MST Description 1"] || "";
 
-                const fieldsToCheck = [
-                    ["MST Description 2", "Old_Desc2", "New_Desc2"],
-                    ["Work Group Code", "Old_Work_Group_Code", "New_Work_Group_Code"],
-                    ["Frequency", "Old_Frequency", "New_Frequency"],
-                    ["Last Scheduled Date", "Old_Last_Scheduled_Date", "New_Last_Scheduled_Date"],
-                    ["Protection Type Code", "Old_Protection_Type_Code", "New_Protection_Type_Code"],
-                    ["Protection Method Code", "Old_Protection_Method_Code", "New_Protection_Method_Code"],
-                    ["Units Required", "Old_Units_Required", "New_Units_Required"],
-                    ["Segment Mileage From", "Old_Segment_From", "New_Segment_From"],
-                    ["Segment Mileage To", "Old_Segment_To", "New_Segment_To"]
-                ];
+          const fieldsToCheck = [
+              ["MST Description 2", "Old_Desc2", "New_Desc2"],
+              ["Work Group Code", "Old_Work_Group_Code", "New_Work_Group_Code"],
+              ["Frequency", "Old_Frequency", "New_Frequency"],
+              ["Last Scheduled Date", "Old_Last_Scheduled_Date", "New_Last_Scheduled_Date"],
+              ["Protection Type Code", "Old_Protection_Type_Code", "New_Protection_Type_Code"],
+              ["Protection Method Code", "Old_Protection_Method_Code", "New_Protection_Method_Code"],
+              ["Units Required", "Old_Units_Required", "New_Units_Required"],
+              ["Allow Multiple workorders", "Old_Allow_Multiple_Workorders", "New_Allow_Multiple_Workorders"],
+              ["Segment Mileage From", "Old_Segment_From", "New_Segment_From"],
+              ["Segment Mileage To", "Old_Segment_To", "New_Segment_To"]
+          ];
 
                 fieldsToCheck.forEach(([label, oldKey, newKey]) => {
                     const oldVal = row[oldKey];
@@ -209,19 +210,20 @@ function formatDateTimeStamp(date) {
 
                 mstHeaders.forEach(h => {
 
-                    let val =
-                        (h === "Equipment"       && (row.Equipment || orig["Equipment Number"] || "")) ||
-                        (h === "Task No"        && (row["Task No"] || orig["MST Task Number"] || "")) ||
-                        (h === "MST Desc 1"     && (row["MST Desc 1"] || orig["MST Description 1"] || "")) ||
-                        (h === "MST Desc 2"     && (row.New_Desc2 || row.Old_Desc2 || orig["MST Description 2"] || "")) ||
-                        (h === "Freq"           && (row.New_Frequency || row.Old_Frequency || orig["MST Frequency"] || "")) ||
-                        (h === "Work Group"     && (row.New_Work_Group_Code || row.Old_Work_Group_Code || orig["Work Group Code"] || "")) ||
-                        (h === "Job Desc Code"  && (row.New_Job_Desc_Code || row.Old_Job_Desc_Code || orig["Job Description Code"] || "")) ||
-                        (h === "Sched Ind"      && (row.New_Scheduling_Indicator_Code || row.Old_Scheduling_Indicator_Code || orig["Scheduling Indicator Code"] || "")) ||
-                        (h === "LSD"            && (row.New_Last_Scheduled_Date || row.Old_Last_Scheduled_Date || orig["Last Scheduled Date"] || "")) ||
-                        (h === "ProtectionType" && (row.New_Protection_Type_Code || row.Old_Protection_Type_Code || orig["Protection Type Code"] || "")) ||
-                        (h === "ProtectionMethod" && (row.New_Protection_Method_Code || row.Old_Protection_Method_Code || orig["Protection Method Code"] || "")) ||
-                        orig[h] || "";
+                      let val =
+                          (h === "Equipment"       && (row.Equipment || orig["Equipment Number"] || "")) ||
+                          (h === "Task No"        && (row["Task No"] || orig["MST Task Number"] || "")) ||
+                          (h === "MST Desc 1"     && (row["MST Desc 1"] || orig["MST Description 1"] || "")) ||
+                          (h === "MST Desc 2"     && (row.New_Desc2 || row.Old_Desc2 || orig["MST Description 2"] || "")) ||
+                          (h === "Freq"           && (row.New_Frequency || row.Old_Frequency || orig["MST Frequency"] || "")) ||
+                          (h === "Work Group"     && (row.New_Work_Group_Code || row.Old_Work_Group_Code || orig["Work Group Code"] || "")) ||
+                          (h === "Job Desc Code"  && (row.New_Job_Desc_Code || row.Old_Job_Desc_Code || orig["Job Description Code"] || "")) ||
+                          (h === "Sched Ind"      && (row.New_Scheduling_Indicator_Code || row.Old_Scheduling_Indicator_Code || orig["Scheduling Indicator Code"] || "")) ||
+                          (h === "LSD"            && (row.New_Last_Scheduled_Date || row.Old_Last_Scheduled_Date || orig["Last Scheduled Date"] || "")) ||
+                          (h === "ProtectionType" && (row.New_Protection_Type_Code || row.Old_Protection_Type_Code || orig["Protection Type Code"] || "")) ||
+                          (h === "Allow Multiple workorders" && (row.New_Allow_Multiple_Workorders || row.Old_Allow_Multiple_Workorders || orig["Allow Multiple workorders"] || "")) ||
+                          (h === "ProtectionMethod" && (row.New_Protection_Method_Code || row.Old_Protection_Method_Code || orig["Protection Method Code"] || "")) ||
+                          orig[h] || "";
 
                     if (["LSD", "NSD", "LPD", "TV Expiry Date"].includes(h)) {
                         val = formatDateDMY(val);

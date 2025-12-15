@@ -482,15 +482,15 @@
   <input type="date" id="nextDateCalc" disabled />
 </div>
 	  
-      <div class="field-block">
-        <label for="freqInput">Frequency (days)</label>
-        <input type="number" id="freqInput" min="0" />
-      </div>
+        <div class="field-block">
+          <label for="freqInput">Frequency (days)</label>
+          <input type="number" id="freqInput" min="0" />
+        </div>
 
-      <div class="field-block">
-        <label for="desc2Input">Description 2</label>
-        <input type="text" id="desc2Input" />
-      </div>
+        <div class="field-block">
+          <label for="desc2Input">Description 2</label>
+          <input type="text" id="desc2Input" />
+        </div>
 
       <div class="section-title">Work / Ownership</div>
 
@@ -531,6 +531,14 @@
       <div class="field-block">
         <label for="protMethodInput">Protection Method</label>
         <select id="protMethodInput" style="width:100%;"></select>
+      </div>
+
+      <div class="field-block" style="margin-top:8px;">
+        <label for="allowMultipleInput" style="display:block; font-weight:bold; margin-bottom:6px;">Allow multiple Work Orders</label>
+        <input type="checkbox" id="allowMultipleInput" />
+        <div class="muted-helper" style="margin-top:4px;">
+          For &lt;14 Day MSTs and allows the next instance of the MST to be generated before the previous has been closed.
+        </div>
       </div>
 
       <button id="saveBtn" style="margin-top:15px;">Save Changes</button>
@@ -788,12 +796,12 @@
     <select id="newJobCode" required></select>
   </label>
 
-   <label>
-  <span class="label-title">
-    Frequency (Days) <span class="required-star">*</span>
-  </span>
-    <input id="newFreq" type="number" min="1" required />
-  </label>
+    <label>
+    <span class="label-title">
+      Frequency (Days) <span class="required-star">*</span>
+    </span>
+      <input id="newFreq" type="number" min="1" required />
+    </label>
 
   <!-- Row 4 -->
    <label>
@@ -837,6 +845,14 @@
     Protection Method <span class="required-star">*</span>
   </span>
     <select id="newProtMethod" required></select>
+  </label>
+
+  <label style="display:block;">
+    <span class="label-title">Allow multiple Work Orders</span>
+    <input id="newAllowMultiple" type="checkbox" />
+    <div class="muted-helper" style="margin-top:4px;">
+      For &lt;14 Day MSTs and allows the next instance of the MST to be generated before the previous has been closed.
+    </div>
   </label>
 </div>
 
