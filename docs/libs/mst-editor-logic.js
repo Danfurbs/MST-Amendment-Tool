@@ -89,6 +89,9 @@ window.MST.Editor.resetAllChanges = function() {
   MST.Editor.loadMSTs(window.originalRows || []);
   if (window.detailsIntro) window.detailsIntro.style.display = "block";
   if (window.editForm) window.editForm.style.display = "none";
+  if (window.sidebarEl?.classList) window.sidebarEl.classList.remove("has-tv-reference");
+  if (window.editForm?.classList) window.editForm.classList.remove("has-tv-reference");
+  if (window.tvAppliedLabel?.classList) window.tvAppliedLabel.classList.remove("visible");
 };
 
 
@@ -254,6 +257,7 @@ window.MST.Editor.closeNewMSTModal = function () {
     const loading         = document.getElementById('loading');
     window.detailsIntro   = document.getElementById('detailsIntro');
     window.editForm       = document.getElementById('editForm');
+    const sidebar         = document.getElementById('sidebar');
 
     const equipDisplay    = document.getElementById('equipDisplay');
     const taskDisplay     = document.getElementById('taskDisplay');
@@ -275,6 +279,7 @@ window.nextDateCalc = nextDateCalc;
     const mileageToInput     = document.getElementById('mileageToInput');
     const protTypeInput      = document.getElementById('protTypeInput');
     const protMethodInput    = document.getElementById('protMethodInput');
+    const tvAppliedLabel     = document.getElementById('tvAppliedLabel');
 
     const saveBtn         = document.getElementById('saveBtn');
     const revertBtn       = document.getElementById('revertBtn');
@@ -311,8 +316,10 @@ window.nextDateCalc = nextDateCalc;
       window.mileageToInput = mileageToInput;
       window.protTypeInput = protTypeInput;
       window.protMethodInput = protMethodInput;
+      window.tvAppliedLabel = tvAppliedLabel;
       window.detailsIntro = detailsIntro;
       window.editForm = editForm;
+      window.sidebarEl = sidebar;
       window.changeCount = changeCount;
 
 // ----------------------
@@ -403,10 +410,6 @@ eventContent: function(arg) {
 
       if (typeof MST?.Editor?.openEditorForMST === "function") {
         MST.Editor.openEditorForMST(mstId, targetEvent);
-
-        // Optional: scroll editor into view
-        const form = document.getElementById("editForm");
-        if (form) form.scrollIntoView({ behavior: "smooth" });
       } else {
         console.error("❌ MST.Editor.openEditorForMST is not defined");
       }
@@ -521,12 +524,33 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
       ""
     ).toString().trim();
 
+    const tvReference = (
+      baseEvent.extendedProps.tvReference ||
+      orig["Temp Var Reference Number"] ||
+      orig["TV Reference"] ||
+      ""
+    ).toString().trim();
+
+    const hasTvReference = !!tvReference;
+
     const stdJobUom = (
       baseEvent.extendedProps.stdJobUom ||
       window.STANDARD_JOBS?.[stdJobNo]?.uom ||
       baseEvent.extendedProps.unitMeasure ||
       ""
     ).toString().trim();
+
+    if (window.sidebarEl?.classList) {
+      window.sidebarEl.classList.toggle("has-tv-reference", hasTvReference);
+    }
+
+    if (window.editForm?.classList) {
+      window.editForm.classList.toggle("has-tv-reference", hasTvReference);
+    }
+
+    if (window.tvAppliedLabel?.classList) {
+      window.tvAppliedLabel.classList.toggle("visible", hasTvReference);
+    }
 
     if (unitsRequiredLabel) {
       unitsRequiredLabel.textContent = stdJobUom
@@ -757,6 +781,9 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
       const equipmentDesc1 = safeText(r["Equipment Description 1"], 200);
       const workGroup = safeText(r["Work Group Code"]);
       const jobDescCode = safeText(r["Job Description Code"]);
+      const tvReference = safeText(r["Temp Var Reference Number"] || r["TV Reference"]);
+      const hasTvReference = !!tvReference;
+      const baseColor = hasTvReference ? MST.Utils.TV_COLOR : MST.Utils.BASE_COLOR;
 
       try {
         window.calendar.addEvent({
@@ -764,8 +791,9 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
           title: `${desc1} — ${desc2}`,
           start: eventStart,     // ← Correct placement
           allDay: false,         // ← Prevent DST-shifting behaviour
-          backgroundColor: MST.Utils.BASE_COLOR,
-          borderColor: MST.Utils.BASE_COLOR,
+          backgroundColor: baseColor,
+          borderColor: baseColor,
+          classNames: hasTvReference ? ["tv-reference"] : [],
           extendedProps: {
             mstId,
             instance: 0,
@@ -786,7 +814,9 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
             protType: safeText(r["Protection Type Code"]),
             protMethod: safeText(r["Protection Method Code"]),
             allowMultiple: normalizeAllowMultipleFlag(r["Allow Multiple workorders"]),
-            resourceHours: parseFloat(r["Resource Hours"] || 0)
+            resourceHours: parseFloat(r["Resource Hours"] || 0),
+            tvReference,
+            hasTvReference
           }
         });
       } catch (err) {
@@ -904,17 +934,26 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     const freq = parseInt(orig["MST Frequency"]) || 0;
     const rawLast = String(orig["Last Scheduled Date"] || "");
     const baseDate = U.yyyymmddToDate(rawLast);
-	baseDate.setHours(9,0,0,0);
+        baseDate.setHours(9,0,0,0);
     if (!baseDate) return;
+
+    const tvReference = (
+      orig["Temp Var Reference Number"] ||
+      orig["TV Reference"] ||
+      ""
+    ).toString().trim();
+    const hasTvReference = !!tvReference;
+    const baseColor = hasTvReference ? U.TV_COLOR : U.BASE_COLOR;
 
     // Base green
     const baseEvent = window.calendar.addEvent({
       id: `${mstId}_0`,
       title: `${orig["MST Description 1"] || ""} — ${orig["MST Description 2"] || ""}`,
       start: baseDate,
-   
-      backgroundColor: U.BASE_COLOR,
-      borderColor: U.BASE_COLOR,
+
+      backgroundColor: baseColor,
+      borderColor: baseColor,
+      classNames: hasTvReference ? ["tv-reference"] : [],
       extendedProps: {
         mstId,
         instance: 0,
@@ -928,7 +967,9 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
         segTo: orig["MST Segment Mileage To"] || "",
         protType: orig["Protection Type Code"] || "",
         protMethod: orig["Protection Method Code"] || "",
-        allowMultiple: normalizeAllowMultipleFlag(orig["Allow Multiple workorders"])
+        allowMultiple: normalizeAllowMultipleFlag(orig["Allow Multiple workorders"]),
+        tvReference,
+        hasTvReference
       }
     });
 
@@ -1028,9 +1069,9 @@ MST.Editor.addNewMST = function () {
     id: `${mstId}_0`,
     title: `${equipNo} — ${desc1}`,
     start: lastDate,
-  
-    backgroundColor: "#10b981",
-    borderColor: "#10b981",
+
+    backgroundColor: MST.Utils.BASE_COLOR,
+    borderColor: MST.Utils.BASE_COLOR,
     extendedProps: {
       mstId,
       equipmentNo: equipNo,
