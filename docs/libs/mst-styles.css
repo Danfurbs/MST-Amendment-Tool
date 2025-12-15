@@ -80,15 +80,31 @@ input, button {
 }
 
 #sidebar.has-tv-reference {
-  background: #e0f2fe;
-  border-right-color: #bfdbfe;
+  background: #d6e8fd;
+  border-right-color: #b6d4fb;
 }
 
 #editForm.has-tv-reference {
-  background: #e0f2fe;
+  background: #d6e8fd;
   border-radius: 8px;
   padding: 10px 12px;
   margin: 0 -12px;
+}
+
+.tv-applied-label {
+  display: none;
+  margin-top: -6px;
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #c0d9fb;
+  color: #0f3b73;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.tv-applied-label.visible {
+  display: inline-block;
 }
 
 /* Calendar region */

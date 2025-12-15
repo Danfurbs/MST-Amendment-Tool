@@ -91,6 +91,7 @@ window.MST.Editor.resetAllChanges = function() {
   if (window.editForm) window.editForm.style.display = "none";
   if (window.sidebarEl?.classList) window.sidebarEl.classList.remove("has-tv-reference");
   if (window.editForm?.classList) window.editForm.classList.remove("has-tv-reference");
+  if (window.tvAppliedLabel?.classList) window.tvAppliedLabel.classList.remove("visible");
 };
 
 
@@ -278,6 +279,7 @@ window.nextDateCalc = nextDateCalc;
     const mileageToInput     = document.getElementById('mileageToInput');
     const protTypeInput      = document.getElementById('protTypeInput');
     const protMethodInput    = document.getElementById('protMethodInput');
+    const tvAppliedLabel     = document.getElementById('tvAppliedLabel');
 
     const saveBtn         = document.getElementById('saveBtn');
     const revertBtn       = document.getElementById('revertBtn');
@@ -314,6 +316,7 @@ window.nextDateCalc = nextDateCalc;
       window.mileageToInput = mileageToInput;
       window.protTypeInput = protTypeInput;
       window.protMethodInput = protMethodInput;
+      window.tvAppliedLabel = tvAppliedLabel;
       window.detailsIntro = detailsIntro;
       window.editForm = editForm;
       window.sidebarEl = sidebar;
@@ -407,10 +410,6 @@ eventContent: function(arg) {
 
       if (typeof MST?.Editor?.openEditorForMST === "function") {
         MST.Editor.openEditorForMST(mstId, targetEvent);
-
-        // Optional: scroll editor into view
-        const form = document.getElementById("editForm");
-        if (form) form.scrollIntoView({ behavior: "smooth" });
       } else {
         console.error("❌ MST.Editor.openEditorForMST is not defined");
       }
@@ -547,6 +546,10 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
 
     if (window.editForm?.classList) {
       window.editForm.classList.toggle("has-tv-reference", hasTvReference);
+    }
+
+    if (window.tvAppliedLabel?.classList) {
+      window.tvAppliedLabel.classList.toggle("visible", hasTvReference);
     }
 
     if (unitsRequiredLabel) {
