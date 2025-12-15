@@ -2,6 +2,8 @@
 
 Static client for viewing and editing MST calendars. The site is now prepared for GitHub Pages deployment by serving all public assets from the `docs/` directory.
 
+> Why are `index.html` and `libs/` inside `docs/`? GitHub Pages serves content from the configured site root. By keeping the entry point and dependencies under `docs/`, everything published to Pages lives in one folder while the repository root stays clean for data artifacts like `MSTs.xlsx`.
+
 ## GitHub Pages
 
 1. In the repository settings, enable GitHub Pages and select the `work` branch (or default branch) with `/docs` as the source directory.
