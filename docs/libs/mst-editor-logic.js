@@ -38,6 +38,18 @@ const toggleTvButtons = (hasActiveTv) => {
   if (window.removeTvBtn) window.removeTvBtn.style.display = hasActiveTv ? "inline-flex" : "none";
 };
 
+const setTvControlsVisible = (visible) => {
+  if (window.tvActions?.classList) {
+    window.tvActions.classList.toggle("visible", !!visible);
+  }
+
+  if (!visible) {
+    if (window.tvAppliedLabel?.classList) window.tvAppliedLabel.classList.remove("visible");
+    toggleTvButtons(false);
+    closeTvForm();
+  }
+};
+
 const closeTvForm = () => {
   if (window.tvForm) window.tvForm.classList.remove("visible");
 };
@@ -138,7 +150,7 @@ window.MST.Editor.resetAllChanges = function() {
   if (window.sidebarEl?.classList) window.sidebarEl.classList.remove("has-tv-reference");
   if (window.editForm?.classList) window.editForm.classList.remove("has-tv-reference");
   if (window.tvAppliedLabel?.classList) window.tvAppliedLabel.classList.remove("visible");
-  closeTvForm();
+  setTvControlsVisible(false);
 };
 
 
@@ -326,6 +338,7 @@ window.nextDateCalc = nextDateCalc;
     const mileageToInput     = document.getElementById('mileageToInput');
     const protTypeInput      = document.getElementById('protTypeInput');
     const protMethodInput    = document.getElementById('protMethodInput');
+    const tvActions          = document.getElementById('tvActions');
     const tvAppliedLabel     = document.getElementById('tvAppliedLabel');
     const applyTvBtn         = document.getElementById('applyTvBtn');
     const removeTvBtn        = document.getElementById('removeTvBtn');
@@ -370,6 +383,7 @@ window.nextDateCalc = nextDateCalc;
       window.mileageToInput = mileageToInput;
       window.protTypeInput = protTypeInput;
       window.protMethodInput = protMethodInput;
+      window.tvActions = tvActions;
       window.tvAppliedLabel = tvAppliedLabel;
       window.applyTvBtn = applyTvBtn;
       window.removeTvBtn = removeTvBtn;
@@ -383,6 +397,7 @@ window.nextDateCalc = nextDateCalc;
       window.sidebarEl = sidebar;
       window.changeCount = changeCount;
       toggleTvButtons(false);
+      setTvControlsVisible(false);
 
 // ----------------------
     // HOOK EVENTS
@@ -629,6 +644,7 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     baseEvent.setExtendedProp("tvExpiryDate", tvExpiryDate);
     baseEvent.setExtendedProp("hasTvReference", hasTvReference);
     window.currentMstId = mstId;
+    setTvControlsVisible(true);
 
     const stdJobUom = (
       baseEvent.extendedProps.stdJobUom ||
