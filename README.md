@@ -17,3 +17,7 @@ Static client for viewing and editing MST calendars. The site is now prepared fo
 - `docs/.nojekyll` – ensures GitHub Pages serves the static assets without Jekyll processing.
 - `MSTs.xlsx` – example dataset for local testing (not served by GitHub Pages).
 - `MST Download SQL.txt` – SQL query used to generate MST data.
+
+## Planner how-to
+
+See [MST Amendment Tool: Planner How-To](HOW_TO_PLANNERS.md) for a concise guide to using the calendar, exporting amendments, and troubleshooting common issues.
