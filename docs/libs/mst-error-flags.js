@@ -129,15 +129,15 @@ window.MST.ErrorFlags = (function() {
       }
     },
     {
-      id: "MissingProtectionMethod",
-      description: "Protection Method code is blank.",
+      id: "MissingProtectionType",
+      description: "Protection Type code is blank.",
       evaluate(row) {
-        const protMethod =
-          toTrimmed(row?.ProtectionMethod) ||
-          toTrimmed(row?.["Protection Method Code"]) ||
-          toTrimmed(row?.ProtectionMethodCode);
+        const protType =
+          toTrimmed(row?.ProtectionType) ||
+          toTrimmed(row?.["Protection Type Code"]) ||
+          toTrimmed(row?.ProtectionTypeCode);
 
-        return protMethod === "";
+        return protType === "";
       }
     },
     {
