@@ -431,7 +431,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const wgPairs = new Map();
       fullRows.forEach(r => {
         const code = safeTrim(r["Work Group Set Code"]);
-        const desc = safeTrim(r["Work Group Description"]);
+        const desc = safeTrim(r["Work Group Set Description"]);
         if (code && desc) wgPairs.set(code, desc);
       });
 
