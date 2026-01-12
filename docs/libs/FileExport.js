@@ -145,11 +145,39 @@ function formatDateTimeStamp(date) {
             const changeData = Object.values(window.changes);
 
             const dateFields = new Set(["Last Scheduled Date", "TV Expiry Date"]);
+            const codeDescriptionMaps = {
+                "Job Description Code": new Map((window.MST_VARIABLES?.jobDescCodes || []).map(item => [item.code, item.desc])),
+                "Protection Type Code": new Map((window.MST_VARIABLES?.protectionTypes || []).map(item => [item.code, item.desc])),
+                "Protection Method Code": new Map((window.MST_VARIABLES?.protectionMethods || []).map(item => [item.code, item.desc]))
+            };
+
+            function formatCodeWithDescription(value, fieldLabel) {
+                const map = codeDescriptionMaps[fieldLabel];
+                if (!map) return value;
+                const raw = (value ?? "").toString().trim();
+                if (!raw) return "";
+
+                const upper = raw.toUpperCase();
+                const candidates = [raw, upper];
+                if (fieldLabel !== "Job Description Code") {
+                    candidates.push(raw.padStart(2, "0"));
+                    candidates.push(upper.padStart(2, "0"));
+                }
+
+                for (const candidate of candidates) {
+                    const desc = map.get(candidate);
+                    if (desc) {
+                        return `${candidate} — ${desc}`;
+                    }
+                }
+
+                return raw;
+            }
 
             function safeValue(value, fieldLabel) {
                 if (value == null || value === "") return "";
                 if (dateFields.has(fieldLabel)) return formatDateDMY(value);
-                return value;
+                return formatCodeWithDescription(value, fieldLabel);
             }
 
             changeData.forEach(row => {
@@ -165,6 +193,7 @@ function formatDateTimeStamp(date) {
           const fieldsToCheck = [
               ["MST Description 2", "Old_Desc2", "New_Desc2"],
               ["Work Group Code", "Old_Work_Group_Code", "New_Work_Group_Code"],
+              ["Job Description Code", "Old_Job_Desc_Code", "New_Job_Desc_Code"],
               ["Frequency", "Old_Frequency", "New_Frequency"],
               ["Last Scheduled Date", "Old_Last_Scheduled_Date", "New_Last_Scheduled_Date"],
               ["Protection Type Code", "Old_Protection_Type_Code", "New_Protection_Type_Code"],

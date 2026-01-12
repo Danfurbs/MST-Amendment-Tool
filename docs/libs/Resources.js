@@ -127,7 +127,11 @@
               autoSkip: true,
               maxTicksLimit: 6,
               font: { size: 11 },
-              callback: (val, idx) => (Array.isArray(labels[idx]) ? labels[idx] : val),
+              callback: function(val, idx) {
+                const chartLabels = this.chart?.data?.labels || [];
+                const label = chartLabels[idx];
+                return Array.isArray(label) ? label : val;
+              },
             },
           },
         },
