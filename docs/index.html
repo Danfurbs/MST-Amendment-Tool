@@ -1249,6 +1249,53 @@ Hold <strong>Ctrl</strong> (or <strong>Cmd</strong> on Mac) to select multiple
   </div>
 </div>
 
+  <!-- =======================================================
+     INITIAL LOAD FILTER MODAL (Large MST Sets)
+======================================================= -->
+<div id="initialFilterModal" style="
+  display:none; position:fixed; inset:0;
+  background:rgba(0,0,0,0.55); z-index:99999;
+  justify-content:center; align-items:center; pointer-events:auto;">
+
+  <div style="
+    background:white; padding:25px; border-radius:10px;
+    min-width:420px; max-width:640px; pointer-events:auto;">
+
+    <h3>Additional Filter Required</h3>
+    <p id="initialFilterCount">This selection contains a large number of MSTs. Please choose Work Group codes and one additional filter to continue.</p>
+
+    <label for="initialWorkGroupDropdown" style="display:block; margin-top:14px; font-weight:600;">
+      Work Group Codes
+    </label>
+    <select id="initialWorkGroupDropdown" multiple size="8" style="
+      width:100%; padding:8px; margin-top:8px; border:1px solid #bbb; border-radius:6px;">
+    </select>
+    <p style="font-size:12px; color:#444; margin-top:5px;">
+      Hold <strong>Ctrl</strong> (or <strong>Cmd</strong> on Mac) to select multiple
+    </p>
+
+    <label for="initialDesc1Dropdown" style="display:block; margin-top:14px; font-weight:600;">
+      MST Description 1
+    </label>
+    <select id="initialDesc1Dropdown" multiple size="8" style="
+      width:100%; padding:8px; margin-top:8px; border:1px solid #bbb; border-radius:6px;">
+    </select>
+    <p style="font-size:12px; color:#444; margin-top:5px;">
+      Counts are shown per MST Description 1. Select one or more to load a smaller MST set.
+    </p>
+
+    <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:18px;">
+      <button id="initialFilterBack" style="padding:6px 18px; background:#e5e7eb; color:#111827; border:none; border-radius:6px;">
+        Back
+      </button>
+      <button id="initialFilterConfirm" style="padding:6px 18px; background:#10b981; color:white; border:none; border-radius:6px;">
+        Load MSTs
+      </button>
+    </div>
+
+  </div>
+</div>
+
   <!-- =========================
        PAGE SCRIPT
   ========================== -->
