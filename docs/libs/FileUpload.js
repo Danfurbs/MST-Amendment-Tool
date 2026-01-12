@@ -512,8 +512,30 @@ document.addEventListener("DOMContentLoaded", function () {
       const buildInitialFilterOptions = (rows) => {
         if (!initialWorkGroupDropdown || !initialDesc1Dropdown) return;
 
-        const workGroups = [...new Set(rows.map(r => safeTrim(r["Work Group Code"])))].sort();
-        populateSelectValues(initialWorkGroupDropdown, workGroups);
+        const workGroupPairs = new Map();
+        rows.forEach(row => {
+          const code = safeTrim(row["Work Group Code"]);
+          if (!code) return;
+          const desc = safeTrim(row["Work Group Description"]);
+          if (!workGroupPairs.has(code)) {
+            workGroupPairs.set(code, desc);
+          }
+        });
+
+        const workGroupOptions = [...workGroupPairs.entries()]
+          .sort((a, b) => a[0].localeCompare(b[0]))
+          .map(([code, desc]) => ({
+            value: code,
+            label: desc ? `${code} — ${desc}` : code
+          }));
+
+        initialWorkGroupDropdown.innerHTML = "";
+        workGroupOptions.forEach(({ value, label }) => {
+          const opt = document.createElement("option");
+          opt.value = value;
+          opt.textContent = label;
+          initialWorkGroupDropdown.appendChild(opt);
+        });
 
         const desc1Counts = new Map();
         rows.forEach(row => {
@@ -547,7 +569,7 @@ document.addEventListener("DOMContentLoaded", function () {
         buildInitialFilterOptions(rows);
 
         if (initialFilterCount) {
-          initialFilterCount.textContent = `This selection contains ${rows.length} MSTs. Please choose Work Group codes and one additional filter to continue.`;
+          initialFilterCount.textContent = `This selection contains ${rows.length} MSTs. Please choose Work Group codes (with descriptions) and one additional filter to continue.`;
         }
 
         initialWorkGroupDropdown.selectedIndex = -1;
