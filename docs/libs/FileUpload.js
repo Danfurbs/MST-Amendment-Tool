@@ -25,6 +25,18 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
+  function populateSelectValues(selectEl, values) {
+    if (!selectEl) return;
+    selectEl.innerHTML = "";
+    values.forEach(value => {
+      if (!value) return;
+      const opt = document.createElement("option");
+      opt.value = value;
+      opt.textContent = value;
+      selectEl.appendChild(opt);
+    });
+  }
+
   const fileInput = document.getElementById("fileInput");
   const fileInputLabel = document.querySelector('label[for="fileInput"]');
   const fileInputLabelText = document.querySelector(".file-upload-label-text");
@@ -32,6 +44,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const downloadDateDisplay = document.getElementById("downloadDateDisplay");
   const downloadDateWarning = document.getElementById("downloadDateWarning");
   const errorSummaryEl = document.getElementById("mstErrorSummary");
+  const INITIAL_LOAD_THRESHOLD = 6000;
 
   /** Safely coerce any value to a trimmed string */
   function safeTrim(value) {
@@ -421,6 +434,12 @@ document.addEventListener("DOMContentLoaded", function () {
       // ========= Work Group Modal =========
       const wgSelectModal    = document.getElementById("wgSelectModal");
       const wgSelectDropdown = document.getElementById("wgSelectDropdown");
+      const initialFilterModal = document.getElementById("initialFilterModal");
+      const initialWorkGroupDropdown = document.getElementById("initialWorkGroupDropdown");
+      const initialDesc1Dropdown = document.getElementById("initialDesc1Dropdown");
+      const initialFilterConfirm = document.getElementById("initialFilterConfirm");
+      const initialFilterBack = document.getElementById("initialFilterBack");
+      const initialFilterCount = document.getElementById("initialFilterCount");
 
       if (!wgSelectModal || !wgSelectDropdown) {
         throw new Error("Work Group selection modal controls were not found in the DOM.");
@@ -453,26 +472,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
       debugStep("Work group modal displayed");
 
-      document.getElementById("wgSelectConfirm").onclick = () => {
-        debugStep("Work group confirmation clicked");
-
-        const selected = [...wgSelectDropdown.selectedOptions].map(o => o.value);
-        if (!selected.length) {
-          alert("Please select at least one Work Group Set.");
-          return;
-        }
-
-        wgSelectModal.style.display = "none";
-
-        debugStep("Work group modal hidden");
-
-        const filtered = fullRows.filter(r =>
-          selected.includes(safeTrim(r["Work Group Set Code"]))
-        );
-
-        debugStep("Rows filtered by work group");
-
-        const annotatedRows = reapplyErrorEvaluation(filtered);
+      const finalizeLoad = (rows) => {
+        const annotatedRows = reapplyErrorEvaluation(rows);
 
         debugStep("Error flags applied");
 
@@ -506,6 +507,186 @@ document.addEventListener("DOMContentLoaded", function () {
           console.error("❌ Failed to render MSTs", err);
           alert("The MSTs could not be displayed. Please retry or contact support.");
         }
+      };
+
+      const buildInitialFilterOptions = (rows) => {
+        if (!initialWorkGroupDropdown || !initialDesc1Dropdown) return;
+
+        const workGroups = [...new Set(rows.map(r => safeTrim(r["Work Group Code"])))].sort();
+        populateSelectValues(initialWorkGroupDropdown, workGroups);
+
+        const desc1Counts = new Map();
+        rows.forEach(row => {
+          const desc1 = safeTrim(row["MST Description 1"]);
+          if (!desc1) return;
+          desc1Counts.set(desc1, (desc1Counts.get(desc1) || 0) + 1);
+        });
+
+        const desc1Options = [...desc1Counts.entries()]
+          .sort((a, b) => a[0].localeCompare(b[0]))
+          .map(([desc1, count]) => ({
+            value: desc1,
+            label: `${desc1} (${count})`
+          }));
+
+        initialDesc1Dropdown.innerHTML = "";
+        desc1Options.forEach(({ value, label }) => {
+          const opt = document.createElement("option");
+          opt.value = value;
+          opt.textContent = label;
+          initialDesc1Dropdown.appendChild(opt);
+        });
+      };
+
+      const openInitialFilterModal = (rows) => {
+        if (!initialFilterModal || !initialFilterConfirm || !initialWorkGroupDropdown || !initialDesc1Dropdown) {
+          alert("This file contains more than 6000 MSTs. Please reduce the Work Group Set selection and retry.");
+          return;
+        }
+
+        buildInitialFilterOptions(rows);
+
+        if (initialFilterCount) {
+          initialFilterCount.textContent = `This selection contains ${rows.length} MSTs. Please choose Work Group codes and one additional filter to continue.`;
+        }
+
+        initialWorkGroupDropdown.selectedIndex = -1;
+        initialDesc1Dropdown.selectedIndex = -1;
+
+        initialFilterModal.style.display = "flex";
+
+        const updateDesc1Options = () => {
+          const selectedWorkGroups = [...initialWorkGroupDropdown.selectedOptions].map(o => o.value);
+          const baseRows = selectedWorkGroups.length
+            ? rows.filter(r => selectedWorkGroups.includes(safeTrim(r["Work Group Code"])))
+            : rows;
+
+          const desc1Counts = new Map();
+          baseRows.forEach(row => {
+            const desc1 = safeTrim(row["MST Description 1"]);
+            if (!desc1) return;
+            desc1Counts.set(desc1, (desc1Counts.get(desc1) || 0) + 1);
+          });
+
+          const desc1Options = [...desc1Counts.entries()]
+            .sort((a, b) => a[0].localeCompare(b[0]))
+            .map(([desc1, count]) => ({
+              value: desc1,
+              label: `${desc1} (${count})`
+            }));
+
+          initialDesc1Dropdown.innerHTML = "";
+          desc1Options.forEach(({ value, label }) => {
+            const opt = document.createElement("option");
+            opt.value = value;
+            opt.textContent = label;
+            initialDesc1Dropdown.appendChild(opt);
+          });
+        };
+
+        const updateFilteredCount = () => {
+          const selectedWorkGroups = [...initialWorkGroupDropdown.selectedOptions].map(o => o.value);
+          const selectedDesc1 = [...initialDesc1Dropdown.selectedOptions].map(o => o.value);
+
+          const filteredByWg = selectedWorkGroups.length
+            ? rows.filter(r => selectedWorkGroups.includes(safeTrim(r["Work Group Code"])))
+            : rows;
+
+          const filtered = selectedDesc1.length
+            ? filteredByWg.filter(r => selectedDesc1.includes(safeTrim(r["MST Description 1"])))
+            : filteredByWg;
+
+          if (initialFilterCount) {
+            initialFilterCount.textContent = `Current selection would load ${filtered.length} MSTs. You must be at or under ${INITIAL_LOAD_THRESHOLD}.`;
+          }
+
+          initialFilterConfirm.disabled = !selectedWorkGroups.length ||
+            !selectedDesc1.length ||
+            filtered.length > INITIAL_LOAD_THRESHOLD;
+        };
+
+        initialWorkGroupDropdown.onchange = () => {
+          updateDesc1Options();
+          updateFilteredCount();
+        };
+        initialDesc1Dropdown.onchange = updateFilteredCount;
+
+        updateDesc1Options();
+        updateFilteredCount();
+
+        if (initialFilterBack) {
+          initialFilterBack.onclick = () => {
+            initialFilterModal.style.display = "none";
+            wgSelectModal.style.display = "flex";
+          };
+        }
+
+        initialFilterConfirm.onclick = () => {
+          const selectedWorkGroups = [...initialWorkGroupDropdown.selectedOptions].map(o => o.value);
+          const selectedDesc1 = [...initialDesc1Dropdown.selectedOptions].map(o => o.value);
+
+          if (!selectedWorkGroups.length) {
+            alert("Please select at least one Work Group Code.");
+            return;
+          }
+
+          if (!selectedDesc1.length) {
+            alert("Please select at least one MST Description 1.");
+            return;
+          }
+
+          const filteredByWg = rows.filter(r =>
+            selectedWorkGroups.includes(safeTrim(r["Work Group Code"]))
+          );
+
+          const filtered = filteredByWg.filter(r =>
+            selectedDesc1.includes(safeTrim(r["MST Description 1"]))
+          );
+
+          if (filtered.length > INITIAL_LOAD_THRESHOLD) {
+            alert(`Please narrow the MST Description 1 selections to ${INITIAL_LOAD_THRESHOLD} or fewer MSTs.`);
+            updateFilteredCount();
+            return;
+          }
+
+          initialFilterModal.style.display = "none";
+
+          if (!filtered.length) {
+            alert("No MSTs matched those filters. Please try again.");
+            openInitialFilterModal(rows);
+            return;
+          }
+
+          finalizeLoad(filtered);
+        };
+      };
+
+      document.getElementById("wgSelectConfirm").onclick = () => {
+        debugStep("Work group confirmation clicked");
+
+        const selected = [...wgSelectDropdown.selectedOptions].map(o => o.value);
+        if (!selected.length) {
+          alert("Please select at least one Work Group Set.");
+          return;
+        }
+
+        wgSelectModal.style.display = "none";
+
+        debugStep("Work group modal hidden");
+
+        const filtered = fullRows.filter(r =>
+          selected.includes(safeTrim(r["Work Group Set Code"]))
+        );
+
+        debugStep("Rows filtered by work group");
+
+        if (filtered.length > INITIAL_LOAD_THRESHOLD) {
+          debugStep("Initial filter required due to large MST count");
+          openInitialFilterModal(filtered);
+          return;
+        }
+
+        finalizeLoad(filtered);
       };
 
     } catch (err) {
