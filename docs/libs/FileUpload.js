@@ -434,6 +434,7 @@ document.addEventListener("DOMContentLoaded", function () {
       // ========= Work Group Modal =========
       const wgSelectModal    = document.getElementById("wgSelectModal");
       const wgSelectDropdown = document.getElementById("wgSelectDropdown");
+      const wgUseAdditionalFilters = document.getElementById("wgUseAdditionalFilters");
       const initialFilterModal = document.getElementById("initialFilterModal");
       const initialWorkGroupDropdown = document.getElementById("initialWorkGroupDropdown");
       const initialDesc1Dropdown = document.getElementById("initialDesc1Dropdown");
@@ -701,6 +702,12 @@ document.addEventListener("DOMContentLoaded", function () {
         );
 
         debugStep("Rows filtered by work group");
+
+        if (wgUseAdditionalFilters?.checked) {
+          debugStep("Initial filter opened by user selection");
+          openInitialFilterModal(filtered);
+          return;
+        }
 
         if (filtered.length > INITIAL_LOAD_THRESHOLD) {
           debugStep("Initial filter required due to large MST count");
