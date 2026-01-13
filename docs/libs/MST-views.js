@@ -321,9 +321,339 @@
     window.MST.Views.closeGoto = closeGoto;
   }
 
+  function setupBulkUpdate() {
+    const openBulkBtn = getEl('openBulkUpdateBtn');
+    const overlay = getEl('bulkUpdateOverlay');
+    const panel = getEl('bulkUpdatePanel');
+    const closeBulkBtn = getEl('closeBulkUpdateBtn');
+    const cancelBulkBtn = getEl('bulkCancelBtn');
+    const filterInput = getEl('bulkFilterInput');
+    const selectAll = getEl('bulkSelectAll');
+    const listBody = getEl('bulkListBody');
+    const selectedCount = getEl('bulkSelectedCount');
+    const openEditorBtn = getEl('bulkOpenEditorBtn');
+
+    const editOverlay = getEl('bulkEditOverlay');
+    const editPanel = getEl('bulkEditPanel');
+    const closeEditBtn = getEl('closeBulkEditBtn');
+    const backBtn = getEl('bulkBackBtn');
+    const applyBtn = getEl('bulkApplyBtn');
+    const editBody = getEl('bulkEditBody');
+    const editCount = getEl('bulkEditCount');
+
+    if (!openBulkBtn || !overlay || !panel || !listBody || !editOverlay || !editBody) return;
+
+    const selected = new Set();
+
+    const getVisibleBaseEvents = () => {
+      const calendar = window.calendar;
+      if (!calendar) return [];
+      return calendar.getEvents().filter((ev) => {
+        const props = ev.extendedProps || {};
+        return props.instance === 0 && ev.display !== 'none';
+      });
+    };
+
+    const normalizeText = (value) => (value || '').toString().toLowerCase();
+
+    const makeFilterText = (props) => [
+      props.equipmentNo,
+      props.taskNo,
+      props.desc1,
+      props.desc2,
+      props.workGroup,
+      props.jobDescCode
+    ].map(normalizeText).join(' ');
+
+    const updateSelectedCount = () => {
+      if (selectedCount) selectedCount.textContent = `${selected.size}`;
+    };
+
+    const syncSelectAll = (filteredEvents) => {
+      if (!selectAll) return;
+      if (!filteredEvents.length) {
+        selectAll.checked = false;
+        selectAll.indeterminate = false;
+        return;
+      }
+      const selectedVisible = filteredEvents.every((ev) => selected.has(ev.extendedProps?.mstId));
+      const someSelected = filteredEvents.some((ev) => selected.has(ev.extendedProps?.mstId));
+      selectAll.checked = selectedVisible;
+      selectAll.indeterminate = !selectedVisible && someSelected;
+    };
+
+    const renderList = () => {
+      if (!listBody) return;
+      listBody.innerHTML = '';
+      const term = normalizeText(filterInput?.value);
+      const events = getVisibleBaseEvents()
+        .filter((ev) => {
+          if (!term) return true;
+          return makeFilterText(ev.extendedProps || {}).includes(term);
+        })
+        .sort((a, b) => {
+          const aKey = `${a.extendedProps?.equipmentNo || ''}${a.extendedProps?.taskNo || ''}`;
+          const bKey = `${b.extendedProps?.equipmentNo || ''}${b.extendedProps?.taskNo || ''}`;
+          return aKey.localeCompare(bKey);
+        });
+
+      events.forEach((ev) => {
+        const props = ev.extendedProps || {};
+        const mstId = props.mstId;
+        const tr = document.createElement('tr');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = selected.has(mstId);
+        checkbox.addEventListener('change', () => {
+          if (checkbox.checked) {
+            selected.add(mstId);
+          } else {
+            selected.delete(mstId);
+          }
+          updateSelectedCount();
+          syncSelectAll(events);
+        });
+
+        const dateValue = Utils?.dateToInputYYYYMMDD
+          ? Utils.dateToInputYYYYMMDD(ev.start)
+          : '';
+
+        tr.innerHTML = `
+          <td></td>
+          <td>${props.equipmentNo || ''}</td>
+          <td>${props.taskNo || ''}</td>
+          <td>${props.desc1 || ''}</td>
+          <td>${props.workGroup || ''}</td>
+          <td>${dateValue || ''}</td>
+        `;
+        tr.querySelector('td')?.appendChild(checkbox);
+        listBody.appendChild(tr);
+      });
+
+      updateSelectedCount();
+      syncSelectAll(events);
+    };
+
+    const openOverlay = ({ resetSelection = true, resetFilter = true } = {}) => {
+      if (resetFilter && filterInput) filterInput.value = '';
+      if (resetSelection) {
+        selected.clear();
+        updateSelectedCount();
+      }
+      if (selectAll && resetSelection) {
+        selectAll.checked = false;
+        selectAll.indeterminate = false;
+      }
+      renderList();
+      overlay.classList.add('active');
+      overlay.setAttribute('aria-hidden', 'false');
+    };
+
+    const closeOverlay = () => {
+      overlay.classList.remove('active');
+      overlay.setAttribute('aria-hidden', 'true');
+    };
+
+    const openEditor = () => {
+      if (!selected.size) {
+        alert('Select at least one MST to edit.');
+        return;
+      }
+      const calendar = window.calendar;
+      if (!calendar) return;
+
+      const sourceJobSelect = document.getElementById('jobDescCodeInput');
+      const sourceProtType = document.getElementById('protTypeInput');
+      const sourceProtMethod = document.getElementById('protMethodInput');
+
+      const cloneSelectOptions = (source) => {
+        const select = document.createElement('select');
+        if (!source) return select;
+        Array.from(source.options || []).forEach((opt) => {
+          const newOpt = document.createElement('option');
+          newOpt.value = opt.value;
+          newOpt.textContent = opt.textContent;
+          select.appendChild(newOpt);
+        });
+        return select;
+      };
+
+      const events = Array.from(selected)
+        .map((mstId) => calendar.getEventById(`${mstId}_0`))
+        .filter(Boolean)
+        .sort((a, b) => {
+          const aKey = `${a.extendedProps?.equipmentNo || ''}${a.extendedProps?.taskNo || ''}`;
+          const bKey = `${b.extendedProps?.equipmentNo || ''}${b.extendedProps?.taskNo || ''}`;
+          return aKey.localeCompare(bKey);
+        });
+
+      if (editCount) editCount.textContent = `${events.length}`;
+      editBody.innerHTML = '';
+
+      events.forEach((ev) => {
+        const props = ev.extendedProps || {};
+        const tr = document.createElement('tr');
+        tr.dataset.mstId = props.mstId;
+
+        const desc2Input = document.createElement('input');
+        desc2Input.type = 'text';
+        desc2Input.maxLength = 45;
+        desc2Input.value = props.desc2 || '';
+
+        const freqInput = document.createElement('input');
+        freqInput.type = 'number';
+        freqInput.min = '0';
+        freqInput.value = props.frequency ?? '';
+
+        const dateInput = document.createElement('input');
+        dateInput.type = 'date';
+        dateInput.value = Utils?.dateToInputYYYYMMDD ? Utils.dateToInputYYYYMMDD(ev.start) : '';
+
+        const wgInput = document.createElement('input');
+        wgInput.type = 'text';
+        wgInput.value = props.workGroup || '';
+
+        const jobSelect = cloneSelectOptions(sourceJobSelect);
+        jobSelect.value = props.jobDescCode || '';
+
+        const unitsInput = document.createElement('input');
+        unitsInput.type = 'number';
+        unitsInput.min = '0';
+        unitsInput.value = props.unitsRequired ?? '';
+
+        const segFromInput = document.createElement('input');
+        segFromInput.type = 'number';
+        segFromInput.min = '0';
+        segFromInput.value = props.segFrom ?? '';
+
+        const segToInput = document.createElement('input');
+        segToInput.type = 'number';
+        segToInput.min = '0';
+        segToInput.value = props.segTo ?? '';
+
+        const protTypeSelect = cloneSelectOptions(sourceProtType);
+        protTypeSelect.value = props.protType || '';
+
+        const protMethodSelect = cloneSelectOptions(sourceProtMethod);
+        protMethodSelect.value = props.protMethod || '';
+
+        const allowMultipleInput = document.createElement('input');
+        allowMultipleInput.type = 'checkbox';
+        allowMultipleInput.checked = (props.allowMultiple || '').toString().toUpperCase() === 'YES';
+
+        tr.innerHTML = `
+          <td>${props.equipmentNo || ''}</td>
+          <td>${props.taskNo || ''}</td>
+          <td>${props.desc1 || ''}</td>
+        `;
+
+        const cells = [
+          desc2Input,
+          freqInput,
+          dateInput,
+          wgInput,
+          jobSelect,
+          unitsInput,
+          segFromInput,
+          segToInput,
+          protTypeSelect,
+          protMethodSelect,
+          allowMultipleInput
+        ];
+
+        cells.forEach((input) => {
+          const td = document.createElement('td');
+          td.appendChild(input);
+          tr.appendChild(td);
+        });
+
+        editBody.appendChild(tr);
+      });
+
+      overlay.classList.remove('active');
+      overlay.setAttribute('aria-hidden', 'true');
+      editOverlay.classList.add('active');
+      editOverlay.setAttribute('aria-hidden', 'false');
+    };
+
+    const closeEditor = () => {
+      editOverlay.classList.remove('active');
+      editOverlay.setAttribute('aria-hidden', 'true');
+    };
+
+    const applyBulkUpdates = () => {
+      if (!window.MST?.Editor?.applyBulkEdits) {
+        alert('Bulk update is unavailable. Please refresh and try again.');
+        return;
+      }
+      const rows = Array.from(editBody.querySelectorAll('tr[data-mst-id]'));
+      let updated = 0;
+      rows.forEach((row) => {
+        const mstId = row.dataset.mstId;
+        const inputs = row.querySelectorAll('input, select');
+        const updates = {
+          desc2: inputs[0]?.value ?? '',
+          frequency: inputs[1]?.value ?? '',
+          lastDate: inputs[2]?.value ?? '',
+          workGroup: inputs[3]?.value ?? '',
+          jobDescCode: inputs[4]?.value ?? '',
+          unitsRequired: inputs[5]?.value ?? '',
+          segFrom: inputs[6]?.value ?? '',
+          segTo: inputs[7]?.value ?? '',
+          protType: inputs[8]?.value ?? '',
+          protMethod: inputs[9]?.value ?? '',
+          allowMultiple: inputs[10]?.checked ?? false
+        };
+        const result = window.MST.Editor.applyBulkEdits(mstId, updates);
+        if (result) updated += 1;
+      });
+
+      alert(`Updated ${updated} MST${updated === 1 ? '' : 's'}.`);
+      closeEditor();
+      openOverlay({ resetSelection: true, resetFilter: true });
+    };
+
+    openBulkBtn.addEventListener('click', () => openOverlay({ resetSelection: true, resetFilter: true }));
+    closeBulkBtn?.addEventListener('click', closeOverlay);
+    cancelBulkBtn?.addEventListener('click', closeOverlay);
+
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) closeOverlay();
+    });
+
+    editOverlay.addEventListener('click', (e) => {
+      if (e.target === editOverlay) closeEditor();
+    });
+
+    filterInput?.addEventListener('input', renderList);
+
+    selectAll?.addEventListener('change', () => {
+      const events = getVisibleBaseEvents().filter((ev) => {
+        const term = normalizeText(filterInput?.value);
+        if (!term) return true;
+        return makeFilterText(ev.extendedProps || {}).includes(term);
+      });
+      if (selectAll.checked) {
+        events.forEach((ev) => selected.add(ev.extendedProps?.mstId));
+      } else {
+        events.forEach((ev) => selected.delete(ev.extendedProps?.mstId));
+      }
+      renderList();
+    });
+
+    openEditorBtn?.addEventListener('click', openEditor);
+    closeEditBtn?.addEventListener('click', closeEditor);
+    backBtn?.addEventListener('click', () => {
+      closeEditor();
+      openOverlay({ resetSelection: false, resetFilter: false });
+    });
+    applyBtn?.addEventListener('click', applyBulkUpdates);
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
     setupFilters();
     setupGoto();
     setupFlaggedListView();
+    setupBulkUpdate();
   });
 })();

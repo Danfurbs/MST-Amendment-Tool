@@ -800,6 +800,7 @@
         <button id="resetAllBtn" style="background:#ef4444; color:white;">Reset All Changes</button>
         <button id="openFilterBtn">⚙️ Filters</button>
         <button id="openGotoBtn" class="primary-action-btn">Go to MST</button>
+        <button id="openBulkUpdateBtn" class="primary-action-btn">Bulk Update</button>
         <button id="openResourceBtn" class="primary-action-btn">Planned Hours Graph</button>
         <button id="newMSTBtn" class="primary-action-btn">+ New MST</button>
       </div>
@@ -1005,6 +1006,97 @@ WHERE
     MSTs.work_group LIKE 'D%' /ADD START OF WORKGROUPS HERE
     AND MSTs.sched_ind_700 = 1</code></pre>
       </details>
+    </div>
+  </div>
+
+  <!-- =========================
+       BULK UPDATE LIST OVERLAY
+  ========================== -->
+  <div id="bulkUpdateOverlay" class="bulk-overlay" aria-hidden="true">
+    <div id="bulkUpdatePanel" class="bulk-panel" role="dialog" aria-modal="true" aria-labelledby="bulkUpdateTitle">
+      <div class="bulk-header">
+        <h3 id="bulkUpdateTitle">Bulk Update</h3>
+        <button id="closeBulkUpdateBtn" class="bulk-close-btn" title="Close">✕</button>
+      </div>
+      <div class="bulk-body">
+        <div class="bulk-controls">
+          <div class="bulk-filter">
+            <label for="bulkFilterInput"><strong>Filter list</strong></label>
+            <input id="bulkFilterInput" type="text" placeholder="Filter by equipment, description, work group, job code..." />
+          </div>
+          <label class="bulk-select-all">
+            <input type="checkbox" id="bulkSelectAll" />
+            Select all visible
+          </label>
+          <div class="bulk-selection-count">
+            Selected: <span id="bulkSelectedCount">0</span>
+          </div>
+        </div>
+        <div class="bulk-table-wrapper">
+          <table class="bulk-table">
+            <thead>
+              <tr>
+                <th>Select</th>
+                <th>Equipment</th>
+                <th>Task</th>
+                <th>MST Description 1</th>
+                <th>Work Group</th>
+                <th>Last Scheduled Date</th>
+              </tr>
+            </thead>
+            <tbody id="bulkListBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="bulk-footer">
+        <button id="bulkOpenEditorBtn" class="primary-action-btn">Edit selected</button>
+        <button id="bulkCancelBtn" class="bulk-secondary-btn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================
+       BULK UPDATE EDITOR OVERLAY
+  ========================== -->
+  <div id="bulkEditOverlay" class="bulk-overlay" aria-hidden="true">
+    <div id="bulkEditPanel" class="bulk-panel bulk-edit-panel" role="dialog" aria-modal="true" aria-labelledby="bulkEditTitle">
+      <div class="bulk-header">
+        <h3 id="bulkEditTitle">Bulk Edit Selected MSTs</h3>
+        <button id="closeBulkEditBtn" class="bulk-close-btn" title="Close">✕</button>
+      </div>
+      <div class="bulk-body">
+        <div class="bulk-editor-meta">
+          <div><strong>Selected:</strong> <span id="bulkEditCount">0</span></div>
+          <div class="muted-helper">Edit values per row. Changes apply to each MST when you click “Apply updates”.</div>
+        </div>
+        <div class="bulk-table-wrapper bulk-edit-table-wrapper">
+          <table class="bulk-table bulk-edit-table">
+            <thead>
+              <tr>
+                <th>Equipment</th>
+                <th>Task</th>
+                <th>MST Description 1</th>
+                <th>Description 2</th>
+                <th>Frequency</th>
+                <th>Last Scheduled Date</th>
+                <th>Work Group</th>
+                <th>Job Desc Code</th>
+                <th>Units Required</th>
+                <th>Segment From</th>
+                <th>Segment To</th>
+                <th>Protection Type</th>
+                <th>Protection Method</th>
+                <th>Allow Multiple</th>
+              </tr>
+            </thead>
+            <tbody id="bulkEditBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="bulk-footer">
+        <button id="bulkApplyBtn" class="primary-action-btn">Apply updates</button>
+        <button id="bulkBackBtn" class="bulk-secondary-btn">Back to list</button>
+      </div>
     </div>
   </div>
   

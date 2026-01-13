@@ -1183,80 +1183,124 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
   /* ----------------------------------------
      SAVE MST EDITS
      ---------------------------------------- */
+  const applyMstUpdates = (mstId, updates = {}) => {
+    const baseEvent = window.calendar?.getEventById(`${mstId}_0`);
+    if (!baseEvent) return null;
+
+    const props = baseEvent.extendedProps || {};
+    const isNew = props.isNew === true;
+    const pickValue = (value, fallback) => (value === undefined ? fallback : value);
+
+    const rawFreq = pickValue(updates.frequency, props.frequency);
+    const freq = parseInt(rawFreq || "0", 10);
+
+    const rawDesc2 = pickValue(updates.desc2, props.desc2);
+    const desc2 = clampDesc2((rawDesc2 ?? "").toString().trimEnd());
+
+    const workGroup = (pickValue(updates.workGroup, props.workGroup) ?? "").toString().trim();
+    const jobDescCode = (pickValue(updates.jobDescCode, props.jobDescCode) ?? "").toString().trim();
+    const unitsRequired = pickValue(updates.unitsRequired, props.unitsRequired) ?? "";
+
+    const formattedSegFrom = formatMileageValue(pickValue(updates.segFrom, props.segFrom));
+    const formattedSegTo = formatMileageValue(pickValue(updates.segTo, props.segTo));
+
+    const protType = (pickValue(updates.protType, props.protType) ?? "").toString().trim();
+    const protMethod = (pickValue(updates.protMethod, props.protMethod) ?? "").toString().trim();
+
+    const allowMultipleRaw = updates.allowMultiple === undefined
+      ? props.allowMultiple
+      : updates.allowMultiple
+        ? "YES"
+        : "";
+    const allowMultiple = normalizeAllowMultipleFlag(allowMultipleRaw);
+
+    baseEvent.setExtendedProp("frequency", freq);
+    baseEvent.setExtendedProp("desc2", desc2);
+    baseEvent.setExtendedProp("workGroup", workGroup);
+    baseEvent.setExtendedProp("jobDescCode", jobDescCode);
+    baseEvent.setExtendedProp("unitsRequired", unitsRequired);
+    baseEvent.setExtendedProp("segFrom", formattedSegFrom);
+    baseEvent.setExtendedProp("segTo", formattedSegTo);
+    baseEvent.setExtendedProp("protType", protType);
+    baseEvent.setExtendedProp("protMethod", protMethod);
+    baseEvent.setExtendedProp("allowMultiple", allowMultiple);
+
+    let newBase = baseEvent.start;
+    const rawDate = pickValue(updates.lastDate, "");
+    const newDateStr = U.normalizeDateInput(rawDate || "");
+    if (newDateStr) {
+      const [y, m, d] = newDateStr.split("-");
+      newBase = new Date(+y, +m - 1, +d);
+      newBase.setHours(9, 0, 0, 0);
+      baseEvent.setDates(newBase);
+    }
+
+    MST.Editor.rebuildFutureInstances(
+      mstId,
+      newBase,
+      freq,
+      baseEvent.extendedProps.desc1,
+      desc2
+    );
+
+    triggerResourceChartRefresh();
+
+    if (isNew && window.createdMSTs?.[mstId]) {
+      Object.assign(window.createdMSTs[mstId], {
+        "Freq": freq,
+        "MST Desc 2": desc2,
+        "Job Desc Code": jobDescCode,
+        "Work Group": workGroup,
+        "Unit Required": unitsRequired,
+        "Allow Multiple workorders": allowMultiple,
+        "Segment From": formattedSegFrom,
+        "Segment To": formattedSegTo,
+        "ProtectionType": protType,
+        "ProtectionMethod": protMethod,
+        "LSD": newDateStr || U.dateToInputYYYYMMDD(baseEvent.start)
+      });
+    } else {
+      E.markMSTAsChanged(mstId);
+    }
+
+    if (typeof window.MST?.ErrorUI?.recheckSingleMst === "function") {
+      window.MST.ErrorUI.recheckSingleMst(mstId);
+    }
+
+    return {
+      baseEvent,
+      formattedSegFrom,
+      formattedSegTo
+    };
+  };
+
+  MST.Editor.applyBulkEdits = function(mstId, updates) {
+    const result = applyMstUpdates(mstId, updates);
+    return Boolean(result);
+  };
+
   MST.Editor.saveMSTEdits = function(mstId) {
-  const baseEvent = window.calendar.getEventById(`${mstId}_0`);
-  if (!baseEvent) return;
-
-  const props = baseEvent.extendedProps;
-  const isNew = props.isNew === true;
-
-  const newDateStr = window.lastDateInput.value;           // yyyy-mm-dd
-  const freq       = parseInt(window.freqInput.value || "0", 10);
-  const allowMultiple = window.allowMultipleInput?.checked ? "YES" : "";
-
-  // Update props
-  const formattedSegFrom = formatMileageValue(window.mileageFromInput.value);
-  const formattedSegTo   = formatMileageValue(window.mileageToInput.value);
-
-  window.mileageFromInput.value = formattedSegFrom;
-  window.mileageToInput.value   = formattedSegTo;
-
-  baseEvent.setExtendedProp("frequency", freq);
-  baseEvent.setExtendedProp("desc2", clampDesc2(window.desc2Input.value.trimEnd()));
-  baseEvent.setExtendedProp("workGroup", window.wgInput.value.trim());
-  baseEvent.setExtendedProp("jobDescCode", window.jobDescCodeInput.value.trim());
-  baseEvent.setExtendedProp("unitsRequired", window.unitsRequiredInput.value);
-  baseEvent.setExtendedProp("segFrom", formattedSegFrom);
-  baseEvent.setExtendedProp("segTo", formattedSegTo);
-  baseEvent.setExtendedProp("protType", window.protTypeInput.value.trim());
-  baseEvent.setExtendedProp("protMethod", window.protMethodInput.value.trim());
-  baseEvent.setExtendedProp("allowMultiple", normalizeAllowMultipleFlag(allowMultiple));
-
-  // Date update
-  let newBase = baseEvent.start;
-  if (newDateStr) {
-    const [y, m, d] = newDateStr.split("-");
-    newBase = new Date(+y, +m - 1, +d);
-	newBase.setHours(9,0,0,0);
-    baseEvent.setDates(newBase);
-  }
-
-  // Rebuild amber/red
-  MST.Editor.rebuildFutureInstances(
-    mstId,
-    newBase,
-    freq,
-    baseEvent.extendedProps.desc1,
-    baseEvent.extendedProps.desc2
-  );
-
-  triggerResourceChartRefresh();
-
-  // Update created MST or mark changed
-  if (isNew && window.createdMSTs?.[mstId]) {
-    Object.assign(window.createdMSTs[mstId], {
-      "Freq": freq,
-      "MST Desc 2": clampDesc2(window.desc2Input.value.trim()),
-      "Job Desc Code": window.jobDescCodeInput.value.trim(),
-      "Work Group": window.wgInput.value.trim(),
-      "Unit Required": window.unitsRequiredInput.value,
-      "Allow Multiple workorders": normalizeAllowMultipleFlag(allowMultiple),
-      "Segment From": formattedSegFrom,
-      "Segment To": formattedSegTo,
-      "ProtectionType": window.protTypeInput.value.trim(),
-      "ProtectionMethod": window.protMethodInput.value.trim(),
-      "LSD": newDateStr
+    const result = applyMstUpdates(mstId, {
+      lastDate: window.lastDateInput.value,
+      frequency: window.freqInput.value,
+      desc2: window.desc2Input.value,
+      workGroup: window.wgInput.value,
+      jobDescCode: window.jobDescCodeInput.value,
+      unitsRequired: window.unitsRequiredInput.value,
+      segFrom: window.mileageFromInput.value,
+      segTo: window.mileageToInput.value,
+      protType: window.protTypeInput.value,
+      protMethod: window.protMethodInput.value,
+      allowMultiple: window.allowMultipleInput?.checked
     });
-  } else {
-    E.markMSTAsChanged(mstId);
-  }
 
-  if (typeof window.MST?.ErrorUI?.recheckSingleMst === "function") {
-    window.MST.ErrorUI.recheckSingleMst(mstId);
-  }
+    if (!result) return;
 
-  alert("Saved MST: " + mstId);
-};
+    window.mileageFromInput.value = result.formattedSegFrom;
+    window.mileageToInput.value = result.formattedSegTo;
+
+    alert("Saved MST: " + mstId);
+  };
 
 
   /* ----------------------------------------
@@ -1642,5 +1686,4 @@ MST.Editor.addNewMST = function () {
   };
 
 })();
-
 
