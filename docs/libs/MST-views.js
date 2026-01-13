@@ -466,10 +466,25 @@
       const sourceProtType = document.getElementById('protTypeInput');
       const sourceProtMethod = document.getElementById('protMethodInput');
 
-      const cloneSelectOptions = (source) => {
+      const buildSelectFromList = (items, formatLabel) => {
         const select = document.createElement('select');
-        if (!source) return select;
-        Array.from(source.options || []).forEach((opt) => {
+        select.appendChild(new Option('', '', true, false));
+        items.forEach((item) => {
+          const opt = document.createElement('option');
+          opt.value = item.code ?? item.value ?? item;
+          opt.textContent = formatLabel ? formatLabel(item) : opt.value;
+          select.appendChild(opt);
+        });
+        return select;
+      };
+
+      const cloneSelectOptions = (source, fallbackItems, formatLabel) => {
+        const sourceOptions = source?.options ? Array.from(source.options) : [];
+        if (!sourceOptions.length) {
+          return buildSelectFromList(fallbackItems, formatLabel);
+        }
+        const select = document.createElement('select');
+        sourceOptions.forEach((opt) => {
           const newOpt = document.createElement('option');
           newOpt.value = opt.value;
           newOpt.textContent = opt.textContent;
@@ -513,7 +528,11 @@
         wgInput.type = 'text';
         wgInput.value = props.workGroup || '';
 
-        const jobSelect = cloneSelectOptions(sourceJobSelect);
+        const jobSelect = cloneSelectOptions(
+          sourceJobSelect,
+          window.MST_VARIABLES?.jobDescCodes || [],
+          (item) => `${item.code} — ${item.desc}`
+        );
         jobSelect.value = props.jobDescCode || '';
 
         const unitsInput = document.createElement('input');
@@ -531,11 +550,21 @@
         segToInput.min = '0';
         segToInput.value = props.segTo ?? '';
 
-        const protTypeSelect = cloneSelectOptions(sourceProtType);
-        protTypeSelect.value = props.protType || '';
+        const protTypeSelect = cloneSelectOptions(
+          sourceProtType,
+          window.MST_VARIABLES?.protectionTypes || [],
+          (item) => item.desc
+        );
+        const protTypeValue = (props.protType ?? '').toString();
+        protTypeSelect.value = protTypeValue ? protTypeValue.padStart(2, '0') : '';
 
-        const protMethodSelect = cloneSelectOptions(sourceProtMethod);
-        protMethodSelect.value = props.protMethod || '';
+        const protMethodSelect = cloneSelectOptions(
+          sourceProtMethod,
+          window.MST_VARIABLES?.protectionMethods || [],
+          (item) => item.desc
+        );
+        const protMethodValue = (props.protMethod ?? '').toString();
+        protMethodSelect.value = protMethodValue ? protMethodValue.padStart(2, '0') : '';
 
         const allowMultipleInput = document.createElement('input');
         allowMultipleInput.type = 'checkbox';
