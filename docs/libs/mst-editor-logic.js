@@ -125,6 +125,12 @@ const bindDesc2Limiter = (inputEl, counterEl) => {
 const bindMileageFormatter = (inputEl) => {
   if (!inputEl) return;
 
+  inputEl.dataset.edited = "false";
+
+  inputEl.addEventListener("input", () => {
+    inputEl.dataset.edited = "true";
+  });
+
   inputEl.addEventListener("blur", () => {
     inputEl.value = formatMileageValue(inputEl.value);
   });
@@ -897,6 +903,8 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
 
     window.mileageFromInput.value = formatMileageValue(segFromVal);
     window.mileageToInput.value   = formatMileageValue(segToVal);
+    if (window.mileageFromInput?.dataset) window.mileageFromInput.dataset.edited = "false";
+    if (window.mileageToInput?.dataset) window.mileageToInput.dataset.edited = "false";
 
     /* --- Dropdowns: Job, ProtType, ProtMethod --- */
     const JD = window.MST_VARIABLES?.jobDescCodes || [];
@@ -927,10 +935,13 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     /* Protection Type */
     const ptSelect = window.protTypeInput;
     ptSelect.innerHTML = "";
-    const currentPT =
+    const currentPTRaw =
       (baseEvent.extendedProps.protType ||
        orig["Protection Type Code"] ||
-       orig.protType || "").toString().padStart(2,"0");
+       orig.protType || "");
+    const currentPT = currentPTRaw
+      ? currentPTRaw.toString().padStart(2,"0")
+      : "";
 
     PT.forEach(pt => {
       const opt = document.createElement("option");
@@ -943,10 +954,13 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     /* Protection Method */
     const pmSelect = window.protMethodInput;
     pmSelect.innerHTML = "";
-    const currentPM =
+    const currentPMRaw =
       (baseEvent.extendedProps.protMethod ||
        orig["Protection Method Code"] ||
-       orig.protMethod || "").toString().padStart(2,"0");
+       orig.protMethod || "");
+    const currentPM = currentPMRaw
+      ? currentPMRaw.toString().padStart(2,"0")
+      : "";
 
     PM.forEach(pm => {
       const opt = document.createElement("option");
@@ -1280,6 +1294,11 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
   };
 
   MST.Editor.saveMSTEdits = function(mstId) {
+    const segFromInput = window.mileageFromInput;
+    const segToInput = window.mileageToInput;
+    const segFromValue = segFromInput?.dataset?.edited === "true" ? segFromInput.value : undefined;
+    const segToValue = segToInput?.dataset?.edited === "true" ? segToInput.value : undefined;
+
     const result = applyMstUpdates(mstId, {
       lastDate: window.lastDateInput.value,
       frequency: window.freqInput.value,
@@ -1287,8 +1306,8 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
       workGroup: window.wgInput.value,
       jobDescCode: window.jobDescCodeInput.value,
       unitsRequired: window.unitsRequiredInput.value,
-      segFrom: window.mileageFromInput.value,
-      segTo: window.mileageToInput.value,
+      segFrom: segFromValue,
+      segTo: segToValue,
       protType: window.protTypeInput.value,
       protMethod: window.protMethodInput.value,
       allowMultiple: window.allowMultipleInput?.checked
@@ -1686,4 +1705,3 @@ MST.Editor.addNewMST = function () {
   };
 
 })();
-
