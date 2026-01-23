@@ -436,6 +436,9 @@ input, button {
   z-index: 10;
   pointer-events: none;
 }
+.event-icon--new {
+  color: #a855f7;
+}
 
 /* ========================================================================== */
 /*                            EVENT STATUS STYLING                             */

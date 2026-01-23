@@ -635,16 +635,19 @@ eventContent: function(arg) {
 
   const mstId = props.mstId;
   let statusIcon = "";
+  let statusClass = "";
 
   if (props.isNew) {
     statusIcon = "⭐";
+    statusClass = "event-icon--new";
   } else if (typeof MST?.Editor?.hasChanged === "function" && MST.Editor.hasChanged(mstId)) {
     statusIcon = "✏️";
+    statusClass = "event-icon--edited";
   }
 
   return {
     html: `
-      <div class="event-icon">${statusIcon}</div>
+      <div class="event-icon ${statusClass}">${statusIcon}</div>
       ${equipDesc ? `<div class="event-equip">${equipDesc}</div>` : ""}
       <div class="event-desc">${desc1}${desc2 ? " — " + desc2 : ""}</div>
     `
@@ -744,6 +747,7 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
   // Get resource hours from the base (green) event, if any
   const baseEvent = window.calendar.getEventById(`${mstId}_0`);
   const resourceHours = baseEvent?.extendedProps?.resourceHours || 0;
+  const isNew = !!baseEvent?.extendedProps?.isNew;
 
   const newArr = [];
 
@@ -763,6 +767,7 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
       extendedProps: {
         mstId,
         instance: i,
+        isNew,
         frequency: freqDays,
         desc1,
         desc2,
