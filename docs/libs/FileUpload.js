@@ -510,6 +510,40 @@ document.addEventListener("DOMContentLoaded", function () {
         }
       };
 
+      const buildDesc1Options = (rows) => {
+        const desc1Counts = new Map();
+        const desc1StdJobs = new Map();
+
+        rows.forEach(row => {
+          const desc1 = safeTrim(row["MST Description 1"]);
+          if (!desc1) return;
+
+          desc1Counts.set(desc1, (desc1Counts.get(desc1) || 0) + 1);
+
+          const stdJob = safeTrim(row["Std Job No"] || row["Standard Job Number"]);
+          if (stdJob) {
+            if (!desc1StdJobs.has(desc1)) {
+              desc1StdJobs.set(desc1, new Set());
+            }
+            desc1StdJobs.get(desc1).add(stdJob);
+          }
+        });
+
+        return [...desc1Counts.entries()]
+          .sort((a, b) => a[0].localeCompare(b[0]))
+          .map(([desc1, count]) => {
+            const stdJobs = desc1StdJobs.get(desc1);
+            const stdJobLabel = stdJobs && stdJobs.size
+              ? ` — ${[...stdJobs].sort((a, b) => a.localeCompare(b)).join(", ")}`
+              : "";
+
+            return {
+              value: desc1,
+              label: `${desc1}${stdJobLabel} (${count})`
+            };
+          });
+      };
+
       const buildInitialFilterOptions = (rows) => {
         if (!initialWorkGroupDropdown || !initialDesc1Dropdown) return;
 
@@ -538,19 +572,7 @@ document.addEventListener("DOMContentLoaded", function () {
           initialWorkGroupDropdown.appendChild(opt);
         });
 
-        const desc1Counts = new Map();
-        rows.forEach(row => {
-          const desc1 = safeTrim(row["MST Description 1"]);
-          if (!desc1) return;
-          desc1Counts.set(desc1, (desc1Counts.get(desc1) || 0) + 1);
-        });
-
-        const desc1Options = [...desc1Counts.entries()]
-          .sort((a, b) => a[0].localeCompare(b[0]))
-          .map(([desc1, count]) => ({
-            value: desc1,
-            label: `${desc1} (${count})`
-          }));
+        const desc1Options = buildDesc1Options(rows);
 
         initialDesc1Dropdown.innerHTML = "";
         desc1Options.forEach(({ value, label }) => {
@@ -583,20 +605,7 @@ document.addEventListener("DOMContentLoaded", function () {
           const baseRows = selectedWorkGroups.length
             ? rows.filter(r => selectedWorkGroups.includes(safeTrim(r["Work Group Code"])))
             : rows;
-
-          const desc1Counts = new Map();
-          baseRows.forEach(row => {
-            const desc1 = safeTrim(row["MST Description 1"]);
-            if (!desc1) return;
-            desc1Counts.set(desc1, (desc1Counts.get(desc1) || 0) + 1);
-          });
-
-          const desc1Options = [...desc1Counts.entries()]
-            .sort((a, b) => a[0].localeCompare(b[0]))
-            .map(([desc1, count]) => ({
-              value: desc1,
-              label: `${desc1} (${count})`
-            }));
+          const desc1Options = buildDesc1Options(baseRows);
 
           initialDesc1Dropdown.innerHTML = "";
           desc1Options.forEach(({ value, label }) => {
