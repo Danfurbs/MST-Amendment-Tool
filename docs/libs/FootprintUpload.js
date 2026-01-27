@@ -236,19 +236,44 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   /**
+   * Get a column value with fallback names (case-insensitive)
+   */
+  function getColumnValue(row, ...possibleNames) {
+    for (const name of possibleNames) {
+      // Try exact match first
+      if (row[name] !== undefined) return safeTrim(row[name]);
+
+      // Try case-insensitive match
+      const lowerName = name.toLowerCase();
+      for (const key of Object.keys(row)) {
+        if (key.toLowerCase() === lowerName) {
+          return safeTrim(row[key]);
+        }
+      }
+    }
+    return "";
+  }
+
+  /**
    * Generate footprint events for a given row
    * Creates background events for the calendar
    */
   function generateFootprintEvents(row, weeksToGenerate = 52) {
-    const shortCode = safeTrim(row["Short Code"]);
-    const frequency = safeTrim(row["Frequency"]);
-    const shiftDaysCode = safeTrim(row["No of Shifts"]);
-    const shiftTimes = safeTrim(row["Shift times"]);
-    const possessionNumber = safeTrim(row["Library Possession Number"]);
-    const workstation = safeTrim(row["Workstation"]);
-    const locations = safeTrim(row["Locations from & to"]);
-    const linesBlocked = safeTrim(row["Lines Blocked"]);
-    const possLimits = safeTrim(row["Poss'n Limits"]);
+    // Support multiple column name formats
+    const shortCode = getColumnValue(row, "Code", "Short Code", "ShortCode", "Possession Code");
+    const frequency = getColumnValue(row, "Frequency", "Freq");
+    const shiftDaysCode = getColumnValue(row, "Days", "No of Shifts", "Shifts", "Day");
+    const shiftTimes = getColumnValue(row, "Shift times", "Times", "Time");
+    const possessionNumber = getColumnValue(row, "Library Possession Number", "Possession Number", "Ref");
+    const workstation = getColumnValue(row, "Workstation", "Location");
+    const locations = getColumnValue(row, "Locations from & to", "Locations", "Route");
+    const linesBlocked = getColumnValue(row, "Lines Blocked", "Lines");
+    const possLimits = getColumnValue(row, "Poss'n Limits", "Limits");
+
+    if (!shortCode) {
+      console.warn("Skipping row - no short code found:", row);
+      return [];
+    }
 
     const frequencyWeeks = Math.max(1, Math.round(parseFrequencyText(frequency) / 7));
     const shiftDays = parseShiftDays(shiftDaysCode);
@@ -256,11 +281,15 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const events = [];
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    today.setHours(12, 0, 0, 0); // Use noon to avoid DST issues
 
-    // Start from 4 weeks ago
-    const startDate = new Date(today);
-    startDate.setDate(startDate.getDate() - 28);
+    // Align to start of current week (Sunday)
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - today.getDay());
+
+    // Go back 4 weeks from start of current week
+    const startDate = new Date(startOfWeek);
+    startDate.setDate(startOfWeek.getDate() - 28);
 
     // Calculate total weeks to generate
     const totalWeeks = weeksToGenerate + 4;
@@ -276,14 +305,15 @@ document.addEventListener("DOMContentLoaded", function () {
       shiftDays.forEach(dayOfWeek => {
         const currentDate = new Date(startDate);
         currentDate.setDate(startDate.getDate() + (weekOffset * 7) + dayOfWeek);
-        currentDate.setHours(0, 0, 0, 0);
+        currentDate.setHours(12, 0, 0, 0);
 
-        // Create the event
-        const eventId = `footprint_${shortCode}_${currentDate.toISOString().slice(0, 10)}`;
+        // Create the event - use date string for ID to avoid duplicates
+        const dateStr = currentDate.toISOString().slice(0, 10);
+        const eventId = `fp_${shortCode}_${dateStr}`;
 
         events.push({
           id: eventId,
-          start: currentDate,
+          start: dateStr, // Use ISO date string instead of Date object
           allDay: true,
           display: "background",
           backgroundColor: color,
@@ -353,19 +383,30 @@ document.addEventListener("DOMContentLoaded", function () {
       allEvents.push(...events);
     });
 
+    // Log sample of events for debugging
+    if (allEvents.length > 0) {
+      console.log("Sample footprint event:", allEvents[0]);
+      const today = new Date().toISOString().slice(0, 10);
+      const todayEvents = allEvents.filter(e => e.start === today);
+      console.log(`Events for today (${today}):`, todayEvents.length);
+    }
+
     // Add events in batch for performance
     window.calendar.batchRendering(() => {
       allEvents.forEach(eventData => {
         try {
           const ev = window.calendar.addEvent(eventData);
-          window.footprintEvents.push(ev);
+          if (ev) {
+            window.footprintEvents.push(ev);
+          }
         } catch (err) {
-          console.error("Failed to add footprint event:", err);
+          console.error("Failed to add footprint event:", err, eventData);
         }
       });
     });
 
     console.log(`Added ${allEvents.length} footprint events to calendar`);
+    console.log(`Calendar now has ${window.calendar.getEvents().length} total events`);
   }
 
   /**
