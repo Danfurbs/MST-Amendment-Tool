@@ -21,22 +21,28 @@ document.addEventListener("DOMContentLoaded", function () {
   window.footprintEvents = [];
 
   // Color palette for different Short Codes (Library Possession)
+  // Using lighter, more pastel colors
   const shortCodeColors = new Map();
   const colorPalette = [
-    "#3b82f6", // blue
-    "#8b5cf6", // violet
-    "#ec4899", // pink
-    "#f97316", // orange
-    "#14b8a6", // teal
-    "#84cc16", // lime
-    "#f43f5e", // rose
-    "#06b6d4", // cyan
-    "#a855f7", // purple
-    "#22c55e", // green
-    "#eab308", // yellow
-    "#6366f1", // indigo
+    "#93c5fd", // light blue
+    "#c4b5fd", // light violet
+    "#f9a8d4", // light pink
+    "#fdba74", // light orange
+    "#5eead4", // light teal
+    "#bef264", // light lime
+    "#fda4af", // light rose
+    "#67e8f9", // light cyan
+    "#d8b4fe", // light purple
+    "#86efac", // light green
+    "#fde047", // light yellow
+    "#a5b4fc", // light indigo
   ];
   let colorIndex = 0;
+
+  // Store possession details for legend
+  const possessionDetails = new Map();
+  // Track which possessions are visible
+  const possessionVisibility = new Map();
 
   /**
    * Get or assign a color for a given Short Code
@@ -46,9 +52,21 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (!shortCodeColors.has(shortCode)) {
       shortCodeColors.set(shortCode, colorPalette[colorIndex % colorPalette.length]);
+      possessionVisibility.set(shortCode, true); // visible by default
       colorIndex++;
     }
     return shortCodeColors.get(shortCode);
+  }
+
+  /**
+   * Store possession details for legend display
+   */
+  function storePossessionDetails(shortCode, details) {
+    if (!shortCode) return;
+    // Only store if we don't have it yet, or update with more complete info
+    if (!possessionDetails.has(shortCode) || !possessionDetails.get(shortCode).description) {
+      possessionDetails.set(shortCode, details);
+    }
   }
 
   /**
@@ -302,6 +320,21 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!shortCode) {
       console.warn("Skipping row - no short code found:", row);
       return [];
+    }
+
+    // Store details for legend
+    storePossessionDetails(shortCode, {
+      description: description || locations || workstation || "",
+      days: shiftDaysCode || "Sun-Sun",
+      frequency: frequency || "Weekly",
+      possessionNumber,
+      workstation,
+      locations,
+    });
+
+    // Check if this possession is visible
+    if (possessionVisibility.has(shortCode) && !possessionVisibility.get(shortCode)) {
+      return []; // Hidden, don't generate events
     }
 
     const frequencyWeeks = Math.max(1, Math.round(parseFrequencyText(frequency) / 7));
@@ -628,10 +661,65 @@ document.addEventListener("DOMContentLoaded", function () {
   };
 
   /**
-   * Get color mapping for legend
+   * Get color mapping for legend (simple version)
    */
   window.MST.Footprint.getColorMapping = function() {
     return Object.fromEntries(shortCodeColors);
+  };
+
+  /**
+   * Get detailed possession info for legend
+   */
+  window.MST.Footprint.getPossessionDetails = function() {
+    const result = [];
+    shortCodeColors.forEach((color, code) => {
+      const details = possessionDetails.get(code) || {};
+      result.push({
+        code,
+        color,
+        visible: possessionVisibility.get(code) !== false,
+        description: details.description || "",
+        days: details.days || "",
+        frequency: details.frequency || "",
+        possessionNumber: details.possessionNumber || "",
+        workstation: details.workstation || "",
+        locations: details.locations || "",
+      });
+    });
+    return result;
+  };
+
+  /**
+   * Toggle visibility of a specific possession code
+   */
+  window.MST.Footprint.togglePossession = function(code, visible) {
+    possessionVisibility.set(code, visible);
+
+    // Update existing events on calendar
+    if (window.calendar) {
+      window.calendar.getEvents().forEach(ev => {
+        if (ev.extendedProps?.isFootprint && ev.extendedProps?.shortCode === code) {
+          ev.setProp("display", visible ? "background" : "none");
+        }
+      });
+    }
+  };
+
+  /**
+   * Set all possessions visible or hidden
+   */
+  window.MST.Footprint.setAllVisible = function(visible) {
+    shortCodeColors.forEach((_, code) => {
+      possessionVisibility.set(code, visible);
+    });
+
+    if (window.calendar) {
+      window.calendar.getEvents().forEach(ev => {
+        if (ev.extendedProps?.isFootprint) {
+          ev.setProp("display", visible ? "background" : "none");
+        }
+      });
+    }
   };
 
   /**
