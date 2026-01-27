@@ -1526,18 +1526,53 @@ const closeFootprintLegendBtn = document.getElementById("closeFootprintLegendBtn
 
 if (footprintLegendBtn) {
   footprintLegendBtn.addEventListener("click", function() {
-    const colors = MST?.Footprint?.getColorMapping?.() || {};
-    const entries = Object.entries(colors);
+    const possessions = MST?.Footprint?.getPossessionDetails?.() || [];
 
-    if (!entries.length) {
+    if (!possessions.length) {
       footprintLegendList.innerHTML = '<p style="color:#64748b; font-size:13px;">No footprint data loaded yet.</p>';
     } else {
-      footprintLegendList.innerHTML = entries.map(([code, color]) =>
-        `<div class="footprint-legend-item">
-          <span class="footprint-legend-color" style="background:${color}"></span>
-          <span>${code}</span>
-        </div>`
-      ).join("");
+      // Add show all / hide all buttons
+      let html = `
+        <div class="footprint-legend-controls">
+          <button type="button" id="fpShowAll" class="fp-toggle-btn">Show All</button>
+          <button type="button" id="fpHideAll" class="fp-toggle-btn">Hide All</button>
+        </div>
+      `;
+
+      // Add each possession with toggle and details
+      html += possessions.map(p => `
+        <div class="footprint-legend-item">
+          <label class="footprint-legend-toggle">
+            <input type="checkbox" data-code="${p.code}" ${p.visible ? 'checked' : ''} />
+            <span class="footprint-legend-color" style="background:${p.color}"></span>
+            <span class="footprint-legend-code">${p.code}</span>
+          </label>
+          <div class="footprint-legend-details">
+            ${p.description ? `<span class="fp-detail-desc">${p.description}</span>` : ''}
+            ${p.days ? `<span class="fp-detail-tag">${p.days}</span>` : ''}
+            ${p.frequency ? `<span class="fp-detail-tag">${p.frequency}</span>` : ''}
+          </div>
+        </div>
+      `).join("");
+
+      footprintLegendList.innerHTML = html;
+
+      // Bind toggle events
+      footprintLegendList.querySelectorAll('input[type="checkbox"][data-code]').forEach(cb => {
+        cb.addEventListener("change", function() {
+          MST?.Footprint?.togglePossession?.(this.dataset.code, this.checked);
+        });
+      });
+
+      // Bind show all / hide all
+      document.getElementById("fpShowAll")?.addEventListener("click", function() {
+        MST?.Footprint?.setAllVisible?.(true);
+        footprintLegendList.querySelectorAll('input[type="checkbox"][data-code]').forEach(cb => cb.checked = true);
+      });
+      document.getElementById("fpHideAll")?.addEventListener("click", function() {
+        MST?.Footprint?.setAllVisible?.(false);
+        footprintLegendList.querySelectorAll('input[type="checkbox"][data-code]').forEach(cb => cb.checked = false);
+      });
     }
 
     footprintLegendModal.classList.add("active");
