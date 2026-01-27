@@ -377,20 +377,18 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   /**
-   * Lock the footprint upload control after loading
+   * Update the footprint upload label to show loaded status
+   * (No longer locks - allows re-upload)
    */
-  function lockFootprintControl() {
-    if (footprintInput) {
-      footprintInput.disabled = true;
+  function updateFootprintLabel(loaded) {
+    if (footprintLabelText) {
+      footprintLabelText.textContent = loaded
+        ? "📋 Re-upload footprint"
+        : "📋 Choose footprint file";
     }
 
     if (footprintLabel) {
-      footprintLabel.classList.add("disabled");
-      footprintLabel.title = "Footprint loaded";
-    }
-
-    if (footprintLabelText) {
-      footprintLabelText.textContent = "\ud83d\udd12"; // lock emoji
+      footprintLabel.title = loaded ? "Click to upload a different footprint file" : "";
     }
   }
 
@@ -418,8 +416,8 @@ document.addEventListener("DOMContentLoaded", function () {
       // Render on calendar
       renderFootprintEvents(json);
 
-      // Lock the control
-      lockFootprintControl();
+      // Update the label to show loaded status (but don't lock)
+      updateFootprintLabel(true);
 
       // Show confirmation
       const shortCodes = [...new Set(json.map(r => safeTrim(r["Short Code"])))].filter(Boolean);
@@ -452,6 +450,9 @@ document.addEventListener("DOMContentLoaded", function () {
       };
 
       reader.readAsBinaryString(file);
+
+      // Reset the input so the same file can be re-selected
+      this.value = "";
     });
   }
 
