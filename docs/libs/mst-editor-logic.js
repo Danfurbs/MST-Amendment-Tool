@@ -1301,8 +1301,13 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
   MST.Editor.saveMSTEdits = function(mstId) {
     const segFromInput = window.mileageFromInput;
     const segToInput = window.mileageToInput;
-    const segFromValue = segFromInput?.dataset?.edited === "true" ? segFromInput.value : undefined;
-    const segToValue = segToInput?.dataset?.edited === "true" ? segToInput.value : undefined;
+    const readMileageValue = (inputEl) => {
+      if (!inputEl) return undefined;
+      if (inputEl.dataset?.edited === "true") return inputEl.value;
+      return (inputEl.value ?? "").toString().trim() === "" ? null : undefined;
+    };
+    const segFromValue = readMileageValue(segFromInput);
+    const segToValue = readMileageValue(segToInput);
 
     const result = applyMstUpdates(mstId, {
       lastDate: window.lastDateInput.value,
