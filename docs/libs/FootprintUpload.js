@@ -250,9 +250,8 @@ document.addEventListener("DOMContentLoaded", function () {
     const linesBlocked = safeTrim(row["Lines Blocked"]);
     const possLimits = safeTrim(row["Poss'n Limits"]);
 
-    const frequencyDays = parseFrequencyText(frequency);
+    const frequencyWeeks = Math.max(1, Math.round(parseFrequencyText(frequency) / 7));
     const shiftDays = parseShiftDays(shiftDaysCode);
-    const { startHour } = parseShiftTimes(shiftTimes);
     const color = getColorForShortCode(shortCode);
 
     const events = [];
@@ -263,52 +262,45 @@ document.addEventListener("DOMContentLoaded", function () {
     const startDate = new Date(today);
     startDate.setDate(startDate.getDate() - 28);
 
-    // Calculate total days to generate
-    const totalDays = weeksToGenerate * 7 + 28;
+    // Calculate total weeks to generate
+    const totalWeeks = weeksToGenerate + 4;
 
-    // Track which week-day combinations we've added events for
-    // to handle frequency properly
-    let dayCounter = 0;
-
-    for (let dayOffset = 0; dayOffset < totalDays; dayOffset++) {
-      const currentDate = new Date(startDate);
-      currentDate.setDate(startDate.getDate() + dayOffset);
-
-      const dayOfWeek = currentDate.getDay();
-
-      // Check if this day of week is in our shift days
-      if (!shiftDays.includes(dayOfWeek)) {
+    // Generate events week by week
+    for (let weekOffset = 0; weekOffset < totalWeeks; weekOffset++) {
+      // Apply frequency - only show every N weeks
+      if (weekOffset % frequencyWeeks !== 0) {
         continue;
       }
 
-      // Check frequency - only show every N days for the applicable days
-      if (dayCounter % frequencyDays !== 0) {
-        dayCounter++;
-        continue;
-      }
-      dayCounter++;
+      // For each applicable day in this week
+      shiftDays.forEach(dayOfWeek => {
+        const currentDate = new Date(startDate);
+        currentDate.setDate(startDate.getDate() + (weekOffset * 7) + dayOfWeek);
+        currentDate.setHours(0, 0, 0, 0);
 
-      // Create the event
-      const eventId = `footprint_${shortCode}_${currentDate.toISOString().slice(0, 10)}_${dayOfWeek}`;
+        // Create the event
+        const eventId = `footprint_${shortCode}_${currentDate.toISOString().slice(0, 10)}`;
 
-      events.push({
-        id: eventId,
-        start: currentDate,
-        display: "background",
-        backgroundColor: color,
-        classNames: ["footprint-event"],
-        extendedProps: {
-          isFootprint: true,
-          shortCode,
-          possessionNumber,
-          workstation,
-          locations,
-          linesBlocked,
-          possLimits,
-          frequency,
-          shiftDays: shiftDaysCode,
-          shiftTimes,
-        }
+        events.push({
+          id: eventId,
+          start: currentDate,
+          allDay: true,
+          display: "background",
+          backgroundColor: color,
+          classNames: ["footprint-event"],
+          extendedProps: {
+            isFootprint: true,
+            shortCode,
+            possessionNumber,
+            workstation,
+            locations,
+            linesBlocked,
+            possLimits,
+            frequency,
+            shiftDays: shiftDaysCode,
+            shiftTimes,
+          }
+        });
       });
     }
 
