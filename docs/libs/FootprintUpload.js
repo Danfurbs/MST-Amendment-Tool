@@ -236,83 +236,178 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   /**
+   * Get a column value with fallback names (case-insensitive)
+   */
+  function getColumnValue(row, ...possibleNames) {
+    for (const name of possibleNames) {
+      // Try exact match first
+      if (row[name] !== undefined) return safeTrim(row[name]);
+
+      // Try case-insensitive match
+      const lowerName = name.toLowerCase();
+      for (const key of Object.keys(row)) {
+        if (key.toLowerCase() === lowerName) {
+          return safeTrim(row[key]);
+        }
+      }
+    }
+    return "";
+  }
+
+  /**
    * Generate footprint events for a given row
    * Creates background events for the calendar
    */
   function generateFootprintEvents(row, weeksToGenerate = 52) {
-    const shortCode = safeTrim(row["Short Code"]);
-    const frequency = safeTrim(row["Frequency"]);
-    const shiftDaysCode = safeTrim(row["No of Shifts"]);
-    const shiftTimes = safeTrim(row["Shift times"]);
-    const possessionNumber = safeTrim(row["Library Possession Number"]);
-    const workstation = safeTrim(row["Workstation"]);
-    const locations = safeTrim(row["Locations from & to"]);
-    const linesBlocked = safeTrim(row["Lines Blocked"]);
-    const possLimits = safeTrim(row["Poss'n Limits"]);
+    // Support multiple column name formats
+    const shortCode = getColumnValue(row, "Code", "Short Code", "ShortCode", "Possession Code");
+    const frequency = getColumnValue(row, "Frequency", "Freq");
+    const shiftDaysCode = getColumnValue(row, "Days", "No of Shifts", "Shifts", "Day");
+    const startDateStr = getColumnValue(row, "Start Date", "StartDate", "Start", "From Date", "From");
+    const description = getColumnValue(row, "Description", "Desc", "Notes", "Info");
+    const shiftTimes = getColumnValue(row, "Shift times", "Times", "Time");
+    const possessionNumber = getColumnValue(row, "Library Possession Number", "Possession Number", "Ref");
+    const workstation = getColumnValue(row, "Workstation", "Location");
+    const locations = getColumnValue(row, "Locations from & to", "Locations", "Route");
+    const linesBlocked = getColumnValue(row, "Lines Blocked", "Lines");
+    const possLimits = getColumnValue(row, "Poss'n Limits", "Limits");
 
-    const frequencyDays = parseFrequencyText(frequency);
+    if (!shortCode) {
+      console.warn("Skipping row - no short code found:", row);
+      return [];
+    }
+
+    const frequencyWeeks = Math.max(1, Math.round(parseFrequencyText(frequency) / 7));
     const shiftDays = parseShiftDays(shiftDaysCode);
-    const { startHour } = parseShiftTimes(shiftTimes);
     const color = getColorForShortCode(shortCode);
 
     const events = [];
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    today.setHours(12, 0, 0, 0);
 
-    // Start from 4 weeks ago
-    const startDate = new Date(today);
-    startDate.setDate(startDate.getDate() - 28);
+    // Parse start date if provided, otherwise use 4 weeks ago
+    let startDate;
+    if (startDateStr) {
+      startDate = parseStartDate(startDateStr);
+      if (!startDate) {
+        console.warn(`Invalid start date "${startDateStr}" for ${shortCode}, using default`);
+        startDate = getDefaultStartDate(today);
+      }
+    } else {
+      startDate = getDefaultStartDate(today);
+    }
 
-    // Calculate total days to generate
-    const totalDays = weeksToGenerate * 7 + 28;
+    // Calculate weeks to generate from start date
+    const msPerWeek = 7 * 24 * 60 * 60 * 1000;
+    const weeksFromStart = Math.ceil((today - startDate) / msPerWeek);
+    const totalWeeks = Math.max(weeksToGenerate, weeksFromStart + weeksToGenerate);
 
-    // Track which week-day combinations we've added events for
-    // to handle frequency properly
-    let dayCounter = 0;
-
-    for (let dayOffset = 0; dayOffset < totalDays; dayOffset++) {
-      const currentDate = new Date(startDate);
-      currentDate.setDate(startDate.getDate() + dayOffset);
-
-      const dayOfWeek = currentDate.getDay();
-
-      // Check if this day of week is in our shift days
-      if (!shiftDays.includes(dayOfWeek)) {
+    // Generate events week by week from the start date
+    for (let weekOffset = 0; weekOffset < totalWeeks; weekOffset++) {
+      // Apply frequency - only show every N weeks
+      if (weekOffset % frequencyWeeks !== 0) {
         continue;
       }
 
-      // Check frequency - only show every N days for the applicable days
-      if (dayCounter % frequencyDays !== 0) {
-        dayCounter++;
-        continue;
-      }
-      dayCounter++;
+      // For each applicable day in this week
+      shiftDays.forEach(dayOfWeek => {
+        const currentDate = new Date(startDate);
+        currentDate.setDate(startDate.getDate() + (weekOffset * 7) + dayOfWeek);
+        currentDate.setHours(12, 0, 0, 0);
 
-      // Create the event
-      const eventId = `footprint_${shortCode}_${currentDate.toISOString().slice(0, 10)}_${dayOfWeek}`;
+        // Skip dates too far in the past (more than 8 weeks ago)
+        const weeksAgo = (today - currentDate) / msPerWeek;
+        if (weeksAgo > 8) return;
 
-      events.push({
-        id: eventId,
-        start: currentDate,
-        display: "background",
-        backgroundColor: color,
-        classNames: ["footprint-event"],
-        extendedProps: {
-          isFootprint: true,
-          shortCode,
-          possessionNumber,
-          workstation,
-          locations,
-          linesBlocked,
-          possLimits,
-          frequency,
-          shiftDays: shiftDaysCode,
-          shiftTimes,
-        }
+        // Create the event - use date string for ID to avoid duplicates
+        const dateStr = currentDate.toISOString().slice(0, 10);
+        const eventId = `fp_${shortCode}_${dateStr}`;
+
+        events.push({
+          id: eventId,
+          start: dateStr,
+          allDay: true,
+          display: "background",
+          backgroundColor: color,
+          classNames: ["footprint-event"],
+          extendedProps: {
+            isFootprint: true,
+            shortCode,
+            description,
+            possessionNumber,
+            workstation,
+            locations,
+            linesBlocked,
+            possLimits,
+            frequency,
+            shiftDays: shiftDaysCode,
+            shiftTimes,
+            startDate: startDateStr,
+          }
+        });
       });
     }
 
     return events;
+  }
+
+  /**
+   * Parse a start date from various formats
+   */
+  function parseStartDate(dateStr) {
+    if (!dateStr) return null;
+
+    // Handle Excel serial date numbers
+    if (typeof dateStr === "number") {
+      const excelEpoch = new Date(1899, 11, 30);
+      const date = new Date(excelEpoch.getTime() + dateStr * 24 * 60 * 60 * 1000);
+      date.setHours(12, 0, 0, 0);
+      return isNaN(date.getTime()) ? null : date;
+    }
+
+    const str = dateStr.toString().trim();
+
+    // Try ISO format: 2026-01-27
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+      const [y, m, d] = str.split("-").map(Number);
+      const date = new Date(y, m - 1, d, 12, 0, 0, 0);
+      return isNaN(date.getTime()) ? null : date;
+    }
+
+    // Try UK format: 27/01/2026 or 27-01-2026
+    if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/.test(str)) {
+      const parts = str.split(/[\/\-]/);
+      const date = new Date(+parts[2], +parts[1] - 1, +parts[0], 12, 0, 0, 0);
+      return isNaN(date.getTime()) ? null : date;
+    }
+
+    // Try US format: 01/27/2026
+    if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2}$/.test(str)) {
+      const parts = str.split(/[\/\-]/);
+      const year = +parts[2] + 2000;
+      const date = new Date(year, +parts[0] - 1, +parts[1], 12, 0, 0, 0);
+      return isNaN(date.getTime()) ? null : date;
+    }
+
+    // Try native Date parsing as fallback
+    const date = new Date(str);
+    if (!isNaN(date.getTime())) {
+      date.setHours(12, 0, 0, 0);
+      return date;
+    }
+
+    return null;
+  }
+
+  /**
+   * Get default start date (aligned to start of week, 4 weeks ago)
+   */
+  function getDefaultStartDate(today) {
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - today.getDay());
+    startOfWeek.setDate(startOfWeek.getDate() - 28);
+    startOfWeek.setHours(12, 0, 0, 0);
+    return startOfWeek;
   }
 
   /**
@@ -361,36 +456,45 @@ document.addEventListener("DOMContentLoaded", function () {
       allEvents.push(...events);
     });
 
+    // Log sample of events for debugging
+    if (allEvents.length > 0) {
+      console.log("Sample footprint event:", allEvents[0]);
+      const today = new Date().toISOString().slice(0, 10);
+      const todayEvents = allEvents.filter(e => e.start === today);
+      console.log(`Events for today (${today}):`, todayEvents.length);
+    }
+
     // Add events in batch for performance
     window.calendar.batchRendering(() => {
       allEvents.forEach(eventData => {
         try {
           const ev = window.calendar.addEvent(eventData);
-          window.footprintEvents.push(ev);
+          if (ev) {
+            window.footprintEvents.push(ev);
+          }
         } catch (err) {
-          console.error("Failed to add footprint event:", err);
+          console.error("Failed to add footprint event:", err, eventData);
         }
       });
     });
 
     console.log(`Added ${allEvents.length} footprint events to calendar`);
+    console.log(`Calendar now has ${window.calendar.getEvents().length} total events`);
   }
 
   /**
-   * Lock the footprint upload control after loading
+   * Update the footprint upload label to show loaded status
+   * (No longer locks - allows re-upload)
    */
-  function lockFootprintControl() {
-    if (footprintInput) {
-      footprintInput.disabled = true;
+  function updateFootprintLabel(loaded) {
+    if (footprintLabelText) {
+      footprintLabelText.textContent = loaded
+        ? "📋 Re-upload footprint"
+        : "📋 Choose footprint file";
     }
 
     if (footprintLabel) {
-      footprintLabel.classList.add("disabled");
-      footprintLabel.title = "Footprint loaded";
-    }
-
-    if (footprintLabelText) {
-      footprintLabelText.textContent = "\ud83d\udd12"; // lock emoji
+      footprintLabel.title = loaded ? "Click to upload a different footprint file" : "";
     }
   }
 
@@ -418,8 +522,8 @@ document.addEventListener("DOMContentLoaded", function () {
       // Render on calendar
       renderFootprintEvents(json);
 
-      // Lock the control
-      lockFootprintControl();
+      // Update the label to show loaded status (but don't lock)
+      updateFootprintLabel(true);
 
       // Show confirmation
       const shortCodes = [...new Set(json.map(r => safeTrim(r["Short Code"])))].filter(Boolean);
@@ -452,6 +556,9 @@ document.addEventListener("DOMContentLoaded", function () {
       };
 
       reader.readAsBinaryString(file);
+
+      // Reset the input so the same file can be re-selected
+      this.value = "";
     });
   }
 

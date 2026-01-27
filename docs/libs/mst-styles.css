@@ -883,11 +883,15 @@ input, button {
 #footprintLegendModal {
   display: none;
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background: rgba(0, 0, 0, 0.5);
   z-index: 100000;
   justify-content: center;
   align-items: center;
+  cursor: pointer;
 }
 
 #footprintLegendModal.active {
@@ -902,6 +906,7 @@ input, button {
   max-height: 80vh;
   overflow: auto;
   padding: 20px;
+  cursor: default;
 }
 
 .footprint-legend-header {
@@ -923,9 +928,14 @@ input, button {
   background: #e5e7eb;
   border: none;
   border-radius: 6px;
-  padding: 4px 10px;
+  padding: 6px 12px;
   font-size: 16px;
   cursor: pointer;
+  line-height: 1;
+}
+
+.footprint-legend-close:hover {
+  background: #d1d5db;
 }
 
 .footprint-legend-list {
