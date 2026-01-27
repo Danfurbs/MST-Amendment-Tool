@@ -236,18 +236,45 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   /**
-   * Get a column value with fallback names (case-insensitive)
+   * Normalize a column name for matching (remove spaces, lowercase)
+   */
+  function normalizeColName(name) {
+    return (name || "").toString().toLowerCase().replace(/[\s_\-]+/g, "").trim();
+  }
+
+  /**
+   * Get a column value with fallback names (flexible matching)
    */
   function getColumnValue(row, ...possibleNames) {
+    const rowKeys = Object.keys(row);
+
     for (const name of possibleNames) {
       // Try exact match first
       if (row[name] !== undefined) return safeTrim(row[name]);
 
       // Try case-insensitive match
       const lowerName = name.toLowerCase();
-      for (const key of Object.keys(row)) {
+      for (const key of rowKeys) {
         if (key.toLowerCase() === lowerName) {
           return safeTrim(row[key]);
+        }
+      }
+
+      // Try normalized match (ignores spaces, dashes, underscores)
+      const normalizedName = normalizeColName(name);
+      for (const key of rowKeys) {
+        if (normalizeColName(key) === normalizedName) {
+          return safeTrim(row[key]);
+        }
+      }
+
+      // Try partial/contains match for longer names
+      if (name.length > 3) {
+        for (const key of rowKeys) {
+          const normalizedKey = normalizeColName(key);
+          if (normalizedKey.includes(normalizedName) || normalizedName.includes(normalizedKey)) {
+            return safeTrim(row[key]);
+          }
         }
       }
     }
@@ -357,11 +384,14 @@ document.addEventListener("DOMContentLoaded", function () {
   function parseStartDate(dateStr) {
     if (!dateStr) return null;
 
-    // Handle Excel serial date numbers
-    if (typeof dateStr === "number") {
+    // Handle Excel serial date numbers (as number or numeric string)
+    const numValue = typeof dateStr === "number" ? dateStr : parseFloat(dateStr);
+    if (!isNaN(numValue) && numValue > 40000 && numValue < 60000) {
+      // Looks like an Excel serial date (40000 = ~2009, 60000 = ~2064)
       const excelEpoch = new Date(1899, 11, 30);
-      const date = new Date(excelEpoch.getTime() + dateStr * 24 * 60 * 60 * 1000);
+      const date = new Date(excelEpoch.getTime() + numValue * 24 * 60 * 60 * 1000);
       date.setHours(12, 0, 0, 0);
+      console.log(`Parsed Excel serial ${numValue} as ${date.toISOString().slice(0, 10)}`);
       return isNaN(date.getTime()) ? null : date;
     }
 
@@ -381,21 +411,26 @@ document.addEventListener("DOMContentLoaded", function () {
       return isNaN(date.getTime()) ? null : date;
     }
 
-    // Try US format: 01/27/2026
+    // Try short UK format: 27/01/26
     if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2}$/.test(str)) {
       const parts = str.split(/[\/\-]/);
       const year = +parts[2] + 2000;
-      const date = new Date(year, +parts[0] - 1, +parts[1], 12, 0, 0, 0);
+      const date = new Date(year, +parts[1] - 1, +parts[0], 12, 0, 0, 0);
       return isNaN(date.getTime()) ? null : date;
     }
 
-    // Try native Date parsing as fallback
+    // Try native Date parsing as fallback (but validate the year)
     const date = new Date(str);
     if (!isNaN(date.getTime())) {
-      date.setHours(12, 0, 0, 0);
-      return date;
+      const year = date.getFullYear();
+      // Only accept reasonable years (2020-2050)
+      if (year >= 2020 && year <= 2050) {
+        date.setHours(12, 0, 0, 0);
+        return date;
+      }
     }
 
+    console.warn(`Could not parse date: "${dateStr}"`);
     return null;
   }
 
@@ -514,6 +549,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
       if (!json.length) {
         throw new Error("No data found in the footprint file.");
+      }
+
+      // Debug: log column names found
+      if (json[0]) {
+        console.log("Footprint columns found:", Object.keys(json[0]));
+        console.log("First row data:", json[0]);
       }
 
       // Store the data
