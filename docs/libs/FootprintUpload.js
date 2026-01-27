@@ -263,6 +263,8 @@ document.addEventListener("DOMContentLoaded", function () {
     const shortCode = getColumnValue(row, "Code", "Short Code", "ShortCode", "Possession Code");
     const frequency = getColumnValue(row, "Frequency", "Freq");
     const shiftDaysCode = getColumnValue(row, "Days", "No of Shifts", "Shifts", "Day");
+    const startDateStr = getColumnValue(row, "Start Date", "StartDate", "Start", "From Date", "From");
+    const description = getColumnValue(row, "Description", "Desc", "Notes", "Info");
     const shiftTimes = getColumnValue(row, "Shift times", "Times", "Time");
     const possessionNumber = getColumnValue(row, "Library Possession Number", "Possession Number", "Ref");
     const workstation = getColumnValue(row, "Workstation", "Location");
@@ -281,20 +283,26 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const events = [];
     const today = new Date();
-    today.setHours(12, 0, 0, 0); // Use noon to avoid DST issues
+    today.setHours(12, 0, 0, 0);
 
-    // Align to start of current week (Sunday)
-    const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - today.getDay());
+    // Parse start date if provided, otherwise use 4 weeks ago
+    let startDate;
+    if (startDateStr) {
+      startDate = parseStartDate(startDateStr);
+      if (!startDate) {
+        console.warn(`Invalid start date "${startDateStr}" for ${shortCode}, using default`);
+        startDate = getDefaultStartDate(today);
+      }
+    } else {
+      startDate = getDefaultStartDate(today);
+    }
 
-    // Go back 4 weeks from start of current week
-    const startDate = new Date(startOfWeek);
-    startDate.setDate(startOfWeek.getDate() - 28);
+    // Calculate weeks to generate from start date
+    const msPerWeek = 7 * 24 * 60 * 60 * 1000;
+    const weeksFromStart = Math.ceil((today - startDate) / msPerWeek);
+    const totalWeeks = Math.max(weeksToGenerate, weeksFromStart + weeksToGenerate);
 
-    // Calculate total weeks to generate
-    const totalWeeks = weeksToGenerate + 4;
-
-    // Generate events week by week
+    // Generate events week by week from the start date
     for (let weekOffset = 0; weekOffset < totalWeeks; weekOffset++) {
       // Apply frequency - only show every N weeks
       if (weekOffset % frequencyWeeks !== 0) {
@@ -307,13 +315,17 @@ document.addEventListener("DOMContentLoaded", function () {
         currentDate.setDate(startDate.getDate() + (weekOffset * 7) + dayOfWeek);
         currentDate.setHours(12, 0, 0, 0);
 
+        // Skip dates too far in the past (more than 8 weeks ago)
+        const weeksAgo = (today - currentDate) / msPerWeek;
+        if (weeksAgo > 8) return;
+
         // Create the event - use date string for ID to avoid duplicates
         const dateStr = currentDate.toISOString().slice(0, 10);
         const eventId = `fp_${shortCode}_${dateStr}`;
 
         events.push({
           id: eventId,
-          start: dateStr, // Use ISO date string instead of Date object
+          start: dateStr,
           allDay: true,
           display: "background",
           backgroundColor: color,
@@ -321,6 +333,7 @@ document.addEventListener("DOMContentLoaded", function () {
           extendedProps: {
             isFootprint: true,
             shortCode,
+            description,
             possessionNumber,
             workstation,
             locations,
@@ -329,12 +342,72 @@ document.addEventListener("DOMContentLoaded", function () {
             frequency,
             shiftDays: shiftDaysCode,
             shiftTimes,
+            startDate: startDateStr,
           }
         });
       });
     }
 
     return events;
+  }
+
+  /**
+   * Parse a start date from various formats
+   */
+  function parseStartDate(dateStr) {
+    if (!dateStr) return null;
+
+    // Handle Excel serial date numbers
+    if (typeof dateStr === "number") {
+      const excelEpoch = new Date(1899, 11, 30);
+      const date = new Date(excelEpoch.getTime() + dateStr * 24 * 60 * 60 * 1000);
+      date.setHours(12, 0, 0, 0);
+      return isNaN(date.getTime()) ? null : date;
+    }
+
+    const str = dateStr.toString().trim();
+
+    // Try ISO format: 2026-01-27
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+      const [y, m, d] = str.split("-").map(Number);
+      const date = new Date(y, m - 1, d, 12, 0, 0, 0);
+      return isNaN(date.getTime()) ? null : date;
+    }
+
+    // Try UK format: 27/01/2026 or 27-01-2026
+    if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/.test(str)) {
+      const parts = str.split(/[\/\-]/);
+      const date = new Date(+parts[2], +parts[1] - 1, +parts[0], 12, 0, 0, 0);
+      return isNaN(date.getTime()) ? null : date;
+    }
+
+    // Try US format: 01/27/2026
+    if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2}$/.test(str)) {
+      const parts = str.split(/[\/\-]/);
+      const year = +parts[2] + 2000;
+      const date = new Date(year, +parts[0] - 1, +parts[1], 12, 0, 0, 0);
+      return isNaN(date.getTime()) ? null : date;
+    }
+
+    // Try native Date parsing as fallback
+    const date = new Date(str);
+    if (!isNaN(date.getTime())) {
+      date.setHours(12, 0, 0, 0);
+      return date;
+    }
+
+    return null;
+  }
+
+  /**
+   * Get default start date (aligned to start of week, 4 weeks ago)
+   */
+  function getDefaultStartDate(today) {
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - today.getDay());
+    startOfWeek.setDate(startOfWeek.getDate() - 28);
+    startOfWeek.setHours(12, 0, 0, 0);
+    return startOfWeek;
   }
 
   /**
