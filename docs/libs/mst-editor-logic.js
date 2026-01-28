@@ -629,6 +629,14 @@ window.MST.Editor.closeNewMSTModal = function () {
 eventContent: function(arg) {
   const ev = arg.event;
   const props = ev.extendedProps;
+
+  // For footprint/access events, use the event title directly
+  if (props.isFootprint) {
+    return {
+      html: `<div class="footprint-event-content">${ev.title || ''}</div>`
+    };
+  }
+
   const equipDesc = props.equipmentDesc1 || "";
   const desc1 = props.desc1 || "";
   const desc2 = props.desc2 || "";
