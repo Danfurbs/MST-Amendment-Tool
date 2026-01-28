@@ -408,8 +408,10 @@ document.addEventListener("DOMContentLoaded", function () {
           title: `${shortCode}: ${eventTitle}`,
           start: dateStr,
           allDay: true,
-          display: "background",
+          display: "auto",
           backgroundColor: color,
+          borderColor: color,
+          textColor: "#1e293b",
           classNames: ["footprint-event"],
           extendedProps: {
             isFootprint: true,
@@ -667,7 +669,7 @@ document.addEventListener("DOMContentLoaded", function () {
     window.calendar.getEvents().forEach(ev => {
       if (ev.extendedProps?.isFootprint) {
         if (visible) {
-          ev.setProp("display", "background");
+          ev.setProp("display", "auto");
         } else {
           ev.setProp("display", "none");
         }
@@ -743,7 +745,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (ev.extendedProps?.isFootprint) {
           const code = ev.extendedProps.shortCode;
           const visible = possessionVisibility.get(code) !== false;
-          ev.setProp("display", visible ? "background" : "none");
+          ev.setProp("display", visible ? "auto" : "none");
         }
       });
     }
@@ -784,7 +786,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (ev.extendedProps?.isFootprint) {
           const code = ev.extendedProps.shortCode;
           const visible = possessionVisibility.get(code) !== false;
-          ev.setProp("display", visible ? "background" : "none");
+          ev.setProp("display", visible ? "auto" : "none");
         }
       });
     }
@@ -800,7 +802,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (window.calendar) {
       window.calendar.getEvents().forEach(ev => {
         if (ev.extendedProps?.isFootprint && ev.extendedProps?.shortCode === code) {
-          ev.setProp("display", visible ? "background" : "none");
+          ev.setProp("display", visible ? "auto" : "none");
         }
       });
     }
@@ -817,7 +819,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (window.calendar) {
       window.calendar.getEvents().forEach(ev => {
         if (ev.extendedProps?.isFootprint) {
-          ev.setProp("display", visible ? "background" : "none");
+          ev.setProp("display", visible ? "auto" : "none");
         }
       });
     }
