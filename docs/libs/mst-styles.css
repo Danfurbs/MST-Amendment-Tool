@@ -854,10 +854,10 @@ input, button {
 
 /* Footprint events - styled as subtle labels with visible text */
 .fc-event.footprint-event {
-  opacity: 0.7 !important;
+  opacity: 0.4 !important;
   font-size: 9px !important;
-  font-weight: 600 !important;
-  padding: 1px 3px !important;
+  font-weight: 700 !important;
+  padding: 2px 4px !important;
   border-radius: 3px !important;
   white-space: nowrap;
   overflow: hidden;
@@ -868,16 +868,18 @@ input, button {
 }
 
 .fc-event.footprint-event:hover {
-  opacity: 1 !important;
+  opacity: 0.75 !important;
 }
 
 .fc-event.footprint-event .fc-event-main {
   padding: 0 2px !important;
+  color: #000 !important;
 }
 
 .fc-event.footprint-event .fc-event-title {
   font-size: 9px !important;
-  font-weight: 600 !important;
+  font-weight: 700 !important;
+  color: #000 !important;
 }
 
 /* Hidden footprint events */
