@@ -309,6 +309,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const frequency = getColumnValue(row, "Frequency", "Freq");
     const shiftDaysCode = getColumnValue(row, "Days", "No of Shifts", "Shifts", "Day");
     const startDateStr = getColumnValue(row, "Start Date", "StartDate", "Start", "From Date", "From");
+    const endDateStr = getColumnValue(row, "End Date", "EndDate", "End", "To Date", "To", "Expires", "Expiry");
     const description = getColumnValue(row, "Description", "Desc", "Notes", "Info");
     const shiftTimes = getColumnValue(row, "Shift times", "Times", "Time");
     const possessionNumber = getColumnValue(row, "Library Possession Number", "Possession Number", "Ref");
@@ -330,6 +331,7 @@ document.addEventListener("DOMContentLoaded", function () {
       possessionNumber,
       workstation,
       locations,
+      endDate: endDateStr || "",
     });
 
     // Check if this possession is visible
@@ -337,7 +339,8 @@ document.addEventListener("DOMContentLoaded", function () {
       return []; // Hidden, don't generate events
     }
 
-    const frequencyWeeks = Math.max(1, Math.round(parseFrequencyText(frequency) / 7));
+    const frequencyDays = parseFrequencyText(frequency);
+    const frequencyWeeks = Math.max(1, Math.round(frequencyDays / 7));
     const shiftDays = parseShiftDays(shiftDaysCode);
     const color = getColorForShortCode(shortCode);
 
@@ -357,10 +360,22 @@ document.addEventListener("DOMContentLoaded", function () {
       startDate = getDefaultStartDate(today);
     }
 
+    // Parse optional end date
+    let endDate = null;
+    if (endDateStr) {
+      endDate = parseStartDate(endDateStr);
+      if (endDate) {
+        console.log(`Footprint ${shortCode} has end date: ${endDate.toISOString().slice(0, 10)}`);
+      }
+    }
+
     // Calculate weeks to generate from start date
     const msPerWeek = 7 * 24 * 60 * 60 * 1000;
     const weeksFromStart = Math.ceil((today - startDate) / msPerWeek);
     const totalWeeks = Math.max(weeksToGenerate, weeksFromStart + weeksToGenerate);
+
+    // Build event title/description for calendar display
+    const eventTitle = description || locations || workstation || shortCode;
 
     // Generate events week by week from the start date
     for (let weekOffset = 0; weekOffset < totalWeeks; weekOffset++) {
@@ -379,12 +394,18 @@ document.addEventListener("DOMContentLoaded", function () {
         const weeksAgo = (today - currentDate) / msPerWeek;
         if (weeksAgo > 8) return;
 
+        // Skip dates after end date (if specified)
+        if (endDate && currentDate > endDate) {
+          return;
+        }
+
         // Create the event - use date string for ID to avoid duplicates
         const dateStr = currentDate.toISOString().slice(0, 10);
         const eventId = `fp_${shortCode}_${dateStr}`;
 
         events.push({
           id: eventId,
+          title: `${shortCode}: ${eventTitle}`,
           start: dateStr,
           allDay: true,
           display: "background",
@@ -403,6 +424,7 @@ document.addEventListener("DOMContentLoaded", function () {
             shiftDays: shiftDaysCode,
             shiftTimes,
             startDate: startDateStr,
+            endDate: endDateStr,
           }
         });
       });
@@ -684,9 +706,88 @@ document.addEventListener("DOMContentLoaded", function () {
         possessionNumber: details.possessionNumber || "",
         workstation: details.workstation || "",
         locations: details.locations || "",
+        endDate: details.endDate || "",
       });
     });
     return result;
+  };
+
+  /**
+   * Filter footprints by text search (code, description, location)
+   */
+  window.MST.Footprint.filterByText = function(searchText) {
+    if (!searchText || searchText.trim() === "") {
+      // Show all
+      shortCodeColors.forEach((_, code) => {
+        possessionVisibility.set(code, true);
+      });
+    } else {
+      const search = searchText.toLowerCase().trim();
+      shortCodeColors.forEach((_, code) => {
+        const details = possessionDetails.get(code) || {};
+        const searchableText = [
+          code,
+          details.description || "",
+          details.locations || "",
+          details.workstation || "",
+          details.possessionNumber || "",
+        ].join(" ").toLowerCase();
+
+        possessionVisibility.set(code, searchableText.includes(search));
+      });
+    }
+
+    // Update calendar events
+    if (window.calendar) {
+      window.calendar.getEvents().forEach(ev => {
+        if (ev.extendedProps?.isFootprint) {
+          const code = ev.extendedProps.shortCode;
+          const visible = possessionVisibility.get(code) !== false;
+          ev.setProp("display", visible ? "background" : "none");
+        }
+      });
+    }
+  };
+
+  /**
+   * Get unique frequencies from loaded data
+   */
+  window.MST.Footprint.getUniqueFrequencies = function() {
+    const frequencies = new Set();
+    possessionDetails.forEach((details) => {
+      if (details.frequency) {
+        frequencies.add(details.frequency);
+      }
+    });
+    return Array.from(frequencies).sort();
+  };
+
+  /**
+   * Filter by frequency
+   */
+  window.MST.Footprint.filterByFrequency = function(freq) {
+    if (!freq || freq === "all") {
+      // Show all
+      shortCodeColors.forEach((_, code) => {
+        possessionVisibility.set(code, true);
+      });
+    } else {
+      shortCodeColors.forEach((_, code) => {
+        const details = possessionDetails.get(code) || {};
+        possessionVisibility.set(code, details.frequency === freq);
+      });
+    }
+
+    // Update calendar events
+    if (window.calendar) {
+      window.calendar.getEvents().forEach(ev => {
+        if (ev.extendedProps?.isFootprint) {
+          const code = ev.extendedProps.shortCode;
+          const visible = possessionVisibility.get(code) !== false;
+          ev.setProp("display", visible ? "background" : "none");
+        }
+      });
+    }
   };
 
   /**

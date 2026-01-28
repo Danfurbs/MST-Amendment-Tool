@@ -793,23 +793,6 @@
             <div class="muted-helper">Upload the latest MST download as an Excel or CSV file.</div>
           <button id="exportBtn">Export MST Changes</button>
         </div>
-        <div class="upload-card footprint-card">
-          <div class="label">Upload Access Footprint</div>
-            <div class="upload-controls">
-              <label class="file-upload-btn footprint-btn" for="footprintInput">
-                <span class="footprint-upload-label-text">📋 Choose footprint file</span>
-                <input type="file" id="footprintInput" accept=".xlsx,.xls,.csv" />
-              </label>
-            </div>
-            <div class="muted-helper">Optional: Upload access footprint data to display possession windows.</div>
-            <div class="footprint-controls">
-              <label class="footprint-toggle">
-                <input type="checkbox" id="footprintVisibleToggle" checked />
-                <span>Show footprints</span>
-              </label>
-              <button id="footprintLegendBtn" class="footprint-legend-btn" style="display:none;">Legend</button>
-            </div>
-        </div>
       </div>
     </div>
 
@@ -817,6 +800,7 @@
       <div class="action-buttons">
         <button id="resetAllBtn" style="background:#ef4444; color:white;">Reset All Changes</button>
         <button id="openFilterBtn">⚙️ Filters</button>
+        <button id="openSettingsBtn" class="primary-action-btn">Settings</button>
         <button id="openGotoBtn" class="primary-action-btn">Go to MST</button>
         <button id="openBulkUpdateBtn" class="primary-action-btn">Bulk Update</button>
         <button id="openResourceBtn" class="primary-action-btn">Planned Hours Graph</button>
@@ -1426,6 +1410,45 @@ Hold <strong>Ctrl</strong> (or <strong>Cmd</strong> on Mac) to select multiple
   </div>
 
   <!-- =========================
+       SETTINGS MODAL
+  ========================== -->
+  <div id="settingsModal" aria-hidden="true">
+    <div class="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <div class="settings-header">
+        <h3 id="settingsTitle">Settings</h3>
+        <button id="closeSettingsBtn" class="settings-close" title="Close">✕</button>
+      </div>
+      <div class="settings-body">
+        <!-- Access Footprint Section -->
+        <div class="settings-section">
+          <div class="settings-section-header">
+            <h4>Access Footprint</h4>
+            <span class="settings-beta-tag">Beta</span>
+          </div>
+          <p class="settings-help-text">Upload access footprint data to display possession windows on the calendar. This feature is in development.</p>
+
+          <div class="settings-field">
+            <label class="file-upload-btn footprint-btn" for="footprintInput">
+              <span class="footprint-upload-label-text">📋 Choose footprint file</span>
+              <input type="file" id="footprintInput" accept=".xlsx,.xls,.csv" />
+            </label>
+          </div>
+
+          <div class="settings-field footprint-options" style="display:none;">
+            <div class="footprint-controls">
+              <label class="footprint-toggle">
+                <input type="checkbox" id="footprintVisibleToggle" checked />
+                <span>Show footprints on calendar</span>
+              </label>
+              <button id="footprintLegendBtn" class="footprint-legend-btn">View Legend</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================
        PAGE SCRIPT
   ========================== -->
   <script src="libs/Resources.js"></script>
@@ -1531,8 +1554,22 @@ if (footprintLegendBtn) {
     if (!possessions.length) {
       footprintLegendList.innerHTML = '<p style="color:#64748b; font-size:13px;">No footprint data loaded yet.</p>';
     } else {
-      // Add show all / hide all buttons
+      // Get unique frequencies for filter dropdown
+      const frequencies = MST?.Footprint?.getUniqueFrequencies?.() || [];
+
+      // Add filter controls
       let html = `
+        <div class="footprint-legend-filters">
+          <div class="fp-filter-row">
+            <input type="text" id="fpSearchInput" placeholder="Search codes, descriptions..." class="fp-search-input" />
+          </div>
+          <div class="fp-filter-row">
+            <select id="fpFrequencyFilter" class="fp-frequency-select">
+              <option value="all">All frequencies</option>
+              ${frequencies.map(f => `<option value="${f}">${f}</option>`).join("")}
+            </select>
+          </div>
+        </div>
         <div class="footprint-legend-controls">
           <button type="button" id="fpShowAll" class="fp-toggle-btn">Show All</button>
           <button type="button" id="fpHideAll" class="fp-toggle-btn">Hide All</button>
@@ -1540,8 +1577,9 @@ if (footprintLegendBtn) {
       `;
 
       // Add each possession with toggle and details
+      html += '<div id="fpPossessionList">';
       html += possessions.map(p => `
-        <div class="footprint-legend-item">
+        <div class="footprint-legend-item" data-code="${p.code}" data-frequency="${p.frequency || ''}">
           <label class="footprint-legend-toggle">
             <input type="checkbox" data-code="${p.code}" ${p.visible ? 'checked' : ''} />
             <span class="footprint-legend-color" style="background:${p.color}"></span>
@@ -1551,9 +1589,11 @@ if (footprintLegendBtn) {
             ${p.description ? `<span class="fp-detail-desc">${p.description}</span>` : ''}
             ${p.days ? `<span class="fp-detail-tag">${p.days}</span>` : ''}
             ${p.frequency ? `<span class="fp-detail-tag">${p.frequency}</span>` : ''}
+            ${p.endDate ? `<span class="fp-detail-tag fp-end-date">Ends: ${p.endDate}</span>` : ''}
           </div>
         </div>
       `).join("");
+      html += '</div>';
 
       footprintLegendList.innerHTML = html;
 
@@ -1573,6 +1613,45 @@ if (footprintLegendBtn) {
         MST?.Footprint?.setAllVisible?.(false);
         footprintLegendList.querySelectorAll('input[type="checkbox"][data-code]').forEach(cb => cb.checked = false);
       });
+
+      // Bind search filter
+      const searchInput = document.getElementById("fpSearchInput");
+      if (searchInput) {
+        searchInput.addEventListener("input", function() {
+          const searchText = this.value.toLowerCase().trim();
+          const items = footprintLegendList.querySelectorAll(".footprint-legend-item");
+          items.forEach(item => {
+            const code = item.dataset.code || "";
+            const text = item.textContent.toLowerCase();
+            if (!searchText || text.includes(searchText) || code.toLowerCase().includes(searchText)) {
+              item.style.display = "";
+            } else {
+              item.style.display = "none";
+            }
+          });
+          // Also filter on calendar
+          MST?.Footprint?.filterByText?.(this.value);
+        });
+      }
+
+      // Bind frequency filter
+      const freqFilter = document.getElementById("fpFrequencyFilter");
+      if (freqFilter) {
+        freqFilter.addEventListener("change", function() {
+          const freq = this.value;
+          const items = footprintLegendList.querySelectorAll(".footprint-legend-item");
+          items.forEach(item => {
+            const itemFreq = item.dataset.frequency || "";
+            if (freq === "all" || itemFreq === freq) {
+              item.style.display = "";
+            } else {
+              item.style.display = "none";
+            }
+          });
+          // Also filter on calendar
+          MST?.Footprint?.filterByFrequency?.(freq);
+        });
+      }
     }
 
     footprintLegendModal.classList.add("active");
@@ -1597,15 +1676,58 @@ if (footprintLegendModal) {
   });
 }
 
-// Show legend button after footprint loads
+// Show footprint options after footprint loads
 const footprintInput = document.getElementById("footprintInput");
-if (footprintInput && footprintLegendBtn) {
+const footprintOptions = document.querySelector(".footprint-options");
+if (footprintInput && footprintOptions) {
   footprintInput.addEventListener("change", function() {
     setTimeout(() => {
       if (window.footprintData && window.footprintData.length > 0) {
-        footprintLegendBtn.style.display = "inline-block";
+        footprintOptions.style.display = "block";
       }
     }, 500);
+  });
+}
+
+// ================================
+// SETTINGS MODAL LOGIC
+// ================================
+const settingsModal = document.getElementById("settingsModal");
+const openSettingsBtn = document.getElementById("openSettingsBtn");
+const closeSettingsBtn = document.getElementById("closeSettingsBtn");
+
+function openSettingsModal() {
+  if (settingsModal) {
+    settingsModal.classList.add("active");
+    settingsModal.setAttribute("aria-hidden", "false");
+    // Show footprint options if data already loaded
+    if (window.footprintData && window.footprintData.length > 0 && footprintOptions) {
+      footprintOptions.style.display = "block";
+    }
+  }
+}
+
+function closeSettingsModal() {
+  if (settingsModal) {
+    settingsModal.classList.remove("active");
+    settingsModal.setAttribute("aria-hidden", "true");
+  }
+}
+
+if (openSettingsBtn) {
+  openSettingsBtn.addEventListener("click", openSettingsModal);
+}
+
+if (closeSettingsBtn) {
+  closeSettingsBtn.addEventListener("click", closeSettingsModal);
+}
+
+// Close on backdrop click
+if (settingsModal) {
+  settingsModal.addEventListener("click", function(e) {
+    if (e.target === settingsModal) {
+      closeSettingsModal();
+    }
   });
 }
 
