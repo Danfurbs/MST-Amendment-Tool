@@ -801,6 +801,14 @@ input, button {
 
 .footprint-btn {
   background: #3b82f6 !important;
+  color: #fff !important;
+  display: inline-flex !important;
+  align-items: center;
+  gap: 8px;
+}
+
+.footprint-upload-label-text {
+  color: #fff;
 }
 
 .footprint-controls {
@@ -844,36 +852,37 @@ input, button {
   background: #d1d5db;
 }
 
-/* Footprint background events - very light and transparent */
-.fc-event.footprint-event,
-.fc-bg-event.footprint-event {
-  opacity: 0.25 !important;
-  z-index: 0 !important;
-  pointer-events: none;
+/* Footprint events - styled as subtle labels with visible text */
+.fc-event.footprint-event {
+  opacity: 0.7 !important;
+  font-size: 9px !important;
+  font-weight: 600 !important;
+  padding: 1px 3px !important;
+  border-radius: 3px !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: auto;
+  cursor: default;
+  margin-bottom: 1px !important;
 }
 
-/* Ensure footprint events appear behind MST events */
-.fc-daygrid-bg-harness {
-  z-index: 0 !important;
+.fc-event.footprint-event:hover {
+  opacity: 1 !important;
 }
 
-.fc-daygrid-event-harness {
-  z-index: 1 !important;
+.fc-event.footprint-event .fc-event-main {
+  padding: 0 2px !important;
 }
 
-/* Footprint pattern overlay for better visibility */
-.fc-bg-event.footprint-event::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-image: repeating-linear-gradient(
-    135deg,
-    transparent,
-    transparent 3px,
-    rgba(255, 255, 255, 0.2) 3px,
-    rgba(255, 255, 255, 0.2) 6px
-  );
-  pointer-events: none;
+.fc-event.footprint-event .fc-event-title {
+  font-size: 9px !important;
+  font-weight: 600 !important;
+}
+
+/* Hidden footprint events */
+.fc-event.footprint-event.footprint-hidden {
+  display: none !important;
 }
 
 /* ========================================================================== */
@@ -888,7 +897,7 @@ input, button {
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.5);
-  z-index: 100000;
+  z-index: 100001;
   justify-content: center;
   align-items: center;
   cursor: pointer;
