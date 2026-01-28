@@ -801,6 +801,14 @@ input, button {
 
 .footprint-btn {
   background: #3b82f6 !important;
+  color: #fff !important;
+  display: inline-flex !important;
+  align-items: center;
+  gap: 8px;
+}
+
+.footprint-upload-label-text {
+  color: #fff;
 }
 
 .footprint-controls {
@@ -888,7 +896,7 @@ input, button {
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.5);
-  z-index: 100000;
+  z-index: 100001;
   justify-content: center;
   align-items: center;
   cursor: pointer;
