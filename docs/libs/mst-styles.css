@@ -852,34 +852,36 @@ input, button {
   background: #d1d5db;
 }
 
-/* Footprint events - styled as subtle labels with visible text */
+/* Footprint events - light background with visible text label */
 .fc-event.footprint-event {
-  opacity: 0.4 !important;
-  font-size: 9px !important;
-  font-weight: 700 !important;
-  padding: 2px 4px !important;
+  opacity: 1 !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
   border-radius: 3px !important;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   pointer-events: auto;
   cursor: default;
   margin-bottom: 1px !important;
+  border: none !important;
 }
 
 .fc-event.footprint-event:hover {
-  opacity: 0.75 !important;
+  filter: brightness(0.85);
 }
 
 .fc-event.footprint-event .fc-event-main {
-  padding: 0 2px !important;
-  color: #000 !important;
+  padding: 1px 3px !important;
 }
 
-.fc-event.footprint-event .fc-event-title {
-  font-size: 9px !important;
-  font-weight: 700 !important;
-  color: #000 !important;
+.fc-event.footprint-event .fc-event-title,
+.fc-event.footprint-event .fc-event-title-container {
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  color: #1e293b !important;
+  display: block !important;
+  visibility: visible !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Hidden footprint events */

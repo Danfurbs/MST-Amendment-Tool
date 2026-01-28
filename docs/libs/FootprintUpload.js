@@ -21,21 +21,21 @@ document.addEventListener("DOMContentLoaded", function () {
   window.footprintEvents = [];
 
   // Color palette for different Short Codes (Library Possession)
-  // Using lighter, more pastel colors
+  // Using semi-transparent pastel colors for subtle background
   const shortCodeColors = new Map();
   const colorPalette = [
-    "#93c5fd", // light blue
-    "#c4b5fd", // light violet
-    "#f9a8d4", // light pink
-    "#fdba74", // light orange
-    "#5eead4", // light teal
-    "#bef264", // light lime
-    "#fda4af", // light rose
-    "#67e8f9", // light cyan
-    "#d8b4fe", // light purple
-    "#86efac", // light green
-    "#fde047", // light yellow
-    "#a5b4fc", // light indigo
+    "rgba(147, 197, 253, 0.4)", // light blue
+    "rgba(196, 181, 253, 0.4)", // light violet
+    "rgba(249, 168, 212, 0.4)", // light pink
+    "rgba(253, 186, 116, 0.4)", // light orange
+    "rgba(94, 234, 212, 0.4)",  // light teal
+    "rgba(190, 242, 100, 0.4)", // light lime
+    "rgba(253, 164, 175, 0.4)", // light rose
+    "rgba(103, 232, 249, 0.4)", // light cyan
+    "rgba(216, 180, 254, 0.4)", // light purple
+    "rgba(134, 239, 172, 0.4)", // light green
+    "rgba(253, 224, 71, 0.4)",  // light yellow
+    "rgba(165, 180, 252, 0.4)", // light indigo
   ];
   let colorIndex = 0;
 
