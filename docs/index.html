@@ -23,7 +23,6 @@
   <script src="libs/mst-editor-logic.js"></script>
   <script src="libs/FileUpload.js"></script>
   <script src="libs/FileExport.js"></script>
-  <script src="libs/FootprintUpload.js"></script>
   
   <!-- shared CSS -->
   <link href="libs/mst-styles.css" rel="stylesheet" />
@@ -1395,21 +1394,6 @@ Hold <strong>Ctrl</strong> (or <strong>Cmd</strong> on Mac) to select multiple
 </div>
 
   <!-- =========================
-       FOOTPRINT LEGEND MODAL
-  ========================== -->
-  <div id="footprintLegendModal" aria-hidden="true">
-    <div class="footprint-legend-panel" role="dialog" aria-modal="true" aria-labelledby="footprintLegendTitle">
-      <div class="footprint-legend-header">
-        <h3 id="footprintLegendTitle">Access Footprint Legend</h3>
-        <button id="closeFootprintLegendBtn" class="footprint-legend-close" title="Close">✕</button>
-      </div>
-      <div id="footprintLegendList" class="footprint-legend-list">
-        <p style="color:#64748b; font-size:13px;">Load a footprint file to see the color legend.</p>
-      </div>
-    </div>
-  </div>
-
-  <!-- =========================
        SETTINGS MODAL
   ========================== -->
   <div id="settingsModal" aria-hidden="true">
@@ -1419,31 +1403,7 @@ Hold <strong>Ctrl</strong> (or <strong>Cmd</strong> on Mac) to select multiple
         <button id="closeSettingsBtn" class="settings-close" title="Close">✕</button>
       </div>
       <div class="settings-body">
-        <!-- Access Footprint Section -->
-        <div class="settings-section">
-          <div class="settings-section-header">
-            <h4>Access Footprint</h4>
-            <span class="settings-beta-tag">Beta</span>
-          </div>
-          <p class="settings-help-text">Upload access footprint data to display possession windows on the calendar. This feature is in development.</p>
-
-          <div class="settings-field">
-            <label class="file-upload-btn footprint-btn" for="footprintInput">
-              <span class="footprint-upload-label-text">📋 Choose footprint file</span>
-              <input type="file" id="footprintInput" accept=".xlsx,.xls,.csv" />
-            </label>
-          </div>
-
-          <div class="settings-field footprint-options" style="display:none;">
-            <div class="footprint-controls">
-              <label class="footprint-toggle">
-                <input type="checkbox" id="footprintVisibleToggle" checked />
-                <span>Show footprints on calendar</span>
-              </label>
-              <button id="footprintLegendBtn" class="footprint-legend-btn">View Legend</button>
-            </div>
-          </div>
-        </div>
+        <p class="settings-help-text">Settings options will appear here as new features are added.</p>
       </div>
     </div>
   </div>
@@ -1530,166 +1490,6 @@ if (cancelMSTBtn) cancelMSTBtn.addEventListener("click", () => MST.Editor.closeN
 document.getElementById("newMSTBtn")?.addEventListener("click", () => MST.Editor.openNewMSTModal());
 
 // ================================
-// FOOTPRINT VISIBILITY TOGGLE
-// ================================
-const footprintToggle = document.getElementById("footprintVisibleToggle");
-const footprintLegendBtn = document.getElementById("footprintLegendBtn");
-
-if (footprintToggle) {
-  footprintToggle.addEventListener("change", function() {
-    if (typeof MST?.Footprint?.toggleVisibility === "function") {
-      MST.Footprint.toggleVisibility(this.checked);
-    }
-  });
-}
-
-const footprintLegendModal = document.getElementById("footprintLegendModal");
-const footprintLegendList = document.getElementById("footprintLegendList");
-const closeFootprintLegendBtn = document.getElementById("closeFootprintLegendBtn");
-
-if (footprintLegendBtn) {
-  footprintLegendBtn.addEventListener("click", function() {
-    const possessions = MST?.Footprint?.getPossessionDetails?.() || [];
-
-    if (!possessions.length) {
-      footprintLegendList.innerHTML = '<p style="color:#64748b; font-size:13px;">No footprint data loaded yet.</p>';
-    } else {
-      // Get unique frequencies for filter dropdown
-      const frequencies = MST?.Footprint?.getUniqueFrequencies?.() || [];
-
-      // Add filter controls
-      let html = `
-        <div class="footprint-legend-filters">
-          <div class="fp-filter-row">
-            <input type="text" id="fpSearchInput" placeholder="Search codes, descriptions..." class="fp-search-input" />
-          </div>
-          <div class="fp-filter-row">
-            <select id="fpFrequencyFilter" class="fp-frequency-select">
-              <option value="all">All frequencies</option>
-              ${frequencies.map(f => `<option value="${f}">${f}</option>`).join("")}
-            </select>
-          </div>
-        </div>
-        <div class="footprint-legend-controls">
-          <button type="button" id="fpShowAll" class="fp-toggle-btn">Show All</button>
-          <button type="button" id="fpHideAll" class="fp-toggle-btn">Hide All</button>
-        </div>
-      `;
-
-      // Add each possession with toggle and details
-      html += '<div id="fpPossessionList">';
-      html += possessions.map(p => `
-        <div class="footprint-legend-item" data-code="${p.code}" data-frequency="${p.frequency || ''}">
-          <label class="footprint-legend-toggle">
-            <input type="checkbox" data-code="${p.code}" ${p.visible ? 'checked' : ''} />
-            <span class="footprint-legend-color" style="background:${p.color}"></span>
-            <span class="footprint-legend-code">${p.code}</span>
-          </label>
-          <div class="footprint-legend-details">
-            ${p.description ? `<span class="fp-detail-desc">${p.description}</span>` : ''}
-            ${p.days ? `<span class="fp-detail-tag">${p.days}</span>` : ''}
-            ${p.frequency ? `<span class="fp-detail-tag">${p.frequency}</span>` : ''}
-            ${p.endDate ? `<span class="fp-detail-tag fp-end-date">Ends: ${p.endDate}</span>` : ''}
-          </div>
-        </div>
-      `).join("");
-      html += '</div>';
-
-      footprintLegendList.innerHTML = html;
-
-      // Bind toggle events
-      footprintLegendList.querySelectorAll('input[type="checkbox"][data-code]').forEach(cb => {
-        cb.addEventListener("change", function() {
-          MST?.Footprint?.togglePossession?.(this.dataset.code, this.checked);
-        });
-      });
-
-      // Bind show all / hide all
-      document.getElementById("fpShowAll")?.addEventListener("click", function() {
-        MST?.Footprint?.setAllVisible?.(true);
-        footprintLegendList.querySelectorAll('input[type="checkbox"][data-code]').forEach(cb => cb.checked = true);
-      });
-      document.getElementById("fpHideAll")?.addEventListener("click", function() {
-        MST?.Footprint?.setAllVisible?.(false);
-        footprintLegendList.querySelectorAll('input[type="checkbox"][data-code]').forEach(cb => cb.checked = false);
-      });
-
-      // Bind search filter
-      const searchInput = document.getElementById("fpSearchInput");
-      if (searchInput) {
-        searchInput.addEventListener("input", function() {
-          const searchText = this.value.toLowerCase().trim();
-          const items = footprintLegendList.querySelectorAll(".footprint-legend-item");
-          items.forEach(item => {
-            const code = item.dataset.code || "";
-            const text = item.textContent.toLowerCase();
-            if (!searchText || text.includes(searchText) || code.toLowerCase().includes(searchText)) {
-              item.style.display = "";
-            } else {
-              item.style.display = "none";
-            }
-          });
-          // Also filter on calendar
-          MST?.Footprint?.filterByText?.(this.value);
-        });
-      }
-
-      // Bind frequency filter
-      const freqFilter = document.getElementById("fpFrequencyFilter");
-      if (freqFilter) {
-        freqFilter.addEventListener("change", function() {
-          const freq = this.value;
-          const items = footprintLegendList.querySelectorAll(".footprint-legend-item");
-          items.forEach(item => {
-            const itemFreq = item.dataset.frequency || "";
-            if (freq === "all" || itemFreq === freq) {
-              item.style.display = "";
-            } else {
-              item.style.display = "none";
-            }
-          });
-          // Also filter on calendar
-          MST?.Footprint?.filterByFrequency?.(freq);
-        });
-      }
-    }
-
-    footprintLegendModal.classList.add("active");
-    footprintLegendModal.setAttribute("aria-hidden", "false");
-  });
-}
-
-if (closeFootprintLegendBtn) {
-  closeFootprintLegendBtn.addEventListener("click", function() {
-    footprintLegendModal.classList.remove("active");
-    footprintLegendModal.setAttribute("aria-hidden", "true");
-  });
-}
-
-// Close modal on backdrop click
-if (footprintLegendModal) {
-  footprintLegendModal.addEventListener("click", function(e) {
-    if (e.target === footprintLegendModal) {
-      footprintLegendModal.classList.remove("active");
-      footprintLegendModal.setAttribute("aria-hidden", "true");
-    }
-  });
-}
-
-// Show footprint options after footprint loads
-const footprintInput = document.getElementById("footprintInput");
-const footprintOptions = document.querySelector(".footprint-options");
-if (footprintInput && footprintOptions) {
-  footprintInput.addEventListener("change", function() {
-    setTimeout(() => {
-      if (window.footprintData && window.footprintData.length > 0) {
-        footprintOptions.style.display = "block";
-      }
-    }, 500);
-  });
-}
-
-// ================================
 // SETTINGS MODAL LOGIC
 // ================================
 const settingsModal = document.getElementById("settingsModal");
@@ -1700,10 +1500,6 @@ function openSettingsModal() {
   if (settingsModal) {
     settingsModal.classList.add("active");
     settingsModal.setAttribute("aria-hidden", "false");
-    // Show footprint options if data already loaded
-    if (window.footprintData && window.footprintData.length > 0 && footprintOptions) {
-      footprintOptions.style.display = "block";
-    }
   }
 }
 
