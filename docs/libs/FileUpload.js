@@ -46,6 +46,40 @@ document.addEventListener("DOMContentLoaded", function () {
   const errorSummaryEl = document.getElementById("mstErrorSummary");
   const INITIAL_LOAD_THRESHOLD = 6000;
 
+  // Loading overlay elements
+  const loadingOverlay = document.getElementById("loadingOverlay");
+  const loadingTitle = document.getElementById("loadingTitle");
+  const loadingMessage = document.getElementById("loadingMessage");
+  const loadingProgressBar = document.getElementById("loadingProgressBar");
+  const loadingStep = document.getElementById("loadingStep");
+
+  /** Show loading overlay with progress */
+  function showLoading(title, message, step) {
+    if (loadingOverlay) {
+      loadingOverlay.classList.add("active");
+      loadingOverlay.setAttribute("aria-hidden", "false");
+    }
+    if (loadingTitle) loadingTitle.textContent = title || "Loading...";
+    if (loadingMessage) loadingMessage.textContent = message || "";
+    if (loadingStep) loadingStep.textContent = step || "";
+    if (loadingProgressBar) loadingProgressBar.style.width = "0%";
+  }
+
+  /** Update loading progress */
+  function updateLoadingProgress(percent, step) {
+    if (loadingProgressBar) loadingProgressBar.style.width = `${Math.min(100, percent)}%`;
+    if (loadingStep && step) loadingStep.textContent = step;
+  }
+
+  /** Hide loading overlay */
+  function hideLoading() {
+    if (loadingOverlay) {
+      loadingOverlay.classList.remove("active");
+      loadingOverlay.setAttribute("aria-hidden", "true");
+    }
+    if (loading) loading.style.display = "none";
+  }
+
   /** Safely coerce any value to a trimmed string */
   function safeTrim(value) {
     if (value == null) return "";
@@ -374,10 +408,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function parseAndLoadWorkbook(rawData, workbookType) {
     debugStep("Workbook data captured");
+    updateLoadingProgress(20, "Parsing Excel workbook...");
 
     try {
       const workbook = XLSX.read(rawData, { type: workbookType });
       debugStep("Workbook parsed");
+      updateLoadingProgress(35, "Reading spreadsheet data...");
 
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
 
@@ -392,12 +428,14 @@ document.addEventListener("DOMContentLoaded", function () {
       });
 
       debugStep("Sheet converted to JSON");
+      updateLoadingProgress(50, `Found ${json.length.toLocaleString()} rows...`);
 
       const fullRows = json;
 
       // Build equipment descriptions from the complete, unfiltered download
       window.fullDownloadRows     = fullRows;
       window.equipmentDescriptions = buildEquipmentDescMap(fullRows);
+      updateLoadingProgress(60, "Building equipment index...");
 
       debugStep("Master rows stored and equipment map built");
 
@@ -469,14 +507,19 @@ document.addEventListener("DOMContentLoaded", function () {
 
       debugStep("Work group dropdown populated");
 
+      hideLoading(); // Hide loading while user selects work group
       wgSelectModal.style.display = "flex";
 
       debugStep("Work group modal displayed");
 
       const finalizeLoad = (rows) => {
+        showLoading("Loading Calendar", `Rendering ${rows.length.toLocaleString()} MSTs`, "Validating data...");
+        updateLoadingProgress(70, "Running error checks...");
+
         const annotatedRows = reapplyErrorEvaluation(rows);
 
         debugStep("Error flags applied");
+        updateLoadingProgress(75, "Building filter options...");
 
         populateUnique(document.getElementById("filterWorkGroup"),  annotatedRows, "Work Group Code");
         populateUnique(document.getElementById("filterJobDesc"),    annotatedRows, "Job Description Code");
@@ -487,6 +530,7 @@ document.addEventListener("DOMContentLoaded", function () {
         populateUnique(document.getElementById("filterEquipDesc1"), annotatedRows, "Equipment Description 1");
 
         debugStep("Filter dropdowns populated");
+        updateLoadingProgress(80, "Indexing equipment numbers...");
 
         // Keep the equipment number pool unfiltered so description lookups work for
         // any record contained in the original download
@@ -499,13 +543,17 @@ document.addEventListener("DOMContentLoaded", function () {
         lockDataSourceControl();
 
         debugStep("Data source control locked");
+        updateLoadingProgress(85, "Rendering calendar events...");
 
         try {
           debugStep("Requesting MST render");
           MST.Editor.loadMSTs(annotatedRows);
           debugStep("MST render requested successfully");
+          updateLoadingProgress(100, "Complete!");
+          setTimeout(hideLoading, 300);
         } catch (err) {
           console.error("❌ Failed to render MSTs", err);
+          hideLoading();
           alert("The MSTs could not be displayed. Please retry or contact support.");
         }
       };
@@ -730,9 +778,8 @@ document.addEventListener("DOMContentLoaded", function () {
     } catch (err) {
       console.error(err);
       const msg = err?.message || "Failed to read MST file. Check formatting.";
+      hideLoading();
       alert(msg);
-    } finally {
-      if (loading) loading.style.display = "none";
     }
   }
 
@@ -742,7 +789,8 @@ document.addEventListener("DOMContentLoaded", function () {
     const file = e.target.files[0];
     if (!file) return;
 
-    if (loading) loading.style.display = "block";
+    showLoading("Reading File", "Processing " + file.name, "Parsing Excel data...");
+    updateLoadingProgress(10, "Reading file contents...");
 
     debugStep("Loading indicator shown");
 
@@ -758,8 +806,8 @@ document.addEventListener("DOMContentLoaded", function () {
       } catch (err) {
         console.error(err);
         const msg = err?.message || "Failed to read MST file. Check formatting.";
+        hideLoading();
         alert(msg);
-        if (loading) loading.style.display = "none";
       }
     };
 

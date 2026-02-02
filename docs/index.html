@@ -799,7 +799,6 @@
       <div class="action-buttons">
         <button id="resetAllBtn" style="background:#ef4444; color:white;">Reset All Changes</button>
         <button id="openFilterBtn">⚙️ Filters</button>
-        <button id="openSettingsBtn" class="primary-action-btn">Settings</button>
         <button id="openGotoBtn" class="primary-action-btn">Go to MST</button>
         <button id="openBulkUpdateBtn" class="primary-action-btn">Bulk Update</button>
         <button id="openResourceBtn" class="primary-action-btn">Planned Hours Graph</button>
@@ -1271,36 +1270,45 @@ WHERE
      GO TO MST OVERLAY + PANEL
 ========================== -->
 <div id="gotoOverlay">
-  <aside id="gotoPanel" aria-label="Go to MST">
+  <aside id="gotoPanel" aria-label="Go to MST" style="width:500px;">
     <div id="gotoHeader">
-      <h3>Go to MST</h3>
+      <h3>Search MSTs</h3>
       <button id="closeGotoBtn" title="Close">✕</button>
     </div>
 
     <div id="gotoBody">
       <div class="goto-field">
-        <label for="gotoEquip"><strong>Equipment Number</strong></label>
- <input type="text" id="gotoEquip" list="equipList" placeholder="Enter Equipment No" />
-<datalist id="equipList"></datalist>
-
-<small id="equipDescPreview" 
-       style="display:block; margin-top:4px; font-size:13px; font-weight:bold; color:#333;">
-</small>
-
+        <label for="gotoSearch"><strong>Search All Fields</strong></label>
+        <input type="text" id="gotoSearch" placeholder="Equipment, Task No, Description, Work Group..." style="width:100%;" />
+        <small style="display:block; margin-top:4px; color:#64748b; font-size:11px;">
+          Searches equipment number, task number, descriptions, work group, and job codes
+        </small>
       </div>
-     <div class="goto-field">
-        <label for="gotoTask"><strong>Task Number</strong></label>
-        <input id="gotoTask" placeholder="e.g. 001" />
+
+      <div style="display:flex; gap:12px; margin-bottom:8px;">
+        <div class="goto-field" style="flex:1;">
+          <label for="gotoEquip"><strong>Equipment No</strong></label>
+          <input type="text" id="gotoEquip" list="equipList" placeholder="Optional filter" />
+          <datalist id="equipList"></datalist>
+        </div>
+        <div class="goto-field" style="flex:1;">
+          <label for="gotoTask"><strong>Task No</strong></label>
+          <input id="gotoTask" placeholder="Optional filter" />
+        </div>
       </div>
-      <button id="gotoSearchBtn" class="btn-primary" style="margin:8px 0 12px;">Search</button>
+
+      <button id="gotoSearchBtn" class="btn-primary" style="margin:8px 0 12px; width:100%;">Search</button>
 
       <div id="gotoResults" style="display:none;">
-        <table class="goto-table">
-          <thead>
-            <tr><th>Task No</th><th>MST Description 1</th></tr>
-          </thead>
-          <tbody id="gotoResultsBody"></tbody>
-        </table>
+        <div id="gotoResultsCount" style="font-size:13px; color:#334155; margin-bottom:8px; font-weight:600;"></div>
+        <div style="max-height:350px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px;">
+          <table class="goto-table">
+            <thead>
+              <tr><th>Equipment</th><th>Task</th><th>Description</th><th>Work Group</th></tr>
+            </thead>
+            <tbody id="gotoResultsBody"></tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -1393,20 +1401,79 @@ Hold <strong>Ctrl</strong> (or <strong>Cmd</strong> on Mac) to select multiple
   </div>
 </div>
 
-  <!-- =========================
-       SETTINGS MODAL
-  ========================== -->
-  <div id="settingsModal" aria-hidden="true">
-    <div class="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
-      <div class="settings-header">
-        <h3 id="settingsTitle">Settings</h3>
-        <button id="closeSettingsBtn" class="settings-close" title="Close">✕</button>
-      </div>
-      <div class="settings-body">
-        <p class="settings-help-text">Settings options will appear here as new features are added.</p>
+<!-- =========================
+     LOADING PROGRESS MODAL
+========================== -->
+<div id="loadingOverlay" class="loading-overlay" aria-hidden="true">
+  <div class="loading-panel">
+    <div class="loading-spinner"></div>
+    <h3 id="loadingTitle">Loading MSTs...</h3>
+    <p id="loadingMessage" class="loading-message">Please wait while we process your file</p>
+    <div class="loading-progress-container">
+      <div id="loadingProgressBar" class="loading-progress-bar"></div>
+    </div>
+    <p id="loadingStep" class="loading-step">Initializing...</p>
+  </div>
+</div>
+
+<!-- =========================
+     DRAG CONFIRM MODAL
+========================== -->
+<div id="dragConfirmModal" class="drag-confirm-overlay" aria-hidden="true">
+  <div class="drag-confirm-panel">
+    <h3>Confirm Reschedule</h3>
+    <div class="drag-confirm-details">
+      <p id="dragConfirmMst" class="drag-mst-info"></p>
+      <div class="drag-date-change">
+        <div class="drag-date-box old-date">
+          <span class="drag-date-label">From</span>
+          <span id="dragOldDate" class="drag-date-value"></span>
+        </div>
+        <span class="drag-arrow">→</span>
+        <div class="drag-date-box new-date">
+          <span class="drag-date-label">To</span>
+          <span id="dragNewDate" class="drag-date-value"></span>
+        </div>
       </div>
     </div>
+    <div class="drag-confirm-actions">
+      <button id="dragConfirmCancel" class="drag-btn drag-btn-cancel">Cancel</button>
+      <button id="dragConfirmOk" class="drag-btn drag-btn-confirm">Confirm Move</button>
+    </div>
   </div>
+</div>
+
+<!-- =========================
+     BULK PREVIEW MODAL
+========================== -->
+<div id="bulkPreviewOverlay" class="bulk-preview-overlay" aria-hidden="true">
+  <div class="bulk-preview-panel">
+    <div class="bulk-preview-header">
+      <h3>Preview Changes</h3>
+      <button id="closeBulkPreviewBtn" class="bulk-close-btn">✕</button>
+    </div>
+    <div class="bulk-preview-body">
+      <p class="bulk-preview-summary" id="bulkPreviewSummary"></p>
+      <div class="bulk-preview-table-wrapper">
+        <table class="bulk-preview-table">
+          <thead>
+            <tr>
+              <th>MST</th>
+              <th>Field</th>
+              <th>Current Value</th>
+              <th>New Value</th>
+            </tr>
+          </thead>
+          <tbody id="bulkPreviewBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="bulk-preview-footer">
+      <button id="bulkPreviewCancel" class="bulk-secondary-btn">Cancel</button>
+      <button id="bulkPreviewApply" class="bulk-apply-btn">Apply Changes</button>
+    </div>
+  </div>
+</div>
 
   <!-- =========================
        PAGE SCRIPT
@@ -1489,43 +1556,6 @@ if (cancelMSTBtn) cancelMSTBtn.addEventListener("click", () => MST.Editor.closeN
 
 document.getElementById("newMSTBtn")?.addEventListener("click", () => MST.Editor.openNewMSTModal());
 
-// ================================
-// SETTINGS MODAL LOGIC
-// ================================
-const settingsModal = document.getElementById("settingsModal");
-const openSettingsBtn = document.getElementById("openSettingsBtn");
-const closeSettingsBtn = document.getElementById("closeSettingsBtn");
-
-function openSettingsModal() {
-  if (settingsModal) {
-    settingsModal.classList.add("active");
-    settingsModal.setAttribute("aria-hidden", "false");
-  }
-}
-
-function closeSettingsModal() {
-  if (settingsModal) {
-    settingsModal.classList.remove("active");
-    settingsModal.setAttribute("aria-hidden", "true");
-  }
-}
-
-if (openSettingsBtn) {
-  openSettingsBtn.addEventListener("click", openSettingsModal);
-}
-
-if (closeSettingsBtn) {
-  closeSettingsBtn.addEventListener("click", closeSettingsModal);
-}
-
-// Close on backdrop click
-if (settingsModal) {
-  settingsModal.addEventListener("click", function(e) {
-    if (e.target === settingsModal) {
-      closeSettingsModal();
-    }
-  });
-}
 
   </script>
 

@@ -691,37 +691,96 @@ eventContent: function(arg) {
     eventDrop(info) {
       const ev = info.event;
       if (ev.extendedProps.instance !== 0) return;
+
+      // Show drag confirmation modal
+      const modal = document.getElementById("dragConfirmModal");
+      const mstInfo = document.getElementById("dragConfirmMst");
+      const oldDateEl = document.getElementById("dragOldDate");
+      const newDateEl = document.getElementById("dragNewDate");
+      const confirmBtn = document.getElementById("dragConfirmOk");
+      const cancelBtn = document.getElementById("dragConfirmCancel");
+
+      if (!modal) {
+        // If modal doesn't exist, proceed without confirmation
+        applyEventDrop(info);
+        return;
+      }
+
       const mstId = ev.extendedProps.mstId;
+      const desc1 = ev.extendedProps.desc1 || "";
+      const equipDesc = ev.extendedProps.equipmentDesc1 || "";
 
-      const deltaDays = Math.round((ev.start - info.oldEvent.start) / (1000 * 60 * 60 * 24));
-      const futArr = window.futureEventsMap[mstId] || [];
-
-      futArr.forEach(futureEv => {
-        const d = new Date(futureEv.start);
-        d.setDate(d.getDate() + deltaDays);
-		d.setHours(9,0,0,0);
-        futureEv.setDates(d);
-		
+      // Format dates
+      const formatDate = (d) => d.toLocaleDateString("en-GB", {
+        weekday: "short", day: "numeric", month: "short", year: "numeric"
       });
 
-      if (typeof MST?.Editor?.markMSTAsChanged === "function") {
-        MST.Editor.markMSTAsChanged(mstId);
-      }
+      mstInfo.textContent = `${equipDesc} — ${desc1}`;
+      oldDateEl.textContent = formatDate(info.oldEvent.start);
+      newDateEl.textContent = formatDate(ev.start);
 
-      // If editor panel is currently showing the same MST
-      if (window.mstIdDisplay && window.mstIdDisplay.value === mstId) {
-        if (window.lastDateInput && typeof MST?.Utils?.dateToInputYYYYMMDD === "function") {
-          window.lastDateInput.value = MST.Utils.dateToInputYYYYMMDD(ev.start);
-        }
+      modal.classList.add("active");
+      modal.setAttribute("aria-hidden", "false");
 
-        if (typeof MST?.Editor?.refreshNextScheduledDisplay === "function") {
-          MST.Editor.refreshNextScheduledDisplay();
-        }
-      }
+      // Handle confirm
+      const handleConfirm = () => {
+        modal.classList.remove("active");
+        modal.setAttribute("aria-hidden", "true");
+        applyEventDrop(info);
+        cleanup();
+      };
 
-      triggerResourceChartRefresh();
+      // Handle cancel
+      const handleCancel = () => {
+        modal.classList.remove("active");
+        modal.setAttribute("aria-hidden", "true");
+        info.revert(); // Revert the drag
+        cleanup();
+      };
+
+      // Clean up listeners
+      const cleanup = () => {
+        confirmBtn.removeEventListener("click", handleConfirm);
+        cancelBtn.removeEventListener("click", handleCancel);
+      };
+
+      confirmBtn.addEventListener("click", handleConfirm);
+      cancelBtn.addEventListener("click", handleCancel);
     }
   });
+
+  // Apply event drop changes (extracted for reuse with confirmation)
+  function applyEventDrop(info) {
+    const ev = info.event;
+    const mstId = ev.extendedProps.mstId;
+
+    const deltaDays = Math.round((ev.start - info.oldEvent.start) / (1000 * 60 * 60 * 24));
+    const futArr = window.futureEventsMap[mstId] || [];
+
+    futArr.forEach(futureEv => {
+      const d = new Date(futureEv.start);
+      d.setDate(d.getDate() + deltaDays);
+      d.setHours(9,0,0,0);
+      futureEv.setDates(d);
+    });
+
+    if (typeof MST?.Editor?.markMSTAsChanged === "function") {
+      MST.Editor.markMSTAsChanged(mstId);
+    }
+
+    // If editor panel is currently showing the same MST
+    if (window.mstIdDisplay && window.mstIdDisplay.value === mstId) {
+      if (window.lastDateInput && typeof MST?.Utils?.dateToInputYYYYMMDD === "function") {
+        window.lastDateInput.value = MST.Utils.dateToInputYYYYMMDD(ev.start);
+      }
+
+      if (typeof MST?.Editor?.refreshNextScheduledDisplay === "function") {
+        MST.Editor.refreshNextScheduledDisplay();
+      }
+    }
+
+    triggerResourceChartRefresh();
+  }
 
   window.calendar.render();
 });
