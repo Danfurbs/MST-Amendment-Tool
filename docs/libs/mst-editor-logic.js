@@ -169,6 +169,29 @@ const bindExportButton = (btn) => {
   }
 };
 
+const showMstLoadingOverlay = (title, message, step) => {
+  const loadingOverlay = document.getElementById("loadingOverlay");
+  const loadingTitle = document.getElementById("loadingTitle");
+  const loadingMessage = document.getElementById("loadingMessage");
+  const loadingStep = document.getElementById("loadingStep");
+
+  if (loadingOverlay) {
+    loadingOverlay.classList.add("active");
+    loadingOverlay.setAttribute("aria-hidden", "false");
+  }
+  if (loadingTitle) loadingTitle.textContent = title || "Loading MST information...";
+  if (loadingMessage) loadingMessage.textContent = message || "Preparing MST editor...";
+  if (loadingStep) loadingStep.textContent = step || "";
+};
+
+const hideMstLoadingOverlay = () => {
+  const loadingOverlay = document.getElementById("loadingOverlay");
+  if (loadingOverlay) {
+    loadingOverlay.classList.remove("active");
+    loadingOverlay.setAttribute("aria-hidden", "true");
+  }
+};
+
 const getDomElements = () => ({
   allowMultipleInput: document.getElementById("allowMultipleInput"),
   applyFiltersBtn: document.getElementById("applyFiltersBtn"),
@@ -709,9 +732,21 @@ eventContent: function(arg) {
       }
 
       if (typeof MST?.Editor?.openEditorForMST === "function") {
-        MST.Editor.openEditorForMST(mstId, targetEvent);
+        showMstLoadingOverlay(
+          "Loading MST information...",
+          "Fetching details for the selected MST.",
+          "Opening editor..."
+        );
+
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            MST.Editor.openEditorForMST(mstId, targetEvent);
+            hideMstLoadingOverlay();
+          }, 0);
+        });
       } else {
         console.error("❌ MST.Editor.openEditorForMST is not defined");
+        hideMstLoadingOverlay();
       }
     },
 
@@ -985,9 +1020,23 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     // Store selection persistently (survives scroll/navigation)
     window.selectedMstId = mstId || null;
 
-    // Clear any existing highlights
-    document.querySelectorAll('.fc-event.mst-selected').forEach(el => {
-      el.classList.remove('mst-selected');
+    // Clear any existing highlights (DOM + event objects)
+    if (window.calendar) {
+      window.calendar.getEvents().forEach(ev => {
+        const currentClasses = Array.isArray(ev._def?.ui?.classNames)
+          ? ev._def.ui.classNames
+          : [];
+        if (currentClasses.includes("mst-selected")) {
+          ev.setProp(
+            "classNames",
+            currentClasses.filter(className => className !== "mst-selected")
+          );
+        }
+        if (ev.el) ev.el.classList.remove("mst-selected");
+      });
+    }
+    document.querySelectorAll(".fc-event.mst-selected").forEach(el => {
+      el.classList.remove("mst-selected");
     });
 
     if (!mstId || !window.calendar) return;
@@ -996,7 +1045,10 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     const baseEvent = window.calendar.getEventById(`${mstId}_0`);
     if (baseEvent) {
       // Update classNames on the event object for FullCalendar
-      const classes = new Set(baseEvent.classNames || []);
+      const currentClasses = Array.isArray(baseEvent._def?.ui?.classNames)
+        ? baseEvent._def.ui.classNames
+        : [];
+      const classes = new Set(currentClasses);
       classes.add('mst-selected');
       baseEvent.setProp('classNames', [...classes]);
 
@@ -1011,7 +1063,10 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     futureEvents.forEach(ev => {
       if (ev) {
         // Update classNames on the event object
-        const classes = new Set(ev.classNames || []);
+        const currentClasses = Array.isArray(ev._def?.ui?.classNames)
+          ? ev._def.ui.classNames
+          : [];
+        const classes = new Set(currentClasses);
         classes.add('mst-selected');
         ev.setProp('classNames', [...classes]);
 
@@ -1026,8 +1081,22 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
   // Clear selection
   function clearMstSelection() {
     window.selectedMstId = null;
-    document.querySelectorAll('.fc-event.mst-selected').forEach(el => {
-      el.classList.remove('mst-selected');
+    if (window.calendar) {
+      window.calendar.getEvents().forEach(ev => {
+        const currentClasses = Array.isArray(ev._def?.ui?.classNames)
+          ? ev._def.ui.classNames
+          : [];
+        if (currentClasses.includes("mst-selected")) {
+          ev.setProp(
+            "classNames",
+            currentClasses.filter(className => className !== "mst-selected")
+          );
+        }
+        if (ev.el) ev.el.classList.remove("mst-selected");
+      });
+    }
+    document.querySelectorAll(".fc-event.mst-selected").forEach(el => {
+      el.classList.remove("mst-selected");
     });
   }
 
