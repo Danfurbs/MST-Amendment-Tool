@@ -956,7 +956,10 @@ E.renderVisibleInstances = function(visibleStart, visibleEnd) {
         // Remove from futureEventsMap
         const mstId = ev.extendedProps.mstId;
         if (window.futureEventsMap[mstId]) {
-          window.futureEventsMap[mstId] = window.futureEventsMap[mstId].filter(e => e.id !== instId);
+          window.futureEventsMap[mstId] = window.futureEventsMap[mstId].filter(e => {
+            const eventId = e?._def?.publicId || e?._def?.defId;
+            return eventId !== instId;
+          });
         }
         ev.remove();
         window.renderedInstanceIds.delete(instId);
