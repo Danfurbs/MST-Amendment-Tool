@@ -1023,9 +1023,9 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     // Clear any existing highlights (DOM + event objects)
     if (window.calendar) {
       window.calendar.getEvents().forEach(ev => {
-        const currentClasses = Array.isArray(ev.getProp?.("classNames"))
-          ? ev.getProp("classNames")
-          : ev.classNames || [];
+        const currentClasses = Array.isArray(ev._def?.ui?.classNames)
+          ? ev._def.ui.classNames
+          : [];
         if (currentClasses.includes("mst-selected")) {
           ev.setProp(
             "classNames",
@@ -1045,9 +1045,9 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     const baseEvent = window.calendar.getEventById(`${mstId}_0`);
     if (baseEvent) {
       // Update classNames on the event object for FullCalendar
-      const currentClasses = Array.isArray(baseEvent.getProp?.("classNames"))
-        ? baseEvent.getProp("classNames")
-        : baseEvent.classNames || [];
+      const currentClasses = Array.isArray(baseEvent._def?.ui?.classNames)
+        ? baseEvent._def.ui.classNames
+        : [];
       const classes = new Set(currentClasses);
       classes.add('mst-selected');
       baseEvent.setProp('classNames', [...classes]);
@@ -1063,9 +1063,9 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     futureEvents.forEach(ev => {
       if (ev) {
         // Update classNames on the event object
-        const currentClasses = Array.isArray(ev.getProp?.("classNames"))
-          ? ev.getProp("classNames")
-          : ev.classNames || [];
+        const currentClasses = Array.isArray(ev._def?.ui?.classNames)
+          ? ev._def.ui.classNames
+          : [];
         const classes = new Set(currentClasses);
         classes.add('mst-selected');
         ev.setProp('classNames', [...classes]);
@@ -1083,9 +1083,9 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     window.selectedMstId = null;
     if (window.calendar) {
       window.calendar.getEvents().forEach(ev => {
-        const currentClasses = Array.isArray(ev.getProp?.("classNames"))
-          ? ev.getProp("classNames")
-          : ev.classNames || [];
+        const currentClasses = Array.isArray(ev._def?.ui?.classNames)
+          ? ev._def.ui.classNames
+          : [];
         if (currentClasses.includes("mst-selected")) {
           ev.setProp(
             "classNames",
