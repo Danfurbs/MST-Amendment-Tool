@@ -1022,6 +1022,7 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
   function highlightMstChain(mstId) {
     // Store selection persistently (survives scroll/navigation)
     window.selectedMstId = mstId || null;
+    const selectedDayClass = "mst-selected-day";
 
     // Clear any existing highlights (DOM + event objects)
     if (window.calendar) {
@@ -1041,6 +1042,9 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     document.querySelectorAll(".fc-event.mst-selected").forEach(el => {
       el.classList.remove("mst-selected");
     });
+    document.querySelectorAll(`.fc-daygrid-day.${selectedDayClass}`).forEach(el => {
+      el.classList.remove(selectedDayClass);
+    });
 
     if (!mstId || !window.calendar) return;
 
@@ -1058,6 +1062,14 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
       // Also add to DOM element if available
       if (baseEvent.el) {
         baseEvent.el.classList.add('mst-selected');
+      }
+    }
+
+    if (baseEvent && !baseEvent.el && typeof U?.dateToInputYYYYMMDD === "function") {
+      const dayKey = U.dateToInputYYYYMMDD(baseEvent.start);
+      const dayCell = document.querySelector(`.fc-daygrid-day[data-date="${dayKey}"]`);
+      if (dayCell) {
+        dayCell.classList.add(selectedDayClass);
       }
     }
 
@@ -1084,6 +1096,7 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
   // Clear selection
   function clearMstSelection() {
     window.selectedMstId = null;
+    const selectedDayClass = "mst-selected-day";
     if (window.calendar) {
       window.calendar.getEvents().forEach(ev => {
         const currentClasses = Array.isArray(ev._def?.ui?.classNames)
@@ -1100,6 +1113,9 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     }
     document.querySelectorAll(".fc-event.mst-selected").forEach(el => {
       el.classList.remove("mst-selected");
+    });
+    document.querySelectorAll(`.fc-daygrid-day.${selectedDayClass}`).forEach(el => {
+      el.classList.remove(selectedDayClass);
     });
   }
 
