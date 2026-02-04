@@ -206,35 +206,58 @@
     const closeGotoBtn    = getEl('closeGotoBtn');
     const closeGotoBtn2   = getEl('closeGotoBtn2');
 
+    const gotoSearch      = getEl('gotoSearch');
     const gotoEquip       = getEl('gotoEquip');
+    const gotoTask        = getEl('gotoTask');
     const gotoSearchBtn   = getEl('gotoSearchBtn');
     const gotoResults     = getEl('gotoResults');
     const gotoResultsBody = getEl('gotoResultsBody');
+    const gotoResultsCount = getEl('gotoResultsCount');
     const equipList       = getEl('equipList');
 
-    if (!gotoOverlay || !gotoPanel || !openGotoBtn || !closeGotoBtn || !gotoEquip) return;
+    if (!gotoOverlay || !gotoPanel || !openGotoBtn || !closeGotoBtn) return;
 
     const normalizeEquip = (value) => {
       if (typeof Utils.normalizeEquip === 'function') return Utils.normalizeEquip(value);
       return (value || '').toString().toUpperCase().replace(/^0+/, '');
     };
 
-    function openGoto()  { gotoOverlay.classList.add('active'); setTimeout(() => gotoEquip.focus(), 0); }
+    const normalizeText = (value) => (value || '').toString().toLowerCase().trim();
+
+    function openGoto() {
+      gotoOverlay.classList.add('active');
+      setTimeout(() => (gotoSearch || gotoEquip)?.focus(), 0);
+    }
+
     function closeGoto() {
       gotoOverlay.classList.remove('active');
       if (gotoResultsBody) gotoResultsBody.innerHTML = '';
       if (gotoResults) gotoResults.style.display = 'none';
-      gotoEquip.value = '';
+      if (gotoResultsCount) gotoResultsCount.textContent = '';
+      if (gotoSearch) gotoSearch.value = '';
+      if (gotoEquip) gotoEquip.value = '';
+      if (gotoTask) gotoTask.value = '';
     }
 
     function renderResults(events) {
       if (!gotoResultsBody || !gotoResults) return;
       gotoResultsBody.innerHTML = '';
 
+      // Show count
+      if (gotoResultsCount) {
+        gotoResultsCount.textContent = `Found ${events.length} MST${events.length === 1 ? '' : 's'}`;
+      }
+
       events.forEach((ev) => {
         const p  = ev.extendedProps || {};
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${p.taskNo || ''}</td><td>${p.desc1 || ''}</td>`;
+        tr.innerHTML = `
+          <td>${p.equipmentNo || ''}</td>
+          <td>${p.taskNo || ''}</td>
+          <td>${p.desc1 || ''}${p.desc2 ? ' — ' + p.desc2 : ''}</td>
+          <td>${p.workGroup || ''}</td>
+        `;
+        tr.style.cursor = 'pointer';
         tr.addEventListener('click', () => {
           const mstId = p.mstId;
           const calendar = window.calendar;
@@ -274,21 +297,76 @@
       const calendar = window.calendar;
       if (!calendar) return;
 
-      const equip = gotoEquip.value.trim().toUpperCase();
-      if (!equip) { alert('Please enter an Equipment Number.'); return; }
+      const searchTerm = normalizeText(gotoSearch?.value || '');
+      const equipFilter = normalizeEquip(gotoEquip?.value || '');
+      const taskFilter = normalizeText(gotoTask?.value || '');
+
+      // Must have at least one search criterion
+      if (!searchTerm && !equipFilter && !taskFilter) {
+        alert('Please enter a search term, equipment number, or task number.');
+        return;
+      }
 
       const events = calendar.getEvents().filter((ev) => {
         const p = ev.extendedProps || {};
-        return normalizeEquip(p.equipmentNo) === normalizeEquip(equip) && ev.id.endsWith('_0');
+
+        // Only search base events (instance 0)
+        if (!ev.id.endsWith('_0')) return false;
+
+        // Apply equipment filter if provided
+        if (equipFilter && !normalizeEquip(p.equipmentNo).includes(equipFilter)) {
+          return false;
+        }
+
+        // Apply task filter if provided
+        if (taskFilter && !normalizeText(p.taskNo).includes(taskFilter)) {
+          return false;
+        }
+
+        // Apply general search term across all fields
+        if (searchTerm) {
+          const searchableFields = [
+            p.equipmentNo || '',
+            p.equipmentDesc1 || '',
+            p.taskNo || '',
+            p.desc1 || '',
+            p.desc2 || '',
+            p.workGroup || '',
+            p.jobDescCode || '',
+            p.protType || '',
+            p.protMethod || '',
+            p.mstId || ''
+          ].map(normalizeText).join(' ');
+
+          if (!searchableFields.includes(searchTerm)) {
+            return false;
+          }
+        }
+
+        return true;
       });
 
       if (!events.length) {
         if (gotoResults) gotoResults.style.display = 'none';
-        alert('No MSTs found for that Equipment.');
+        if (gotoResultsCount) gotoResultsCount.textContent = '';
+        alert('No MSTs found matching your search.');
         return;
       }
 
-      renderResults(events);
+      // Sort results by equipment number then task number
+      events.sort((a, b) => {
+        const aKey = `${a.extendedProps?.equipmentNo || ''}_${a.extendedProps?.taskNo || ''}`;
+        const bKey = `${b.extendedProps?.equipmentNo || ''}_${b.extendedProps?.taskNo || ''}`;
+        return aKey.localeCompare(bKey);
+      });
+
+      // Limit results to prevent performance issues
+      const limitedEvents = events.slice(0, 100);
+      if (events.length > 100 && gotoResultsCount) {
+        gotoResultsCount.textContent = `Found ${events.length} MSTs (showing first 100)`;
+      }
+
+      renderResults(limitedEvents);
     }
 
     openGotoBtn.addEventListener('click', openGoto);
@@ -297,9 +375,14 @@
     gotoOverlay.addEventListener('click', (e) => { if (e.target === gotoOverlay) closeGoto(); });
 
     gotoSearchBtn?.addEventListener('click', performSearch);
-    gotoEquip.addEventListener('keydown', (e) => { if (e.key === 'Enter') performSearch(); });
 
-    gotoEquip.addEventListener('input', (e) => {
+    // Search on Enter key for all input fields
+    [gotoSearch, gotoEquip, gotoTask].forEach(input => {
+      input?.addEventListener('keydown', (e) => { if (e.key === 'Enter') performSearch(); });
+    });
+
+    // Equipment autocomplete
+    gotoEquip?.addEventListener('input', (e) => {
       if (!equipList) return;
       const term = normalizeEquip(e.target.value || '');
       equipList.innerHTML = '';
@@ -610,17 +693,57 @@
       editOverlay.setAttribute('aria-hidden', 'true');
     };
 
-    const applyBulkUpdates = () => {
+    // Preview overlay elements
+    const previewOverlay = getEl('bulkPreviewOverlay');
+    const previewBody = getEl('bulkPreviewBody');
+    const previewSummary = getEl('bulkPreviewSummary');
+    const closePreviewBtn = getEl('closeBulkPreviewBtn');
+    const previewCancelBtn = getEl('bulkPreviewCancel');
+    const previewApplyBtn = getEl('bulkPreviewApply');
+
+    // Store pending changes for preview/apply
+    let pendingChanges = [];
+
+    const fieldLabels = {
+      desc2: 'Description 2',
+      frequency: 'Frequency',
+      lastDate: 'Last Scheduled Date',
+      workGroup: 'Work Group',
+      jobDescCode: 'Job Description',
+      unitsRequired: 'Units Required',
+      segFrom: 'Segment From',
+      segTo: 'Segment To',
+      protType: 'Protection Type',
+      protMethod: 'Protection Method',
+      allowMultiple: 'Allow Multiple'
+    };
+
+    const formatValue = (value, field) => {
+      if (value === '' || value === null || value === undefined) return '(empty)';
+      if (field === 'allowMultiple') return value ? 'Yes' : 'No';
+      return String(value);
+    };
+
+    const showPreview = () => {
       if (!window.MST?.Editor?.applyBulkEdits) {
         alert('Bulk update is unavailable. Please refresh and try again.');
         return;
       }
+
       const rows = Array.from(editBody.querySelectorAll('tr[data-mst-id]'));
-      let updated = 0;
+      const calendar = window.calendar;
+      if (!calendar) return;
+
+      pendingChanges = [];
+      let totalChanges = 0;
+
       rows.forEach((row) => {
         const mstId = row.dataset.mstId;
         const inputs = row.querySelectorAll('input, select');
-        const updates = {
+        const baseEvent = calendar.getEventById(`${mstId}_0`);
+        const props = baseEvent?.extendedProps || {};
+
+        const newValues = {
           desc2: inputs[0]?.value ?? '',
           frequency: inputs[1]?.value ?? '',
           lastDate: inputs[2]?.value ?? '',
@@ -633,14 +756,110 @@
           protMethod: inputs[9]?.value ?? '',
           allowMultiple: inputs[10]?.checked ?? false
         };
-        const result = window.MST.Editor.applyBulkEdits(mstId, updates);
+
+        const currentValues = {
+          desc2: props.desc2 || '',
+          frequency: String(props.frequency ?? ''),
+          lastDate: Utils?.dateToInputYYYYMMDD ? Utils.dateToInputYYYYMMDD(baseEvent?.start) : '',
+          workGroup: props.workGroup || '',
+          jobDescCode: props.jobDescCode || '',
+          unitsRequired: String(props.unitsRequired ?? ''),
+          segFrom: String(props.segFrom ?? ''),
+          segTo: String(props.segTo ?? ''),
+          protType: props.protType || '',
+          protMethod: props.protMethod || '',
+          allowMultiple: (props.allowMultiple || '').toString().toUpperCase() === 'YES'
+        };
+
+        const changes = [];
+        Object.keys(newValues).forEach(field => {
+          const newVal = newValues[field];
+          const curVal = currentValues[field];
+          const normalizedNew = field === 'allowMultiple' ? newVal : String(newVal).trim();
+          const normalizedCur = field === 'allowMultiple' ? curVal : String(curVal).trim();
+
+          if (normalizedNew !== normalizedCur) {
+            changes.push({
+              field,
+              oldValue: curVal,
+              newValue: newVal
+            });
+            totalChanges++;
+          }
+        });
+
+        if (changes.length > 0) {
+          pendingChanges.push({
+            mstId,
+            equipmentNo: props.equipmentNo || '',
+            taskNo: props.taskNo || '',
+            desc1: props.desc1 || '',
+            updates: newValues,
+            changes
+          });
+        }
+      });
+
+      if (pendingChanges.length === 0) {
+        alert('No changes detected. Please modify at least one field.');
+        return;
+      }
+
+      // Render preview
+      if (previewSummary) {
+        previewSummary.textContent = `${totalChanges} change${totalChanges === 1 ? '' : 's'} across ${pendingChanges.length} MST${pendingChanges.length === 1 ? '' : 's'} will be applied.`;
+      }
+
+      if (previewBody) {
+        previewBody.innerHTML = '';
+        pendingChanges.forEach(item => {
+          item.changes.forEach(change => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td><strong>${item.equipmentNo}</strong> — ${item.taskNo}<br><small style="color:#64748b;">${item.desc1}</small></td>
+              <td>${fieldLabels[change.field] || change.field}</td>
+              <td><span class="preview-value-old">${formatValue(change.oldValue, change.field)}</span></td>
+              <td><span class="preview-value-new">${formatValue(change.newValue, change.field)}</span></td>
+            `;
+            previewBody.appendChild(tr);
+          });
+        });
+      }
+
+      // Show preview modal
+      if (previewOverlay) {
+        previewOverlay.classList.add('active');
+        previewOverlay.setAttribute('aria-hidden', 'false');
+      }
+    };
+
+    const closePreview = () => {
+      if (previewOverlay) {
+        previewOverlay.classList.remove('active');
+        previewOverlay.setAttribute('aria-hidden', 'true');
+      }
+    };
+
+    const applyBulkUpdates = () => {
+      let updated = 0;
+      pendingChanges.forEach((item) => {
+        const result = window.MST.Editor.applyBulkEdits(item.mstId, item.updates);
         if (result) updated += 1;
       });
 
-      alert(`Updated ${updated} MST${updated === 1 ? '' : 's'}.`);
+      closePreview();
       closeEditor();
+      alert(`Successfully updated ${updated} MST${updated === 1 ? '' : 's'}.`);
       openOverlay({ resetSelection: true, resetFilter: true });
     };
+
+    // Preview modal event listeners
+    closePreviewBtn?.addEventListener('click', closePreview);
+    previewCancelBtn?.addEventListener('click', closePreview);
+    previewApplyBtn?.addEventListener('click', applyBulkUpdates);
+    previewOverlay?.addEventListener('click', (e) => {
+      if (e.target === previewOverlay) closePreview();
+    });
 
     openBulkBtn.addEventListener('click', () => openOverlay({ resetSelection: true, resetFilter: true }));
     closeBulkBtn?.addEventListener('click', closeOverlay);
@@ -676,7 +895,7 @@
       closeEditor();
       openOverlay({ resetSelection: false, resetFilter: false });
     });
-    applyBtn?.addEventListener('click', applyBulkUpdates);
+    applyBtn?.addEventListener('click', showPreview);
   }
 
   document.addEventListener('DOMContentLoaded', () => {

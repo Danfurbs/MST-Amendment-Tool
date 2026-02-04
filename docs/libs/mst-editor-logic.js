@@ -630,13 +630,6 @@ eventContent: function(arg) {
   const ev = arg.event;
   const props = ev.extendedProps;
 
-  // For footprint/access events, use the event title directly
-  if (props.isFootprint) {
-    return {
-      html: `<div class="footprint-event-content">${ev.title || ''}</div>`
-    };
-  }
-
   const equipDesc = props.equipmentDesc1 || "";
   const desc1 = props.desc1 || "";
   const desc2 = props.desc2 || "";
@@ -660,9 +653,7 @@ eventContent: function(arg) {
       <div class="event-desc">${desc1}${desc2 ? " — " + desc2 : ""}</div>
     `
   };
-
-
-    },
+},
 
     headerToolbar: {
       left: 'prev,next today',
@@ -700,37 +691,96 @@ eventContent: function(arg) {
     eventDrop(info) {
       const ev = info.event;
       if (ev.extendedProps.instance !== 0) return;
+
+      // Show drag confirmation modal
+      const modal = document.getElementById("dragConfirmModal");
+      const mstInfo = document.getElementById("dragConfirmMst");
+      const oldDateEl = document.getElementById("dragOldDate");
+      const newDateEl = document.getElementById("dragNewDate");
+      const confirmBtn = document.getElementById("dragConfirmOk");
+      const cancelBtn = document.getElementById("dragConfirmCancel");
+
+      if (!modal) {
+        // If modal doesn't exist, proceed without confirmation
+        applyEventDrop(info);
+        return;
+      }
+
       const mstId = ev.extendedProps.mstId;
+      const desc1 = ev.extendedProps.desc1 || "";
+      const equipDesc = ev.extendedProps.equipmentDesc1 || "";
 
-      const deltaDays = Math.round((ev.start - info.oldEvent.start) / (1000 * 60 * 60 * 24));
-      const futArr = window.futureEventsMap[mstId] || [];
-
-      futArr.forEach(futureEv => {
-        const d = new Date(futureEv.start);
-        d.setDate(d.getDate() + deltaDays);
-		d.setHours(9,0,0,0);
-        futureEv.setDates(d);
-		
+      // Format dates
+      const formatDate = (d) => d.toLocaleDateString("en-GB", {
+        weekday: "short", day: "numeric", month: "short", year: "numeric"
       });
 
-      if (typeof MST?.Editor?.markMSTAsChanged === "function") {
-        MST.Editor.markMSTAsChanged(mstId);
-      }
+      mstInfo.textContent = `${equipDesc} — ${desc1}`;
+      oldDateEl.textContent = formatDate(info.oldEvent.start);
+      newDateEl.textContent = formatDate(ev.start);
 
-      // If editor panel is currently showing the same MST
-      if (window.mstIdDisplay && window.mstIdDisplay.value === mstId) {
-        if (window.lastDateInput && typeof MST?.Utils?.dateToInputYYYYMMDD === "function") {
-          window.lastDateInput.value = MST.Utils.dateToInputYYYYMMDD(ev.start);
-        }
+      modal.classList.add("active");
+      modal.setAttribute("aria-hidden", "false");
 
-        if (typeof MST?.Editor?.refreshNextScheduledDisplay === "function") {
-          MST.Editor.refreshNextScheduledDisplay();
-        }
-      }
+      // Handle confirm
+      const handleConfirm = () => {
+        modal.classList.remove("active");
+        modal.setAttribute("aria-hidden", "true");
+        applyEventDrop(info);
+        cleanup();
+      };
 
-      triggerResourceChartRefresh();
+      // Handle cancel
+      const handleCancel = () => {
+        modal.classList.remove("active");
+        modal.setAttribute("aria-hidden", "true");
+        info.revert(); // Revert the drag
+        cleanup();
+      };
+
+      // Clean up listeners
+      const cleanup = () => {
+        confirmBtn.removeEventListener("click", handleConfirm);
+        cancelBtn.removeEventListener("click", handleCancel);
+      };
+
+      confirmBtn.addEventListener("click", handleConfirm);
+      cancelBtn.addEventListener("click", handleCancel);
     }
   });
+
+  // Apply event drop changes (extracted for reuse with confirmation)
+  function applyEventDrop(info) {
+    const ev = info.event;
+    const mstId = ev.extendedProps.mstId;
+
+    const deltaDays = Math.round((ev.start - info.oldEvent.start) / (1000 * 60 * 60 * 24));
+    const futArr = window.futureEventsMap[mstId] || [];
+
+    futArr.forEach(futureEv => {
+      const d = new Date(futureEv.start);
+      d.setDate(d.getDate() + deltaDays);
+      d.setHours(9,0,0,0);
+      futureEv.setDates(d);
+    });
+
+    if (typeof MST?.Editor?.markMSTAsChanged === "function") {
+      MST.Editor.markMSTAsChanged(mstId);
+    }
+
+    // If editor panel is currently showing the same MST
+    if (window.mstIdDisplay && window.mstIdDisplay.value === mstId) {
+      if (window.lastDateInput && typeof MST?.Utils?.dateToInputYYYYMMDD === "function") {
+        window.lastDateInput.value = MST.Utils.dateToInputYYYYMMDD(ev.start);
+      }
+
+      if (typeof MST?.Editor?.refreshNextScheduledDisplay === "function") {
+        MST.Editor.refreshNextScheduledDisplay();
+      }
+    }
+
+    triggerResourceChartRefresh();
+  }
 
   window.calendar.render();
 });
@@ -744,15 +794,14 @@ eventContent: function(arg) {
 E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
   if (!window.calendar || !window.futureEventsMap) return;
 
-  const NEXT = "#f59e0b";
-  const FUTURE = "#ef4444";
+  const FUTURE_GREY = U.FUTURE_COLOR || "#9ca3af";
 
   // Remove old future events
   if (window.futureEventsMap[mstId]) {
     window.futureEventsMap[mstId].forEach(e => e.remove());
   }
 
-  // Get resource hours from the base (green) event, if any
+  // Get resource hours from the base event, if any
   const baseEvent = window.calendar.getEventById(`${mstId}_0`);
   const resourceHours = baseEvent?.extendedProps?.resourceHours || 0;
   const isNew = !!baseEvent?.extendedProps?.isNew;
@@ -761,16 +810,14 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
 
   for (let i = 1; i <= 2; i++) {
     const dt = U.addDays(baseDate, freqDays * i);
-	dt.setHours(9,0,0,0);
-    const color = (i === 1 ? NEXT : FUTURE);
+    dt.setHours(9,0,0,0);
 
     const ev = window.calendar.addEvent({
       id: `${mstId}_${i}`,
       title: `${desc1} — ${desc2}`,
       start: dt,
-      
-      backgroundColor: color,
-      borderColor: color,
+      backgroundColor: FUTURE_GREY,
+      borderColor: FUTURE_GREY,
       classNames: ["future-event"],
       extendedProps: {
         mstId,
@@ -791,6 +838,35 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
 
 
   /* ----------------------------------------
+     HIGHLIGHT SELECTED MST CHAIN
+     ---------------------------------------- */
+  function highlightMstChain(mstId) {
+    // Clear any existing highlights
+    document.querySelectorAll('.fc-event.mst-selected').forEach(el => {
+      el.classList.remove('mst-selected');
+    });
+
+    if (!mstId || !window.calendar) return;
+
+    // Highlight base event (instance 0)
+    const baseEvent = window.calendar.getEventById(`${mstId}_0`);
+    if (baseEvent?.el) {
+      baseEvent.el.classList.add('mst-selected');
+    }
+
+    // Highlight future instances
+    const futureEvents = window.futureEventsMap?.[mstId] || [];
+    futureEvents.forEach(ev => {
+      if (ev?.el) {
+        ev.el.classList.add('mst-selected');
+      }
+    });
+  }
+
+  // Expose for external use
+  E.highlightMstChain = highlightMstChain;
+
+  /* ----------------------------------------
      OPEN MST EDITOR PANEL
      ---------------------------------------- */
   MST.Editor.openEditorForMST = function(mstId, baseEvent) {
@@ -800,6 +876,9 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
       : window.originalProps[mstId];
 
     if (!orig) return;
+
+    // Highlight the selected MST chain
+    highlightMstChain(mstId);
 
     const stdJobNo = (
       baseEvent.extendedProps.stdJobNo ||

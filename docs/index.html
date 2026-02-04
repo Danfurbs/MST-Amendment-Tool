@@ -23,7 +23,6 @@
   <script src="libs/mst-editor-logic.js"></script>
   <script src="libs/FileUpload.js"></script>
   <script src="libs/FileExport.js"></script>
-  <script src="libs/FootprintUpload.js"></script>
   
   <!-- shared CSS -->
   <link href="libs/mst-styles.css" rel="stylesheet" />
@@ -800,7 +799,6 @@
       <div class="action-buttons">
         <button id="resetAllBtn" style="background:#ef4444; color:white;">Reset All Changes</button>
         <button id="openFilterBtn">⚙️ Filters</button>
-        <button id="openSettingsBtn" class="primary-action-btn">Settings</button>
         <button id="openGotoBtn" class="primary-action-btn">Go to MST</button>
         <button id="openBulkUpdateBtn" class="primary-action-btn">Bulk Update</button>
         <button id="openResourceBtn" class="primary-action-btn">Planned Hours Graph</button>
@@ -1272,36 +1270,45 @@ WHERE
      GO TO MST OVERLAY + PANEL
 ========================== -->
 <div id="gotoOverlay">
-  <aside id="gotoPanel" aria-label="Go to MST">
+  <aside id="gotoPanel" aria-label="Go to MST" style="width:500px;">
     <div id="gotoHeader">
-      <h3>Go to MST</h3>
+      <h3>Search MSTs</h3>
       <button id="closeGotoBtn" title="Close">✕</button>
     </div>
 
     <div id="gotoBody">
       <div class="goto-field">
-        <label for="gotoEquip"><strong>Equipment Number</strong></label>
- <input type="text" id="gotoEquip" list="equipList" placeholder="Enter Equipment No" />
-<datalist id="equipList"></datalist>
-
-<small id="equipDescPreview" 
-       style="display:block; margin-top:4px; font-size:13px; font-weight:bold; color:#333;">
-</small>
-
+        <label for="gotoSearch"><strong>Search All Fields</strong></label>
+        <input type="text" id="gotoSearch" placeholder="Equipment, Task No, Description, Work Group..." style="width:100%;" />
+        <small style="display:block; margin-top:4px; color:#64748b; font-size:11px;">
+          Searches equipment number, task number, descriptions, work group, and job codes
+        </small>
       </div>
-     <div class="goto-field">
-        <label for="gotoTask"><strong>Task Number</strong></label>
-        <input id="gotoTask" placeholder="e.g. 001" />
+
+      <div style="display:flex; gap:12px; margin-bottom:8px;">
+        <div class="goto-field" style="flex:1;">
+          <label for="gotoEquip"><strong>Equipment No</strong></label>
+          <input type="text" id="gotoEquip" list="equipList" placeholder="Optional filter" />
+          <datalist id="equipList"></datalist>
+        </div>
+        <div class="goto-field" style="flex:1;">
+          <label for="gotoTask"><strong>Task No</strong></label>
+          <input id="gotoTask" placeholder="Optional filter" />
+        </div>
       </div>
-      <button id="gotoSearchBtn" class="btn-primary" style="margin:8px 0 12px;">Search</button>
+
+      <button id="gotoSearchBtn" class="btn-primary" style="margin:8px 0 12px; width:100%;">Search</button>
 
       <div id="gotoResults" style="display:none;">
-        <table class="goto-table">
-          <thead>
-            <tr><th>Task No</th><th>MST Description 1</th></tr>
-          </thead>
-          <tbody id="gotoResultsBody"></tbody>
-        </table>
+        <div id="gotoResultsCount" style="font-size:13px; color:#334155; margin-bottom:8px; font-weight:600;"></div>
+        <div style="max-height:350px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px;">
+          <table class="goto-table">
+            <thead>
+              <tr><th>Equipment</th><th>Task</th><th>Description</th><th>Work Group</th></tr>
+            </thead>
+            <tbody id="gotoResultsBody"></tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -1394,59 +1401,79 @@ Hold <strong>Ctrl</strong> (or <strong>Cmd</strong> on Mac) to select multiple
   </div>
 </div>
 
-  <!-- =========================
-       FOOTPRINT LEGEND MODAL
-  ========================== -->
-  <div id="footprintLegendModal" aria-hidden="true">
-    <div class="footprint-legend-panel" role="dialog" aria-modal="true" aria-labelledby="footprintLegendTitle">
-      <div class="footprint-legend-header">
-        <h3 id="footprintLegendTitle">Access Footprint Legend</h3>
-        <button id="closeFootprintLegendBtn" class="footprint-legend-close" title="Close">✕</button>
-      </div>
-      <div id="footprintLegendList" class="footprint-legend-list">
-        <p style="color:#64748b; font-size:13px;">Load a footprint file to see the color legend.</p>
-      </div>
+<!-- =========================
+     LOADING PROGRESS MODAL
+========================== -->
+<div id="loadingOverlay" class="loading-overlay" aria-hidden="true">
+  <div class="loading-panel">
+    <div class="loading-spinner"></div>
+    <h3 id="loadingTitle">Loading MSTs...</h3>
+    <p id="loadingMessage" class="loading-message">Please wait while we process your file</p>
+    <div class="loading-progress-container">
+      <div id="loadingProgressBar" class="loading-progress-bar"></div>
     </div>
+    <p id="loadingStep" class="loading-step">Initializing...</p>
   </div>
+</div>
 
-  <!-- =========================
-       SETTINGS MODAL
-  ========================== -->
-  <div id="settingsModal" aria-hidden="true">
-    <div class="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
-      <div class="settings-header">
-        <h3 id="settingsTitle">Settings</h3>
-        <button id="closeSettingsBtn" class="settings-close" title="Close">✕</button>
-      </div>
-      <div class="settings-body">
-        <!-- Access Footprint Section -->
-        <div class="settings-section">
-          <div class="settings-section-header">
-            <h4>Access Footprint</h4>
-            <span class="settings-beta-tag">Beta</span>
-          </div>
-          <p class="settings-help-text">Upload access footprint data to display possession windows on the calendar. This feature is in development.</p>
-
-          <div class="settings-field">
-            <label class="file-upload-btn footprint-btn" for="footprintInput">
-              <span class="footprint-upload-label-text">📋 Choose footprint file</span>
-              <input type="file" id="footprintInput" accept=".xlsx,.xls,.csv" />
-            </label>
-          </div>
-
-          <div class="settings-field footprint-options" style="display:none;">
-            <div class="footprint-controls">
-              <label class="footprint-toggle">
-                <input type="checkbox" id="footprintVisibleToggle" checked />
-                <span>Show footprints on calendar</span>
-              </label>
-              <button id="footprintLegendBtn" class="footprint-legend-btn">View Legend</button>
-            </div>
-          </div>
+<!-- =========================
+     DRAG CONFIRM MODAL
+========================== -->
+<div id="dragConfirmModal" class="drag-confirm-overlay" aria-hidden="true">
+  <div class="drag-confirm-panel">
+    <h3>Confirm Reschedule</h3>
+    <div class="drag-confirm-details">
+      <p id="dragConfirmMst" class="drag-mst-info"></p>
+      <div class="drag-date-change">
+        <div class="drag-date-box old-date">
+          <span class="drag-date-label">From</span>
+          <span id="dragOldDate" class="drag-date-value"></span>
+        </div>
+        <span class="drag-arrow">→</span>
+        <div class="drag-date-box new-date">
+          <span class="drag-date-label">To</span>
+          <span id="dragNewDate" class="drag-date-value"></span>
         </div>
       </div>
     </div>
+    <div class="drag-confirm-actions">
+      <button id="dragConfirmCancel" class="drag-btn drag-btn-cancel">Cancel</button>
+      <button id="dragConfirmOk" class="drag-btn drag-btn-confirm">Confirm Move</button>
+    </div>
   </div>
+</div>
+
+<!-- =========================
+     BULK PREVIEW MODAL
+========================== -->
+<div id="bulkPreviewOverlay" class="bulk-preview-overlay" aria-hidden="true">
+  <div class="bulk-preview-panel">
+    <div class="bulk-preview-header">
+      <h3>Preview Changes</h3>
+      <button id="closeBulkPreviewBtn" class="bulk-close-btn">✕</button>
+    </div>
+    <div class="bulk-preview-body">
+      <p class="bulk-preview-summary" id="bulkPreviewSummary"></p>
+      <div class="bulk-preview-table-wrapper">
+        <table class="bulk-preview-table">
+          <thead>
+            <tr>
+              <th>MST</th>
+              <th>Field</th>
+              <th>Current Value</th>
+              <th>New Value</th>
+            </tr>
+          </thead>
+          <tbody id="bulkPreviewBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="bulk-preview-footer">
+      <button id="bulkPreviewCancel" class="bulk-secondary-btn">Cancel</button>
+      <button id="bulkPreviewApply" class="bulk-apply-btn">Apply Changes</button>
+    </div>
+  </div>
+</div>
 
   <!-- =========================
        PAGE SCRIPT
@@ -1529,207 +1556,6 @@ if (cancelMSTBtn) cancelMSTBtn.addEventListener("click", () => MST.Editor.closeN
 
 document.getElementById("newMSTBtn")?.addEventListener("click", () => MST.Editor.openNewMSTModal());
 
-// ================================
-// FOOTPRINT VISIBILITY TOGGLE
-// ================================
-const footprintToggle = document.getElementById("footprintVisibleToggle");
-const footprintLegendBtn = document.getElementById("footprintLegendBtn");
-
-if (footprintToggle) {
-  footprintToggle.addEventListener("change", function() {
-    if (typeof MST?.Footprint?.toggleVisibility === "function") {
-      MST.Footprint.toggleVisibility(this.checked);
-    }
-  });
-}
-
-const footprintLegendModal = document.getElementById("footprintLegendModal");
-const footprintLegendList = document.getElementById("footprintLegendList");
-const closeFootprintLegendBtn = document.getElementById("closeFootprintLegendBtn");
-
-if (footprintLegendBtn) {
-  footprintLegendBtn.addEventListener("click", function() {
-    const possessions = MST?.Footprint?.getPossessionDetails?.() || [];
-
-    if (!possessions.length) {
-      footprintLegendList.innerHTML = '<p style="color:#64748b; font-size:13px;">No footprint data loaded yet.</p>';
-    } else {
-      // Get unique frequencies for filter dropdown
-      const frequencies = MST?.Footprint?.getUniqueFrequencies?.() || [];
-
-      // Add filter controls
-      let html = `
-        <div class="footprint-legend-filters">
-          <div class="fp-filter-row">
-            <input type="text" id="fpSearchInput" placeholder="Search codes, descriptions..." class="fp-search-input" />
-          </div>
-          <div class="fp-filter-row">
-            <select id="fpFrequencyFilter" class="fp-frequency-select">
-              <option value="all">All frequencies</option>
-              ${frequencies.map(f => `<option value="${f}">${f}</option>`).join("")}
-            </select>
-          </div>
-        </div>
-        <div class="footprint-legend-controls">
-          <button type="button" id="fpShowAll" class="fp-toggle-btn">Show All</button>
-          <button type="button" id="fpHideAll" class="fp-toggle-btn">Hide All</button>
-        </div>
-      `;
-
-      // Add each possession with toggle and details
-      html += '<div id="fpPossessionList">';
-      html += possessions.map(p => `
-        <div class="footprint-legend-item" data-code="${p.code}" data-frequency="${p.frequency || ''}">
-          <label class="footprint-legend-toggle">
-            <input type="checkbox" data-code="${p.code}" ${p.visible ? 'checked' : ''} />
-            <span class="footprint-legend-color" style="background:${p.color}"></span>
-            <span class="footprint-legend-code">${p.code}</span>
-          </label>
-          <div class="footprint-legend-details">
-            ${p.description ? `<span class="fp-detail-desc">${p.description}</span>` : ''}
-            ${p.days ? `<span class="fp-detail-tag">${p.days}</span>` : ''}
-            ${p.frequency ? `<span class="fp-detail-tag">${p.frequency}</span>` : ''}
-            ${p.endDate ? `<span class="fp-detail-tag fp-end-date">Ends: ${p.endDate}</span>` : ''}
-          </div>
-        </div>
-      `).join("");
-      html += '</div>';
-
-      footprintLegendList.innerHTML = html;
-
-      // Bind toggle events
-      footprintLegendList.querySelectorAll('input[type="checkbox"][data-code]').forEach(cb => {
-        cb.addEventListener("change", function() {
-          MST?.Footprint?.togglePossession?.(this.dataset.code, this.checked);
-        });
-      });
-
-      // Bind show all / hide all
-      document.getElementById("fpShowAll")?.addEventListener("click", function() {
-        MST?.Footprint?.setAllVisible?.(true);
-        footprintLegendList.querySelectorAll('input[type="checkbox"][data-code]').forEach(cb => cb.checked = true);
-      });
-      document.getElementById("fpHideAll")?.addEventListener("click", function() {
-        MST?.Footprint?.setAllVisible?.(false);
-        footprintLegendList.querySelectorAll('input[type="checkbox"][data-code]').forEach(cb => cb.checked = false);
-      });
-
-      // Bind search filter
-      const searchInput = document.getElementById("fpSearchInput");
-      if (searchInput) {
-        searchInput.addEventListener("input", function() {
-          const searchText = this.value.toLowerCase().trim();
-          const items = footprintLegendList.querySelectorAll(".footprint-legend-item");
-          items.forEach(item => {
-            const code = item.dataset.code || "";
-            const text = item.textContent.toLowerCase();
-            if (!searchText || text.includes(searchText) || code.toLowerCase().includes(searchText)) {
-              item.style.display = "";
-            } else {
-              item.style.display = "none";
-            }
-          });
-          // Also filter on calendar
-          MST?.Footprint?.filterByText?.(this.value);
-        });
-      }
-
-      // Bind frequency filter
-      const freqFilter = document.getElementById("fpFrequencyFilter");
-      if (freqFilter) {
-        freqFilter.addEventListener("change", function() {
-          const freq = this.value;
-          const items = footprintLegendList.querySelectorAll(".footprint-legend-item");
-          items.forEach(item => {
-            const itemFreq = item.dataset.frequency || "";
-            if (freq === "all" || itemFreq === freq) {
-              item.style.display = "";
-            } else {
-              item.style.display = "none";
-            }
-          });
-          // Also filter on calendar
-          MST?.Footprint?.filterByFrequency?.(freq);
-        });
-      }
-    }
-
-    footprintLegendModal.classList.add("active");
-    footprintLegendModal.setAttribute("aria-hidden", "false");
-  });
-}
-
-if (closeFootprintLegendBtn) {
-  closeFootprintLegendBtn.addEventListener("click", function() {
-    footprintLegendModal.classList.remove("active");
-    footprintLegendModal.setAttribute("aria-hidden", "true");
-  });
-}
-
-// Close modal on backdrop click
-if (footprintLegendModal) {
-  footprintLegendModal.addEventListener("click", function(e) {
-    if (e.target === footprintLegendModal) {
-      footprintLegendModal.classList.remove("active");
-      footprintLegendModal.setAttribute("aria-hidden", "true");
-    }
-  });
-}
-
-// Show footprint options after footprint loads
-const footprintInput = document.getElementById("footprintInput");
-const footprintOptions = document.querySelector(".footprint-options");
-if (footprintInput && footprintOptions) {
-  footprintInput.addEventListener("change", function() {
-    setTimeout(() => {
-      if (window.footprintData && window.footprintData.length > 0) {
-        footprintOptions.style.display = "block";
-      }
-    }, 500);
-  });
-}
-
-// ================================
-// SETTINGS MODAL LOGIC
-// ================================
-const settingsModal = document.getElementById("settingsModal");
-const openSettingsBtn = document.getElementById("openSettingsBtn");
-const closeSettingsBtn = document.getElementById("closeSettingsBtn");
-
-function openSettingsModal() {
-  if (settingsModal) {
-    settingsModal.classList.add("active");
-    settingsModal.setAttribute("aria-hidden", "false");
-    // Show footprint options if data already loaded
-    if (window.footprintData && window.footprintData.length > 0 && footprintOptions) {
-      footprintOptions.style.display = "block";
-    }
-  }
-}
-
-function closeSettingsModal() {
-  if (settingsModal) {
-    settingsModal.classList.remove("active");
-    settingsModal.setAttribute("aria-hidden", "true");
-  }
-}
-
-if (openSettingsBtn) {
-  openSettingsBtn.addEventListener("click", openSettingsModal);
-}
-
-if (closeSettingsBtn) {
-  closeSettingsBtn.addEventListener("click", closeSettingsModal);
-}
-
-// Close on backdrop click
-if (settingsModal) {
-  settingsModal.addEventListener("click", function(e) {
-    if (e.target === settingsModal) {
-      closeSettingsModal();
-    }
-  });
-}
 
   </script>
 
