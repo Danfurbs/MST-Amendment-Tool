@@ -444,15 +444,25 @@ input, button {
 /*                            EVENT STATUS STYLING                             */
 /* ========================================================================== */
 
-/* Future events */
+/* Future events - grey with reduced opacity */
 .fc-event.future-event {
-  background-image: repeating-linear-gradient(
-    45deg,
-    rgba(255,255,255,0.3),
-    rgba(255,255,255,0.3) 4px,
-    transparent 4px,
-    transparent 8px
-  );
+  opacity: 0.55;
+}
+
+.fc-event.future-event .event-desc,
+.fc-event.future-event .event-equip {
+  color: #374151;
+}
+
+/* Selected MST chain highlighting */
+.fc-event.mst-selected {
+  box-shadow: 0 0 0 3px #fbbf24, 0 2px 8px rgba(251, 191, 36, 0.4) !important;
+  opacity: 1 !important;
+  z-index: 10 !important;
+}
+
+.fc-event.future-event.mst-selected {
+  opacity: 0.85 !important;
 }
 
 /* Deactivated MST events */
