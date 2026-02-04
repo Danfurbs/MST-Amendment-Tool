@@ -361,6 +361,14 @@
       font-weight: 700;
       color: #0f172a;
     }
+    #newMstCount {
+      font-weight: 700;
+      color: #6f2dbd;
+      margin-right: 12px;
+    }
+    #newMstCount:empty {
+      display: none;
+    }
     #controls {
       text-align: initial;
       margin-bottom: 0;
@@ -806,6 +814,7 @@
       </div>
       <div class="action-meta">
         <div class="action-status">
+          <span id="newMstCount"></span>
           <span id="changeCount"></span>
           <div id="loading">Loading MSTs...</div>
         </div>

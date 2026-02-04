@@ -439,6 +439,10 @@ window.MST.Editor.resetAllChanges = function() {
   window.virtualInstanceStore = {};
   window.renderedInstanceIds = new Set();
   window.selectedMstId = null;
+  // Clear new MST tracking
+  window.createdMSTs = {};
+  const newMstCountEl = document.getElementById("newMstCount");
+  if (newMstCountEl) newMstCountEl.textContent = "";
 
   MST.Editor.loadMSTs(window.originalRows || []);
   if (window.detailsIntro) window.detailsIntro.style.display = "block";
@@ -1031,6 +1035,19 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
   E.highlightMstChain = highlightMstChain;
   E.clearMstSelection = clearMstSelection;
 
+  /**
+   * Update the new MST count display on the front page.
+   */
+  function updateNewMstCount() {
+    const countEl = document.getElementById("newMstCount");
+    if (!countEl) return;
+
+    const count = Object.keys(window.createdMSTs || {}).length;
+    countEl.textContent = count > 0 ? `New MSTs: ${count}` : "";
+  }
+
+  E.updateNewMstCount = updateNewMstCount;
+
   /* ----------------------------------------
      OPEN MST EDITOR PANEL
      ---------------------------------------- */
@@ -1349,6 +1366,10 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
   window.virtualInstanceStore = {};
   window.renderedInstanceIds = new Set();
   window.selectedMstId = null;
+  // Clear new MST tracking
+  window.createdMSTs = {};
+  const newMstCountEl = document.getElementById("newMstCount");
+  if (newMstCountEl) newMstCountEl.textContent = "";
 
   if (!window.calendar) return;
   if (window.loading) window.loading.style.display = "block";
@@ -1810,6 +1831,11 @@ MST.Editor.addNewMST = function () {
     "TV Reference": "",
     "TV Expiry Date": ""
   };
+
+  // Update new MST count display
+  if (typeof E.updateNewMstCount === "function") {
+    E.updateNewMstCount();
+  }
 
   // Close modal
   MST.Editor.closeNewMSTModal();
