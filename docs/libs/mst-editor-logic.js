@@ -20,6 +20,17 @@ window.MST = window.MST || {};
 window.MST.Editor = window.MST.Editor || {};
 window.MST.Resources = window.MST.Resources || {};
 
+// =============================================
+// LAZY LOADING SYSTEM FOR MST INSTANCES
+// =============================================
+// Virtual instance store - holds all instance data in memory without creating calendar events
+// Events are only created when they fall within the visible date range
+window.virtualInstanceStore = window.virtualInstanceStore || {};
+// Track currently rendered instance IDs to avoid duplicates
+window.renderedInstanceIds = window.renderedInstanceIds || new Set();
+// Persistent selection state - survives navigation
+window.selectedMstId = window.selectedMstId || null;
+
 const triggerResourceChartRefresh = () => {
   if (typeof MST?.Resources?.refreshChart === "function") {
     MST.Resources.refreshChart();
@@ -424,6 +435,15 @@ window.MST.Editor.resetAllChanges = function() {
   const ok = confirm("Are you sure you want to reset all changes and reload the original MST data?");
   if (!ok) return;
 
+  // Clear lazy loading state before reload
+  window.virtualInstanceStore = {};
+  window.renderedInstanceIds = new Set();
+  window.selectedMstId = null;
+  // Clear new MST tracking
+  window.createdMSTs = {};
+  const newMstCountEl = document.getElementById("newMstCount");
+  if (newMstCountEl) newMstCountEl.textContent = "";
+
   MST.Editor.loadMSTs(window.originalRows || []);
   if (window.detailsIntro) window.detailsIntro.style.display = "block";
   if (window.editForm) window.editForm.style.display = "none";
@@ -626,6 +646,13 @@ window.MST.Editor.closeNewMSTModal = function () {
     displayEventTime: false,
     eventDisplay: 'block',
 
+    // Lazy loading: render instances when date range changes
+    datesSet(info) {
+      if (typeof MST?.Editor?.renderVisibleInstances === "function") {
+        MST.Editor.renderVisibleInstances(info.start, info.end);
+      }
+    },
+
 eventContent: function(arg) {
   const ev = arg.event;
   const props = ev.extendedProps;
@@ -789,58 +816,175 @@ eventContent: function(arg) {
 
 
    // =============================================
-   // REFRESH NEXT SCHEDULED DATE
+   // REFRESH NEXT SCHEDULED DATE + LAZY LOADING
    // =============================================
-E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
-  if (!window.calendar || !window.futureEventsMap) return;
 
-  const FUTURE_GREY = U.FUTURE_COLOR || "#9ca3af";
+/**
+ * Store virtual instance data for lazy loading.
+ * Does NOT create calendar events - just stores the data.
+ */
+E.storeVirtualInstances = function(mstId, baseDate, freqDays, desc1, desc2, extraProps = {}) {
+  const maxInstances = window.MST_VARIABLES?.maxInstances || 5;
+  const instances = [];
 
-  // Remove old future events
-  if (window.futureEventsMap[mstId]) {
-    window.futureEventsMap[mstId].forEach(e => e.remove());
+  for (let i = 1; i <= maxInstances; i++) {
+    const dt = U.addDays(baseDate, freqDays * i);
+    dt.setHours(9, 0, 0, 0);
+
+    instances.push({
+      id: `${mstId}_${i}`,
+      mstId,
+      instance: i,
+      start: dt,
+      title: `${desc1} — ${desc2}`,
+      frequency: freqDays,
+      desc1,
+      desc2,
+      ...extraProps
+    });
   }
 
-  // Get resource hours from the base event, if any
+  window.virtualInstanceStore[mstId] = instances;
+};
+
+/**
+ * Render only the future instances that fall within the visible date range.
+ * This is called by FullCalendar's datesSet event.
+ */
+E.renderVisibleInstances = function(visibleStart, visibleEnd) {
+  if (!window.calendar || !window.virtualInstanceStore) return;
+
+  const bufferDays = window.MST_VARIABLES?.lazyLoading?.bufferDays || 60;
+  const FUTURE_COLOR = U.FUTURE_COLOR || "#6b7280";
+
+  // Extend visible range with buffer
+  const rangeStart = U.addDays(visibleStart, -bufferDays);
+  const rangeEnd = U.addDays(visibleEnd, bufferDays);
+
+  // Track which instances should be visible
+  const shouldBeRendered = new Set();
+
+  // Iterate through all MSTs' virtual instances
+  Object.keys(window.virtualInstanceStore).forEach(mstId => {
+    const instances = window.virtualInstanceStore[mstId] || [];
+
+    instances.forEach(inst => {
+      const instDate = inst.start;
+      const instId = inst.id;
+
+      // Check if instance falls within extended visible range
+      if (instDate >= rangeStart && instDate <= rangeEnd) {
+        shouldBeRendered.add(instId);
+
+        // Create event if not already rendered
+        if (!window.renderedInstanceIds.has(instId)) {
+          const isSelected = window.selectedMstId === mstId;
+          const classNames = ["future-event"];
+          if (isSelected) classNames.push("mst-selected");
+
+          const ev = window.calendar.addEvent({
+            id: instId,
+            title: inst.title,
+            start: inst.start,
+            backgroundColor: FUTURE_COLOR,
+            borderColor: FUTURE_COLOR,
+            classNames,
+            extendedProps: {
+              mstId: inst.mstId,
+              instance: inst.instance,
+              isNew: inst.isNew || false,
+              frequency: inst.frequency,
+              desc1: inst.desc1,
+              desc2: inst.desc2,
+              resourceHours: inst.resourceHours || 0,
+              equipmentDesc1: inst.equipmentDesc1 || ""
+            }
+          });
+
+          window.renderedInstanceIds.add(instId);
+
+          // Store reference in futureEventsMap for compatibility
+          if (!window.futureEventsMap[mstId]) {
+            window.futureEventsMap[mstId] = [];
+          }
+          window.futureEventsMap[mstId].push(ev);
+        }
+      }
+    });
+  });
+
+  // Remove instances that are no longer visible
+  window.renderedInstanceIds.forEach(instId => {
+    if (!shouldBeRendered.has(instId)) {
+      const ev = window.calendar.getEventById(instId);
+      if (ev && ev.extendedProps?.instance > 0) {
+        // Remove from futureEventsMap
+        const mstId = ev.extendedProps.mstId;
+        if (window.futureEventsMap[mstId]) {
+          window.futureEventsMap[mstId] = window.futureEventsMap[mstId].filter(e => e.id !== instId);
+        }
+        ev.remove();
+        window.renderedInstanceIds.delete(instId);
+      }
+    }
+  });
+
+  // Re-apply selection highlighting after render
+  if (window.selectedMstId) {
+    E.highlightMstChain(window.selectedMstId);
+  }
+};
+
+/**
+ * Rebuild future instances - updates virtual store and triggers re-render.
+ * Uses maxInstances from config instead of hardcoded value.
+ */
+E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
+  if (!window.calendar) return;
+  if (!window.futureEventsMap) window.futureEventsMap = {};
+  if (!window.virtualInstanceStore) window.virtualInstanceStore = {};
+  if (!window.renderedInstanceIds) window.renderedInstanceIds = new Set();
+
+  // Remove old rendered future events for this MST
+  if (window.futureEventsMap[mstId]) {
+    window.futureEventsMap[mstId].forEach(e => {
+      if (e && typeof e.remove === 'function') {
+        window.renderedInstanceIds.delete(e.id);
+        e.remove();
+      }
+    });
+  }
+  window.futureEventsMap[mstId] = [];
+
+  // Get resource hours and other props from the base event
   const baseEvent = window.calendar.getEventById(`${mstId}_0`);
   const resourceHours = baseEvent?.extendedProps?.resourceHours || 0;
   const isNew = !!baseEvent?.extendedProps?.isNew;
+  const equipmentDesc1 = baseEvent?.extendedProps?.equipmentDesc1 || "";
 
-  const newArr = [];
+  // Store all instances in virtual store (memory only)
+  E.storeVirtualInstances(mstId, baseDate, freqDays, desc1, desc2, {
+    resourceHours,
+    isNew,
+    equipmentDesc1
+  });
 
-  for (let i = 1; i <= 2; i++) {
-    const dt = U.addDays(baseDate, freqDays * i);
-    dt.setHours(9,0,0,0);
-
-    const ev = window.calendar.addEvent({
-      id: `${mstId}_${i}`,
-      title: `${desc1} — ${desc2}`,
-      start: dt,
-      backgroundColor: FUTURE_GREY,
-      borderColor: FUTURE_GREY,
-      classNames: ["future-event"],
-      extendedProps: {
-        mstId,
-        instance: i,
-        isNew,
-        frequency: freqDays,
-        desc1,
-        desc2,
-        resourceHours
-      }
-    });
-
-    newArr.push(ev);
+  // Render only visible instances based on current calendar view
+  const view = window.calendar.view;
+  if (view) {
+    E.renderVisibleInstances(view.activeStart, view.activeEnd);
   }
-
-  window.futureEventsMap[mstId] = newArr;
 };
 
 
   /* ----------------------------------------
      HIGHLIGHT SELECTED MST CHAIN
+     (Persists across navigation with lazy loading)
      ---------------------------------------- */
   function highlightMstChain(mstId) {
+    // Store selection persistently (survives scroll/navigation)
+    window.selectedMstId = mstId || null;
+
     // Clear any existing highlights
     document.querySelectorAll('.fc-event.mst-selected').forEach(el => {
       el.classList.remove('mst-selected');
@@ -850,21 +994,59 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
 
     // Highlight base event (instance 0)
     const baseEvent = window.calendar.getEventById(`${mstId}_0`);
-    if (baseEvent?.el) {
-      baseEvent.el.classList.add('mst-selected');
+    if (baseEvent) {
+      // Update classNames on the event object for FullCalendar
+      const classes = new Set(baseEvent.classNames || []);
+      classes.add('mst-selected');
+      baseEvent.setProp('classNames', [...classes]);
+
+      // Also add to DOM element if available
+      if (baseEvent.el) {
+        baseEvent.el.classList.add('mst-selected');
+      }
     }
 
-    // Highlight future instances
+    // Highlight rendered future instances
     const futureEvents = window.futureEventsMap?.[mstId] || [];
     futureEvents.forEach(ev => {
-      if (ev?.el) {
-        ev.el.classList.add('mst-selected');
+      if (ev) {
+        // Update classNames on the event object
+        const classes = new Set(ev.classNames || []);
+        classes.add('mst-selected');
+        ev.setProp('classNames', [...classes]);
+
+        // Also add to DOM element if available
+        if (ev.el) {
+          ev.el.classList.add('mst-selected');
+        }
       }
+    });
+  }
+
+  // Clear selection
+  function clearMstSelection() {
+    window.selectedMstId = null;
+    document.querySelectorAll('.fc-event.mst-selected').forEach(el => {
+      el.classList.remove('mst-selected');
     });
   }
 
   // Expose for external use
   E.highlightMstChain = highlightMstChain;
+  E.clearMstSelection = clearMstSelection;
+
+  /**
+   * Update the new MST count display on the front page.
+   */
+  function updateNewMstCount() {
+    const countEl = document.getElementById("newMstCount");
+    if (!countEl) return;
+
+    const count = Object.keys(window.createdMSTs || {}).length;
+    countEl.textContent = count > 0 ? `New MSTs: ${count}` : "";
+  }
+
+  E.updateNewMstCount = updateNewMstCount;
 
   /* ----------------------------------------
      OPEN MST EDITOR PANEL
@@ -1180,6 +1362,14 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
   if (window.changeCount) window.changeCount.innerText = "";
   window.futureEventsMap = {};
   window.originalProps = {};
+  // Clear lazy loading state
+  window.virtualInstanceStore = {};
+  window.renderedInstanceIds = new Set();
+  window.selectedMstId = null;
+  // Clear new MST tracking
+  window.createdMSTs = {};
+  const newMstCountEl = document.getElementById("newMstCount");
+  if (newMstCountEl) newMstCountEl.textContent = "";
 
   if (!window.calendar) return;
   if (window.loading) window.loading.style.display = "block";
@@ -1641,6 +1831,11 @@ MST.Editor.addNewMST = function () {
     "TV Reference": "",
     "TV Expiry Date": ""
   };
+
+  // Update new MST count display
+  if (typeof E.updateNewMstCount === "function") {
+    E.updateNewMstCount();
+  }
 
   // Close modal
   MST.Editor.closeNewMSTModal();
