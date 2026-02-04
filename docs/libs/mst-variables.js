@@ -137,11 +137,18 @@ protectionMethods: [
   // 🔹 OTHER RESERVED VALUES
   // -----------------------------------------------------
   defaultFrequency: 7, // e.g. default MST frequency
-  maxInstances: 2,     // how many future events to show
+  maxInstances: 5,     // how many future events to show (lazy loaded)
+
+  // Lazy loading configuration
+  lazyLoading: {
+    enabled: true,     // Enable/disable lazy loading of future instances
+    bufferDays: 60     // Days before/after visible range to pre-load
+  },
+
+  // Simplified color scheme (2 colors)
   colorScheme: {
-    base: "#10b981",   // green
-    next: "#f59e0b",   // amber
-    future: "#ef4444"  // red
+    base: "#10b981",   // green - base/current instance
+    future: "#6b7280"  // grey - all future instances
   }
 };
 
