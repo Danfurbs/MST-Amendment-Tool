@@ -137,7 +137,7 @@ protectionMethods: [
   // 🔹 OTHER RESERVED VALUES
   // -----------------------------------------------------
   defaultFrequency: 7, // e.g. default MST frequency
-  maxInstances: 5,     // how many future events to show (lazy loaded)
+  maxInstances: 10,    // how many future events to show (lazy loaded)
 
   // Lazy loading configuration
   lazyLoading: {
