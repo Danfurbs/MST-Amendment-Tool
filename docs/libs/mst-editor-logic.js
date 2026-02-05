@@ -116,9 +116,22 @@ const applyTvStyling = (baseEvent, hasTv) => {
 
 const formatMileageValue = (val) => {
   if (val === null || val === undefined) return "";
-  const num = parseFloat(val);
+  const str = val.toString().trim();
+  if (str === "") return "";
+  const num = parseFloat(str);
   if (Number.isNaN(num)) return "";
   return num.toFixed(4);
+};
+
+// Normalize mileage for comparison - treats blank as blank, preserves 0
+const normalizeMileageForComparison = (val) => {
+  if (val === null || val === undefined) return "";
+  const str = val.toString().trim();
+  if (str === "") return "";
+  const num = parseFloat(str);
+  if (Number.isNaN(num)) return "";
+  // Return normalized number string (strips trailing zeros but keeps significant digits)
+  return num.toString();
 };
 
 const bindDesc2Limiter = (inputEl, counterEl) => {
@@ -1799,9 +1812,9 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
         desc2: orig["MST Description 2"] || "",
         workGroup: orig["Work Group Code"] || "",
         jobDescCode: orig["Job Description Code"] || "",
-        unitsRequired: orig["Units Required"] || "",
-        segFrom: orig["MST Segment Mileage From"] || "",
-        segTo: orig["MST Segment Mileage To"] || "",
+        unitsRequired: orig["Units Required"] ?? "",
+        segFrom: orig["MST Segment Mileage From"] ?? "",
+        segTo: orig["MST Segment Mileage To"] ?? "",
         protType: orig["Protection Type Code"] || "",
         protMethod: orig["Protection Method Code"] || "",
         allowMultiple: normalizeAllowMultipleFlag(orig["Allow Multiple workorders"]),
@@ -2025,11 +2038,11 @@ MST.Editor.addNewMST = function () {
     const normalizedUnitsOld = U.normalizeNumericField(orig["Units Required"] || "");
     const normalizedUnitsNew = U.normalizeNumericField(cur.units);
 
-    const normalizedSegFromOld = U.normalizeNumericField(orig["MST Segment Mileage From"] || "");
-    const normalizedSegFromNew = U.normalizeNumericField(cur.segFrom);
+    const normalizedSegFromOld = normalizeMileageForComparison(orig["MST Segment Mileage From"]);
+    const normalizedSegFromNew = normalizeMileageForComparison(cur.segFrom);
 
-    const normalizedSegToOld = U.normalizeNumericField(orig["MST Segment Mileage To"] || "");
-    const normalizedSegToNew = U.normalizeNumericField(cur.segTo);
+    const normalizedSegToOld = normalizeMileageForComparison(orig["MST Segment Mileage To"]);
+    const normalizedSegToNew = normalizeMileageForComparison(cur.segTo);
     const origAllowMultiple = normalizeAllowMultipleFlag(orig["Allow Multiple workorders"]);
     const curAllowMultiple = cur.allowMultiple;
     const origTvReference = normalizeTvReference(
