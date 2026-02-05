@@ -4,6 +4,8 @@
 
   // DOM elements
   const overlay = document.getElementById('resourceOverlay');
+  const panel = document.getElementById('resourcePanel');
+  const header = document.getElementById('resourceHeader');
   const openBtn = document.getElementById('openResourceBtn');
   const closeBtn = document.getElementById('closeResourceFloat');
   const prevWindowBtn = document.getElementById('prevWindowBtn');
@@ -20,12 +22,53 @@
   const statEventCount = document.getElementById('statEventCount');
   const statPeakWeek = document.getElementById('statPeakWeek');
 
-  if (!overlay || !openBtn || !closeBtn || !resourceCanvas) {
+  if (!overlay || !openBtn || !closeBtn || !resourceCanvas || !panel || !header) {
     return;
   }
 
   let resourceChart = null;
   let resourceWindowStart = startOfWeek(new Date()); // Monday of current week
+
+  // Draggable panel functionality
+  let isDragging = false;
+  let dragOffsetX = 0;
+  let dragOffsetY = 0;
+
+  const startDrag = (e) => {
+    // Don't drag if clicking close button
+    if (e.target === closeBtn || e.target.closest('.resource-close-btn')) return;
+
+    isDragging = true;
+    const rect = panel.getBoundingClientRect();
+    dragOffsetX = e.clientX - rect.left;
+    dragOffsetY = e.clientY - rect.top;
+    header.style.cursor = 'grabbing';
+    e.preventDefault();
+  };
+
+  const doDrag = (e) => {
+    if (!isDragging) return;
+
+    const x = e.clientX - dragOffsetX;
+    const y = e.clientY - dragOffsetY;
+
+    // Keep panel within viewport bounds
+    const maxX = window.innerWidth - panel.offsetWidth;
+    const maxY = window.innerHeight - panel.offsetHeight;
+
+    panel.style.left = Math.max(0, Math.min(x, maxX)) + 'px';
+    panel.style.top = Math.max(0, Math.min(y, maxY)) + 'px';
+    panel.style.right = 'auto';
+  };
+
+  const endDrag = () => {
+    isDragging = false;
+    header.style.cursor = 'grab';
+  };
+
+  header.addEventListener('mousedown', startDrag);
+  document.addEventListener('mousemove', doDrag);
+  document.addEventListener('mouseup', endDrag);
 
   // Utility functions
   function startOfDay(d) {
