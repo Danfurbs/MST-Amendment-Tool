@@ -898,10 +898,255 @@
     applyBtn?.addEventListener('click', showPreview);
   }
 
+  // ===================================
+  // EQUIPMENT PICKER MODAL
+  // ===================================
+  function setupEquipmentPicker() {
+    const overlay = getEl('equipPickerOverlay');
+    const panel = getEl('equipPickerPanel');
+    const closeBtn = getEl('closeEquipPickerBtn');
+    const cancelBtn = getEl('equipPickerCancelBtn');
+    const searchInput = getEl('equipPickerSearch');
+    const clearBtn = getEl('equipPickerClearBtn');
+    const tableBody = getEl('equipPickerBody');
+    const statsEl = getEl('equipPickerStats');
+    const openBtn = getEl('openEquipPickerBtn');
+
+    if (!overlay || !panel || !tableBody) return;
+
+    let allEquipment = []; // Cached array of { number, desc }
+    let filteredEquipment = [];
+    let currentSearchTerm = '';
+    let debounceTimer = null;
+
+    // Normalize equipment number for searching
+    function normalizeEquip(value) {
+      if (typeof Utils.normalizeEquip === 'function') return Utils.normalizeEquip(value);
+      return (value || '').toString().toUpperCase().replace(/^0+/, '').trim();
+    }
+
+    // Normalize text for searching
+    function normalizeText(value) {
+      return (value || '').toString().toLowerCase().trim();
+    }
+
+    // Build the equipment list from window.equipmentDescriptions
+    function buildEquipmentList() {
+      allEquipment = [];
+      const map = window.equipmentDescriptions;
+
+      if (map && typeof map.forEach === 'function') {
+        map.forEach((desc, equipNo) => {
+          allEquipment.push({
+            number: equipNo || '',
+            desc: desc || ''
+          });
+        });
+      }
+
+      // Sort by equipment number
+      allEquipment.sort((a, b) => {
+        return normalizeEquip(a.number).localeCompare(normalizeEquip(b.number));
+      });
+
+      return allEquipment;
+    }
+
+    // Highlight matching text in a string
+    function highlightMatch(text, term) {
+      if (!term || !text) return escapeHtml(text || '');
+
+      const normalizedText = text.toLowerCase();
+      const normalizedTerm = term.toLowerCase();
+      const index = normalizedText.indexOf(normalizedTerm);
+
+      if (index === -1) return escapeHtml(text);
+
+      const before = text.substring(0, index);
+      const match = text.substring(index, index + term.length);
+      const after = text.substring(index + term.length);
+
+      return escapeHtml(before) +
+             '<span class="equip-picker-highlight">' + escapeHtml(match) + '</span>' +
+             escapeHtml(after);
+    }
+
+    // Escape HTML to prevent XSS
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    // Filter equipment based on search term
+    function filterEquipment(term) {
+      currentSearchTerm = term;
+      const normalizedTerm = normalizeText(term);
+
+      if (!normalizedTerm) {
+        filteredEquipment = [...allEquipment];
+      } else {
+        filteredEquipment = allEquipment.filter(item => {
+          const numMatch = normalizeText(item.number).includes(normalizedTerm);
+          const descMatch = normalizeText(item.desc).includes(normalizedTerm);
+          return numMatch || descMatch;
+        });
+      }
+
+      return filteredEquipment;
+    }
+
+    // Render the equipment table
+    function renderTable(equipment, searchTerm) {
+      tableBody.innerHTML = '';
+
+      if (equipment.length === 0) {
+        const emptyRow = document.createElement('tr');
+        emptyRow.innerHTML = `
+          <td colspan="2" class="equip-picker-empty">
+            <span class="equip-picker-empty-icon">&#128269;</span>
+            ${searchTerm ? 'No equipment found matching "' + escapeHtml(searchTerm) + '"' : 'No equipment data available'}
+          </td>
+        `;
+        tableBody.appendChild(emptyRow);
+        return;
+      }
+
+      // Limit to prevent performance issues
+      const maxDisplay = 200;
+      const displayEquipment = equipment.slice(0, maxDisplay);
+
+      displayEquipment.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${highlightMatch(item.number, searchTerm)}</td>
+          <td>${highlightMatch(item.desc, searchTerm)}</td>
+        `;
+        tr.addEventListener('click', () => selectEquipment(item));
+        tableBody.appendChild(tr);
+      });
+
+      // Update stats
+      if (statsEl) {
+        if (equipment.length > maxDisplay) {
+          statsEl.textContent = `Showing ${maxDisplay} of ${equipment.length} equipment items. Type to narrow results.`;
+        } else if (searchTerm) {
+          statsEl.textContent = `Found ${equipment.length} equipment item${equipment.length === 1 ? '' : 's'}`;
+        } else {
+          statsEl.textContent = `${equipment.length} equipment items available. Type to search.`;
+        }
+      }
+    }
+
+    // Select equipment and populate the form
+    function selectEquipment(item) {
+      const equipInput = getEl('newEquipNo');
+      const equipDesc = getEl('newEquipDesc');
+
+      if (equipInput) {
+        equipInput.value = item.number;
+        // Trigger input event so any listeners update
+        equipInput.dispatchEvent(new Event('input', { bubbles: true }));
+        equipInput.dispatchEvent(new Event('blur', { bubbles: true }));
+      }
+
+      if (equipDesc) {
+        equipDesc.textContent = item.desc;
+      }
+
+      closeOverlay();
+    }
+
+    // Open the equipment picker modal
+    function openOverlay() {
+      // Rebuild equipment list each time in case data changed
+      buildEquipmentList();
+
+      // Reset search
+      if (searchInput) searchInput.value = '';
+      currentSearchTerm = '';
+
+      // Filter and render
+      filterEquipment('');
+      renderTable(filteredEquipment, '');
+
+      overlay.classList.add('active');
+
+      // Focus search input
+      setTimeout(() => searchInput?.focus(), 50);
+    }
+
+    // Close the equipment picker modal
+    function closeOverlay() {
+      overlay.classList.remove('active');
+      if (searchInput) searchInput.value = '';
+      if (tableBody) tableBody.innerHTML = '';
+      if (statsEl) statsEl.textContent = '';
+    }
+
+    // Handle search input with debounce
+    function handleSearch() {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        const term = searchInput?.value || '';
+        filterEquipment(term);
+        renderTable(filteredEquipment, term);
+      }, 150); // 150ms debounce for responsive feel
+    }
+
+    // Event listeners
+    openBtn?.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      openOverlay();
+    });
+
+    closeBtn?.addEventListener('click', closeOverlay);
+    cancelBtn?.addEventListener('click', closeOverlay);
+
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) closeOverlay();
+    });
+
+    searchInput?.addEventListener('input', handleSearch);
+
+    // Clear search button
+    clearBtn?.addEventListener('click', () => {
+      if (searchInput) searchInput.value = '';
+      filterEquipment('');
+      renderTable(filteredEquipment, '');
+      searchInput?.focus();
+    });
+
+    // Handle Enter key to select first result
+    searchInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && filteredEquipment.length > 0) {
+        e.preventDefault();
+        selectEquipment(filteredEquipment[0]);
+      } else if (e.key === 'Escape') {
+        closeOverlay();
+      }
+    });
+
+    // Keyboard navigation in table
+    overlay.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeOverlay();
+      }
+    });
+
+    // Expose functions globally for potential use elsewhere
+    window.MST = window.MST || {};
+    window.MST.Views = window.MST.Views || {};
+    window.MST.Views.openEquipmentPicker = openOverlay;
+    window.MST.Views.closeEquipmentPicker = closeOverlay;
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
     setupFilters();
     setupGoto();
     setupFlaggedListView();
     setupBulkUpdate();
+    setupEquipmentPicker();
   });
 })();
