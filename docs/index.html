@@ -1164,6 +1164,7 @@ WHERE
  <label>
   <span class="label-title">
     Equipment Number <span class="required-star">*</span>
+    <button type="button" id="openEquipPickerBtn" class="equip-picker-btn" title="Search equipment">Browse...</button>
   </span>
   <input id="newEquipNo" required />
   <small id="newEquipDesc" class="muted-helper"></small>
@@ -1275,6 +1276,42 @@ WHERE
     </div>
   </div>
 </div>
+
+<!-- =========================
+     EQUIPMENT PICKER MODAL
+========================== -->
+<div id="equipPickerOverlay" class="bulk-overlay">
+  <div id="equipPickerPanel" class="bulk-panel" style="width: min(700px, 95vw);">
+    <div class="bulk-header">
+      <h3>Select Equipment</h3>
+      <button id="closeEquipPickerBtn" class="bulk-close-btn" title="Close">Close</button>
+    </div>
+    <div class="bulk-body">
+      <div class="equip-picker-search">
+        <div class="equip-picker-search-row">
+          <input type="text" id="equipPickerSearch" placeholder="Search by equipment number or description..." autocomplete="off" />
+          <button id="equipPickerClearBtn" class="equip-picker-clear-btn" title="Clear search">Clear</button>
+        </div>
+        <div class="equip-picker-stats" id="equipPickerStats"></div>
+      </div>
+      <div class="bulk-table-wrapper equip-picker-table-wrapper" id="equipPickerTableWrapper">
+        <table class="bulk-table equip-picker-table">
+          <thead>
+            <tr>
+              <th style="width:30%;">Equipment Number</th>
+              <th style="width:70%;">Description</th>
+            </tr>
+          </thead>
+          <tbody id="equipPickerBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="bulk-footer">
+      <button id="equipPickerCancelBtn" class="bulk-secondary-btn">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- =========================
      GO TO MST OVERLAY + PANEL
 ========================== -->

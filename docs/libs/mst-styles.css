@@ -1155,5 +1155,140 @@ input, button {
   background: #059669;
 }
 
+/* ========================================================================== */
+/*                         EQUIPMENT PICKER MODAL                              */
+/* ========================================================================== */
 
+/* Browse button next to Equipment Number label */
+.equip-picker-btn {
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-left: 10px;
+  transition: background 0.2s;
+}
+
+.equip-picker-btn:hover {
+  background: #1d4ed8;
+}
+
+/* Search area */
+.equip-picker-search {
+  margin-bottom: 12px;
+}
+
+.equip-picker-search-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.equip-picker-search-row input {
+  flex: 1;
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  font-size: 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.equip-picker-search-row input:focus {
+  border-color: #2563eb;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.equip-picker-clear-btn {
+  background: #e5e7eb;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.equip-picker-clear-btn:hover {
+  background: #d1d5db;
+}
+
+/* Stats bar */
+.equip-picker-stats {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+/* Table area */
+.equip-picker-table-wrapper {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.equip-picker-table tbody tr {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.equip-picker-table tbody tr:hover {
+  background: #dbeafe !important;
+}
+
+.equip-picker-table tbody tr:nth-child(odd) {
+  background: #f8fafc;
+}
+
+.equip-picker-table tbody td {
+  padding: 10px 12px;
+  font-size: 13px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.equip-picker-table tbody td:first-child {
+  font-weight: 600;
+  color: #1e40af;
+}
+
+.equip-picker-table tbody td:last-child {
+  color: #475569;
+}
+
+/* Highlight matching text */
+.equip-picker-highlight {
+  background: #fef08a;
+  padding: 0 2px;
+  border-radius: 2px;
+  font-weight: 600;
+}
+
+/* Empty state */
+.equip-picker-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: #94a3b8;
+  font-size: 14px;
+}
+
+.equip-picker-empty-icon {
+  font-size: 32px;
+  margin-bottom: 12px;
+  display: block;
+}
+
+/* Loading state */
+.equip-picker-loading {
+  text-align: center;
+  padding: 40px 20px;
+  color: #64748b;
+  font-size: 14px;
+}
 
