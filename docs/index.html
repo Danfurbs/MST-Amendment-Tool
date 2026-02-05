@@ -1110,11 +1110,11 @@ WHERE
   </div>
   
   <!-- =========================
-       Planned Hours Graph Modal
+       Planned Hours Graph Panel
   ========================== -->
   <div id="resourceOverlay" class="resource-overlay">
-    <div class="resource-panel">
-      <div class="resource-header">
+    <div id="resourcePanel" class="resource-panel">
+      <div id="resourceHeader" class="resource-header">
         <div class="resource-header-left">
           <h3>Planned Hours</h3>
           <span class="resource-subtitle">Resource hours based on Norm Time × Units Required</span>
@@ -1125,19 +1125,19 @@ WHERE
       <div class="resource-stats">
         <div class="stat-card">
           <span class="stat-value" id="statTotalHours">0</span>
-          <span class="stat-label">Total Hours</span>
+          <span class="stat-label">Total</span>
         </div>
         <div class="stat-card">
           <span class="stat-value" id="statWeeklyAvg">0</span>
-          <span class="stat-label">Weekly Avg</span>
+          <span class="stat-label">Wkly Avg</span>
         </div>
         <div class="stat-card">
           <span class="stat-value" id="statEventCount">0</span>
-          <span class="stat-label">MST Events</span>
+          <span class="stat-label">Events</span>
         </div>
         <div class="stat-card stat-peak">
           <span class="stat-value" id="statPeakWeek">-</span>
-          <span class="stat-label">Peak Week</span>
+          <span class="stat-label">Peak</span>
         </div>
       </div>
 

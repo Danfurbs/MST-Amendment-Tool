@@ -741,62 +741,68 @@ input, button {
   inset: 0;
   z-index: 100000;
   pointer-events: none; /* Allow clicks through to page */
-  padding: 20px;
 }
 
 .resource-overlay.active {
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding-top: 80px;
+  display: block;
 }
 
-/* Main panel - captures pointer events */
+/* Main panel - draggable, captures pointer events */
 .resource-panel {
+  position: absolute;
+  top: 80px;
+  right: 20px;
   background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
-  width: min(720px, 95vw);
-  max-height: calc(100vh - 120px);
+  border-radius: 10px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+  width: 480px;
+  max-width: calc(100vw - 40px);
+  max-height: calc(100vh - 100px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   pointer-events: auto; /* Panel itself is interactive */
-  border: 1px solid #e2e8f0;
+  border: 1px solid #cbd5e1;
 }
 
-/* Header */
+/* Header - draggable */
 .resource-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  padding: 20px 24px 16px;
+  align-items: center;
+  padding: 10px 16px;
   border-bottom: 1px solid #e5e7eb;
   background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  cursor: grab;
+  user-select: none;
+}
+
+.resource-header:active {
+  cursor: grabbing;
 }
 
 .resource-header-left h3 {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: 1rem;
   font-weight: 600;
   color: #1e293b;
 }
 
 .resource-header .resource-subtitle {
   display: block;
-  font-size: 0.8rem;
+  font-size: 0.7rem;
   color: #64748b;
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 .resource-close-btn {
   background: none;
   border: none;
-  font-size: 1.75rem;
+  font-size: 1.5rem;
   color: #94a3b8;
   cursor: pointer;
   line-height: 1;
-  padding: 0;
+  padding: 4px;
   transition: color 0.15s;
 }
 
@@ -804,12 +810,12 @@ input, button {
   color: #475569;
 }
 
-/* Statistics cards */
+/* Statistics cards - compact */
 .resource-stats {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-  padding: 16px 24px;
+  gap: 8px;
+  padding: 8px 12px;
   background: #f8fafc;
   border-bottom: 1px solid #e5e7eb;
 }
@@ -817,14 +823,14 @@ input, button {
 .stat-card {
   background: #fff;
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 12px 16px;
+  border-radius: 6px;
+  padding: 6px 8px;
   text-align: center;
 }
 
 .stat-card .stat-value {
   display: block;
-  font-size: 1.5rem;
+  font-size: 1.1rem;
   font-weight: 700;
   color: #1e40af;
   line-height: 1.2;
@@ -832,15 +838,15 @@ input, button {
 
 .stat-card .stat-label {
   display: block;
-  font-size: 0.7rem;
+  font-size: 0.6rem;
   color: #64748b;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-top: 4px;
+  letter-spacing: 0.03em;
+  margin-top: 2px;
 }
 
 .stat-card.stat-peak .stat-value {
-  font-size: 0.95rem;
+  font-size: 0.8rem;
   color: #dc2626;
 }
 
@@ -849,25 +855,25 @@ input, button {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 24px;
-  gap: 12px;
+  padding: 6px 12px;
+  gap: 8px;
 }
 
 .resource-nav-group {
   display: flex;
-  gap: 6px;
+  gap: 4px;
 }
 
 .resource-nav-center {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   flex: 1;
   justify-content: center;
 }
 
 .resource-range {
-  font-size: 0.9rem;
+  font-size: 0.75rem;
   font-weight: 500;
   color: #374151;
   white-space: nowrap;
@@ -876,9 +882,9 @@ input, button {
 .nav-btn {
   background: #f1f5f9;
   border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  padding: 6px 12px;
-  font-size: 0.8rem;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 0.7rem;
   font-weight: 500;
   color: #475569;
   cursor: pointer;
@@ -903,25 +909,25 @@ input, button {
 
 /* Chart container */
 .resource-chart-container {
-  padding: 16px 24px 20px;
+  padding: 8px 12px 12px;
   flex: 1;
-  min-height: 300px;
+  min-height: 240px;
 }
 
 #plannedHoursChart {
   width: 100% !important;
-  height: 280px !important;
+  height: 220px !important;
 }
 
 /* Footer */
 .resource-footer {
-  padding: 12px 24px;
+  padding: 6px 12px;
   background: #f8fafc;
   border-top: 1px solid #e5e7eb;
 }
 
 .resource-hint {
-  font-size: 0.75rem;
+  font-size: 0.65rem;
   color: #64748b;
   font-style: italic;
 }
