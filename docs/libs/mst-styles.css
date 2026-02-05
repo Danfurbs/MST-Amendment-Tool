@@ -182,11 +182,13 @@ input, button {
 }
 
 .fc-daygrid-day.mst-selected-day .fc-daygrid-day-frame {
-  background: #fff4b8;
+  background: #fef3c7 !important;
+  box-shadow: inset 0 0 0 2px rgba(251, 191, 36, 0.5);
 }
 
 .fc-daygrid-day.mst-selected-day.fc-day-today .fc-daygrid-day-frame {
-  background: #ffe680;
+  background: #fde68a !important;
+  box-shadow: inset 0 0 0 2px rgba(251, 191, 36, 0.6);
 }
 
 /* ========================================================================== */

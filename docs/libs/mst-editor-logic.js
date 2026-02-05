@@ -669,10 +669,28 @@ window.MST.Editor.closeNewMSTModal = function () {
     displayEventTime: false,
     eventDisplay: 'block',
 
+    // Sort selected MST events to the top of each day cell
+    eventOrder: function(a, b) {
+      const selectedId = window.selectedMstId;
+      if (!selectedId) return 0;
+
+      const aSelected = a.extendedProps?.mstId === selectedId ? 1 : 0;
+      const bSelected = b.extendedProps?.mstId === selectedId ? 1 : 0;
+
+      // Selected events come first (higher priority = lower position)
+      return bSelected - aSelected;
+    },
+
     // Lazy loading: render instances when date range changes
     datesSet(info) {
       if (typeof MST?.Editor?.renderVisibleInstances === "function") {
         MST.Editor.renderVisibleInstances(info.start, info.end);
+      }
+      // Re-apply day cell highlight after navigation (with delay for DOM)
+      if (window.selectedMstId) {
+        setTimeout(() => {
+          MST.Editor.applyDayCellHighlight(window.selectedMstId);
+        }, 50);
       }
     },
 
@@ -1096,6 +1114,41 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
         }
       });
     });
+
+    // Trigger re-render to re-sort events (selected appear at top)
+    // Use a flag to prevent infinite loops
+    if (window.calendar && !window._isResortingEvents) {
+      window._isResortingEvents = true;
+      window.calendar.render();
+      // Apply day cell highlights after re-render
+      setTimeout(() => {
+        applyDayCellHighlight(mstId);
+        window._isResortingEvents = false;
+      }, 50);
+    }
+  }
+
+  // Apply day cell highlight for all days containing selected MST events
+  function applyDayCellHighlight(mstId) {
+    const selectedDayClass = "mst-selected-day";
+
+    // Clear existing day highlights
+    document.querySelectorAll(`.fc-daygrid-day.${selectedDayClass}`).forEach(el => {
+      el.classList.remove(selectedDayClass);
+    });
+
+    if (!mstId || !window.calendar || typeof U?.dateToInputYYYYMMDD !== "function") return;
+
+    // Find all events for this MST and highlight their day cells
+    window.calendar.getEvents().forEach(ev => {
+      if (ev.extendedProps?.mstId === mstId && ev.start) {
+        const dayKey = U.dateToInputYYYYMMDD(ev.start);
+        const dayCell = document.querySelector(`.fc-daygrid-day[data-date="${dayKey}"]`);
+        if (dayCell) {
+          dayCell.classList.add(selectedDayClass);
+        }
+      }
+    });
   }
 
   // Clear selection
@@ -1127,6 +1180,7 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
   // Expose for external use
   E.highlightMstChain = highlightMstChain;
   E.clearMstSelection = clearMstSelection;
+  E.applyDayCellHighlight = applyDayCellHighlight;
 
   /**
    * Update the new MST count display on the front page.
