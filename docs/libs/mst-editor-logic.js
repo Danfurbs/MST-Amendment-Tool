@@ -430,7 +430,7 @@ if (!window.originalProps[mstId]) {
     return;
   }
 
-  clone["MST Description 2"] = (clone["MST Description 2"] || "").trimEnd();
+  clone["MST Description 2"] = String(clone["MST Description 2"] ?? "").trimEnd();
   window.originalProps[mstId] = clone;
 }
 
@@ -1311,8 +1311,8 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
       }
 	
     window.desc2Input.value = clampDesc2(
-      (baseEvent.extendedProps.desc2 ||
-       orig["MST Description 2"] ||
+      String(baseEvent.extendedProps.desc2 ??
+       orig["MST Description 2"] ??
        "").trimEnd()
     );
     updateCharCounter(window.desc2Input, window.desc2Counter);
@@ -2049,8 +2049,8 @@ MST.Editor.addNewMST = function () {
       Old_Frequency: orig["MST Frequency"] || "",
       New_Frequency: cur.freq,
 
-      Old_Desc2: (orig["MST Description 2"] || "").trimEnd(),
-      New_Desc2: (cur.desc2 || "").trimEnd(),
+      Old_Desc2: String(orig["MST Description 2"] ?? "").trimEnd(),
+      New_Desc2: String(cur.desc2 ?? "").trimEnd(),
 
       Old_Last_Scheduled_Date: normalizedLastSched,
       New_Last_Scheduled_Date: normalizedCurLastSched,
