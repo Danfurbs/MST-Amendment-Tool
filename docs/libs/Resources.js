@@ -324,20 +324,6 @@
   openBtn.addEventListener('click', openModal);
   closeBtn.addEventListener('click', closeModal);
 
-  // Close on overlay click (outside panel)
-  overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) {
-      closeModal();
-    }
-  });
-
-  // Close on Escape key
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && overlay.classList.contains('active')) {
-      closeModal();
-    }
-  });
-
   // Navigation: Previous 6 weeks
   if (prevWindowBtn) {
     prevWindowBtn.addEventListener('click', () => {

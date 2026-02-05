@@ -731,35 +731,38 @@ input, button {
 }
 
 /* ========================================================================== */
-/*                         PLANNED HOURS GRAPH MODAL                          */
+/*                         PLANNED HOURS GRAPH PANEL                          */
 /* ========================================================================== */
 
-/* Overlay backdrop */
+/* Non-blocking overlay container - allows clicks through to page */
 .resource-overlay {
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.6);
   z-index: 100000;
-  justify-content: center;
-  align-items: center;
+  pointer-events: none; /* Allow clicks through to page */
   padding: 20px;
 }
 
 .resource-overlay.active {
   display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 80px;
 }
 
-/* Main panel */
+/* Main panel - captures pointer events */
 .resource-panel {
   background: #fff;
   border-radius: 12px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
   width: min(720px, 95vw);
-  max-height: 90vh;
+  max-height: calc(100vh - 120px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  pointer-events: auto; /* Panel itself is interactive */
+  border: 1px solid #e2e8f0;
 }
 
 /* Header */
