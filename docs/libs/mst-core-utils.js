@@ -7,7 +7,7 @@ window.MST.Utils = {
 
   BASE_COLOR: "#10b981",      // Green for normal MSTs
   TV_COLOR: "#60a5fa",        // Blue for MSTs with TV reference
-  FUTURE_COLOR: "#6b7280",    // Grey for future instances (darker for readability)
+  FUTURE_COLOR: "#a78bfa",    // Light purple for future instances
 
   yyyymmddToDate(str) {
     const normalized = (str ?? "").toString();

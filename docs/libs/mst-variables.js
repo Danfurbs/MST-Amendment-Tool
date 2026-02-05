@@ -148,7 +148,7 @@ protectionMethods: [
   // Simplified color scheme (2 colors)
   colorScheme: {
     base: "#10b981",   // green - base/current instance
-    future: "#6b7280"  // grey - all future instances
+    future: "#a78bfa"  // light purple - all future instances
   }
 };
 
