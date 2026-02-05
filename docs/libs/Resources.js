@@ -113,9 +113,9 @@
   // Main data bucketing function
   function bucketResourceHours(windowStart, days = 42) {
     const windowEnd = MST.Utils.addDays(windowStart, days);
-    const events = window.calendar ? window.calendar.getEvents() : [];
     const hoursByWeekKey = new Map(); // key: ISO date of Monday
     const eventsByWeekKey = new Map(); // track event count per week
+    const countedEventIds = new Set(); // avoid double-counting
 
     // Initialize 6 weeks
     for (let k = 0; k < 6; k++) {
@@ -125,13 +125,13 @@
       eventsByWeekKey.set(key, 0);
     }
 
-    // Aggregate hours from events
-    events.forEach((ev) => {
-      const p = ev.extendedProps || {};
-      const h = parseFloat(p.resourceHours || 0);
-      if (!h || !ev.start) return;
+    // Helper to add hours for an event/instance
+    const addHours = (id, eventDate, resourceHours) => {
+      if (countedEventIds.has(id)) return; // Already counted
+      const h = parseFloat(resourceHours || 0);
+      if (!h || !eventDate) return;
 
-      const d = startOfDay(ev.start);
+      const d = startOfDay(eventDate);
       if (d < windowStart || d >= windowEnd) return;
 
       const wkStart = startOfWeek(d);
@@ -139,7 +139,23 @@
       if (hoursByWeekKey.has(key)) {
         hoursByWeekKey.set(key, hoursByWeekKey.get(key) + h);
         eventsByWeekKey.set(key, eventsByWeekKey.get(key) + 1);
+        countedEventIds.add(id);
       }
+    };
+
+    // 1. Count rendered calendar events (base events instance 0)
+    const events = window.calendar ? window.calendar.getEvents() : [];
+    events.forEach((ev) => {
+      const p = ev.extendedProps || {};
+      addHours(ev.id, ev.start, p.resourceHours);
+    });
+
+    // 2. Count virtual instances from store (future instances not yet rendered)
+    const virtualStore = window.virtualInstanceStore || {};
+    Object.values(virtualStore).forEach((instances) => {
+      instances.forEach((inst) => {
+        addHours(inst.id, inst.start, inst.resourceHours);
+      });
     });
 
     const keys = [...hoursByWeekKey.keys()].sort();
