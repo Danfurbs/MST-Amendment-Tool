@@ -624,13 +624,15 @@
         unitsInput.value = props.unitsRequired ?? '';
 
         const segFromInput = document.createElement('input');
-        segFromInput.type = 'number';
-        segFromInput.min = '0';
+        segFromInput.type = 'text';
+        segFromInput.inputMode = 'decimal';
+        segFromInput.placeholder = '';
         segFromInput.value = props.segFrom ?? '';
 
         const segToInput = document.createElement('input');
-        segToInput.type = 'number';
-        segToInput.min = '0';
+        segToInput.type = 'text';
+        segToInput.inputMode = 'decimal';
+        segToInput.placeholder = '';
         segToInput.value = props.segTo ?? '';
 
         const protTypeSelect = cloneSelectOptions(
