@@ -452,18 +452,19 @@ input, button {
 /*                            EVENT STATUS STYLING                             */
 /* ========================================================================== */
 
-/* Future events - grey with reduced opacity for visual hierarchy */
+/* Future events - light purple with reduced opacity for visual hierarchy */
 .fc-event.future-event {
-  opacity: 0.65;
+  opacity: 0.75;
+  cursor: not-allowed;
 }
 
-/* Ensure text is readable on grey background */
+/* Ensure text is readable on light purple background */
 .fc-event.future-event .event-desc,
 .fc-event.future-event .event-equip {
   color: #1f2937;
 }
 
-/* White text for better contrast on darker grey background */
+/* White text for better contrast on purple background */
 .fc-event.future-event .fc-event-title {
   color: #fff;
 }

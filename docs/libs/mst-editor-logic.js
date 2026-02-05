@@ -752,7 +752,12 @@ eventContent: function(arg) {
 
     eventDrop(info) {
       const ev = info.event;
-      if (ev.extendedProps.instance !== 0) return;
+      if (ev.extendedProps.instance !== 0) {
+        // Future instance - cannot be dragged directly
+        info.revert();
+        alert("To amend this date, drag the 1st (green) instance instead.\n\nAll future instances will automatically update when you move the green instance.");
+        return;
+      }
 
       // Show drag confirmation modal
       const modal = document.getElementById("dragConfirmModal");
@@ -967,9 +972,11 @@ E.renderVisibleInstances = function(visibleStart, visibleEnd) {
     }
   });
 
-  // Re-apply selection highlighting after render
+  // Re-apply selection highlighting after render (use RAF to ensure DOM is ready)
   if (window.selectedMstId) {
-    E.highlightMstChain(window.selectedMstId);
+    requestAnimationFrame(() => {
+      E.highlightMstChain(window.selectedMstId);
+    });
   }
 };
 
@@ -1048,24 +1055,24 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
 
     if (!mstId || !window.calendar) return;
 
-    // Highlight base event (instance 0)
-    const baseEvent = window.calendar.getEventById(`${mstId}_0`);
-    if (baseEvent) {
-      // Update classNames on the event object for FullCalendar
-      const currentClasses = Array.isArray(baseEvent._def?.ui?.classNames)
-        ? baseEvent._def.ui.classNames
+    // Helper to apply highlight to an event
+    const applyHighlight = (ev) => {
+      if (!ev) return;
+      const currentClasses = Array.isArray(ev._def?.ui?.classNames)
+        ? ev._def.ui.classNames
         : [];
       const classes = new Set(currentClasses);
       classes.add('mst-selected');
-      baseEvent.setProp('classNames', [...classes]);
+      ev.setProp('classNames', [...classes]);
+      if (ev.el) ev.el.classList.add('mst-selected');
+    };
 
-      // Also add to DOM element if available
-      if (baseEvent.el) {
-        baseEvent.el.classList.add('mst-selected');
-      }
-    }
+    // Highlight base event (instance 0)
+    const baseEvent = window.calendar.getEventById(`${mstId}_0`);
+    applyHighlight(baseEvent);
 
-    if (baseEvent && !baseEvent.el && typeof U?.dateToInputYYYYMMDD === "function") {
+    // Highlight day cell if base event is hidden (e.g. when event is scrolled out)
+    if (baseEvent && typeof U?.dateToInputYYYYMMDD === "function") {
       const dayKey = U.dateToInputYYYYMMDD(baseEvent.start);
       const dayCell = document.querySelector(`.fc-daygrid-day[data-date="${dayKey}"]`);
       if (dayCell) {
@@ -1073,23 +1080,21 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
       }
     }
 
-    // Highlight rendered future instances
-    const futureEvents = window.futureEventsMap?.[mstId] || [];
-    futureEvents.forEach(ev => {
-      if (ev) {
-        // Update classNames on the event object
-        const currentClasses = Array.isArray(ev._def?.ui?.classNames)
-          ? ev._def.ui.classNames
-          : [];
-        const classes = new Set(currentClasses);
-        classes.add('mst-selected');
-        ev.setProp('classNames', [...classes]);
-
-        // Also add to DOM element if available
-        if (ev.el) {
-          ev.el.classList.add('mst-selected');
-        }
+    // Highlight rendered future instances from calendar (more reliable than futureEventsMap)
+    window.calendar.getEvents().forEach(ev => {
+      if (ev.extendedProps?.mstId === mstId && ev.extendedProps?.instance > 0) {
+        applyHighlight(ev);
       }
+    });
+
+    // Also apply to DOM elements directly as fallback (for timing issues)
+    requestAnimationFrame(() => {
+      document.querySelectorAll('.fc-event').forEach(el => {
+        const eventId = el.closest('[data-event-id]')?.dataset?.eventId || '';
+        if (eventId.startsWith(`${mstId}_`)) {
+          el.classList.add('mst-selected');
+        }
+      });
     });
   }
 
