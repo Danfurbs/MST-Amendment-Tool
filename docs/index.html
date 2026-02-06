@@ -570,6 +570,18 @@
       <div class="field-block">
         <label>Equipment Number</label>
         <input id="equipDisplay" disabled />
+        <button id="changeEquipBtn" type="button" style="
+          background:#3b82f6;
+          color:white;
+          border:none;
+          border-radius:6px;
+          padding:6px 14px;
+          font-weight:bold;
+          margin-top:6px;
+          cursor:pointer;
+          width:100%;
+          font-size:0.85em;
+        ">Change Equipment</button>
       </div>
 
       <div class="field-block">
@@ -1638,6 +1650,8 @@ if (cancelMSTBtn) cancelMSTBtn.addEventListener("click", () => MST.Editor.closeN
 
 document.getElementById("newMSTBtn")?.addEventListener("click", () => MST.Editor.openNewMSTModal());
 
+// Change Equipment button
+document.getElementById("changeEquipBtn")?.addEventListener("click", () => MST.Editor.changeEquipment());
 
   </script>
 

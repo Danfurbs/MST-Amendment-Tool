@@ -1880,6 +1880,204 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
   };
 
 /* ----------------------------------------
+   CHANGE EQUIPMENT
+   Deactivates the current MST and creates a
+   new MST on the selected equipment with the
+   same details.  Counts as 1x change + 1x new.
+   ---------------------------------------- */
+MST.Editor.changeEquipment = function () {
+  const mstId = window.selectedMstId || window.currentMstId;
+  if (!mstId) {
+    alert("Please select an MST first.");
+    return;
+  }
+
+  const baseEvent = window.calendar.getEventById(`${mstId}_0`);
+  if (!baseEvent) {
+    alert("Cannot find the selected MST.");
+    return;
+  }
+
+  const props = baseEvent.extendedProps;
+
+  // Don't allow changing equipment on already-deactivated MSTs
+  if (props.workGroup === "DNXXXXX" || props.schedIndicator === "9") {
+    alert("This MST is already deactivated. Cannot change equipment.");
+    return;
+  }
+
+  // Open the equipment picker with a custom callback
+  window.MST = window.MST || {};
+  window.MST.Views = window.MST.Views || {};
+  window.MST.Views._equipPickerCallback = function (selectedItem) {
+    const newEquipNo = selectedItem.number;
+    const newEquipDesc = selectedItem.desc || "";
+
+    if (!newEquipNo) return;
+
+    // Confirm the action
+    if (!confirm(
+      `Change equipment from "${props.equipmentNo}" to "${newEquipNo}"?\n\n` +
+      `This will deactivate the current MST and create a new one on the selected equipment ` +
+      `with all the same details.`
+    )) {
+      return;
+    }
+
+    // ---- 1. DEACTIVATE the current MST (same logic as deactivateMST but silent) ----
+    const orig = props.isNew ? props : window.originalProps[mstId];
+
+    // Capture the current work group before we overwrite it for deactivation
+    const preDeactivateWorkGroup = props.workGroup || (orig && orig["Work Group Code"]) || "";
+
+    props.workGroup = "DNXXXXX";
+    props.schedIndicator = "9";
+    baseEvent.setProp("backgroundColor", "#000");
+    baseEvent.setProp("borderColor", "#000");
+    baseEvent.setProp("textColor", "#fff");
+    baseEvent.setProp("classNames", ["deactivated-mst"]);
+
+    if (!window.changes[mstId]) {
+      window.changes[mstId] = {
+        MST_ID: mstId,
+        Equipment: (orig && (orig["Equipment Number"] || orig.equipmentNo)) || props.equipmentNo || "",
+        "Task No": (orig && (orig["MST Task Number"] || orig.taskNo)) || props.taskNo || "",
+        "MST Desc 1": (orig && (orig["MST Description 1"] || orig.desc1)) || props.desc1 || "",
+        "MST Desc 2": (orig && (orig["MST Description 2"] || orig.desc2)) || props.desc2 || "",
+        Old_Work_Group_Code: (orig && orig["Work Group Code"]) || "",
+        New_Work_Group_Code: "DNXXXXX",
+        Old_Scheduling_Indicator_Code: (orig && orig["Scheduling Indicator Code"]) || "",
+        New_Scheduling_Indicator_Code: "9"
+      };
+    }
+    window.changeCount.innerText = `Changes: ${Object.keys(window.changes).length}`;
+
+    // ---- 2. CREATE a new MST on the new equipment with same details ----
+    const stdJobNo   = props.stdJobNo || (orig && (orig["Std Job No"] || orig["Standard Job Number"])) || "";
+    const desc1      = props.desc1 || (orig && orig["MST Description 1"]) || "";
+    const desc2      = clampDesc2(props.desc2 ?? (orig && orig["MST Description 2"]) ?? "");
+    const freq       = parseInt(props.frequency || (orig && orig["MST Frequency"]) || 0, 10);
+    const wgCode     = preDeactivateWorkGroup;
+    const jobDescCode = props.jobDescCode || (orig && orig["Job Description Code"]) || "";
+    const unitsReq   = props.unitsRequired || (orig && orig["Units Required"]) || "";
+    const stdJobUom  = props.stdJobUom || props.unitMeasure || (orig && orig["Unit of Measure"]) || "";
+    const segFrom    = props.segFrom ?? (orig && orig["MST Segment Mileage From"]) ?? "";
+    const segTo      = props.segTo ?? (orig && orig["MST Segment Mileage To"]) ?? "";
+    const protType   = props.protType || (orig && orig["Protection Type Code"]) || "";
+    const protMethod = props.protMethod || (orig && orig["Protection Method Code"]) || "";
+    const allowMultiple = normalizeAllowMultipleFlag(
+      props.allowMultiple || (orig && orig["Allow Multiple workorders"]) || ""
+    );
+
+    // Use the current base event's start date as the Last Scheduled Date
+    const lastDate = new Date(baseEvent.start);
+    lastDate.setHours(9, 0, 0, 0);
+    const lastDateStr = U.dateToInputYYYYMMDD(lastDate) || "";
+
+    const newMstId = `${newEquipNo}_${stdJobNo}`;
+
+    // Check if this mstId already exists
+    if (window.calendar.getEventById(`${newMstId}_0`)) {
+      alert(`An MST already exists for equipment ${newEquipNo} with standard job ${stdJobNo}. Cannot create duplicate.`);
+      return;
+    }
+
+    // Add base event (GREEN)
+    const newBaseEvent = window.calendar.addEvent({
+      id: `${newMstId}_0`,
+      title: `${newEquipNo} — ${desc1}`,
+      start: lastDate,
+      backgroundColor: MST.Utils.BASE_COLOR,
+      borderColor: MST.Utils.BASE_COLOR,
+      extendedProps: {
+        mstId: newMstId,
+        equipmentNo: newEquipNo,
+        equipmentDesc1: newEquipDesc,
+        taskNo: "",
+        stdJobNo,
+        desc1,
+        desc2,
+        frequency: freq,
+        workGroup: wgCode,
+        jobDescCode,
+        unitsRequired: unitsReq,
+        stdJobUom,
+        segFrom,
+        segTo,
+        protType,
+        protMethod,
+        allowMultiple,
+        unitMeasure: stdJobUom,
+        instance: 0,
+        isNew: true,
+        tvReference: "",
+        tvExpiryDate: "",
+        hasTvReference: false
+      }
+    });
+
+    // Build future instances
+    if (typeof E.rebuildFutureInstances === "function") {
+      E.rebuildFutureInstances(newMstId, lastDate, freq, desc1, desc2);
+    }
+
+    // Track newly created MST for export
+    if (!window.createdMSTs) window.createdMSTs = {};
+    window.createdMSTs[newMstId] = {
+      "Equipment": newEquipNo,
+      "Task No": "",
+      "Comp Code": "",
+      "Mod Code": "",
+      "Job Desc Code": jobDescCode,
+      "MST Type": "",
+      "StatutoryMST": "",
+      "Allow Multiple workorders": allowMultiple,
+      "MST Desc 1": desc1,
+      "MST Desc 2": desc2,
+      "Freq": freq,
+      "Unit Required": unitsReq,
+      "Unit of Work": stdJobUom,
+      "Sched Ind": "1",
+      "Work Group": wgCode,
+      "Std Job No": stdJobNo,
+      "LPD": "",
+      "LSD": lastDateStr,
+      "NSD": "",
+      "Segment From": segFrom,
+      "Segment To": segTo,
+      "Segment UOM": "",
+      "Assign To": "",
+      "ProtectionType": protType,
+      "ProtectionMethod": protMethod,
+      "TV Reference": "",
+      "TV Expiry Date": ""
+    };
+
+    // Update new MST count display
+    if (typeof E.updateNewMstCount === "function") {
+      E.updateNewMstCount();
+    }
+
+    // Open the editor for the new MST
+    MST.Editor.openEditorForMST(newMstId, newBaseEvent);
+
+    // Show confirmation
+    alert(
+      `New MST created on asset ${newEquipNo} with previous MST details.\n\n` +
+      `Previous MST on ${props.equipmentNo} has been deactivated.\n` +
+      `(1x deactivation + 1x new MST)`
+    );
+  };
+
+  // Open the shared equipment picker
+  if (typeof window.MST?.Views?.openEquipmentPicker === "function") {
+    window.MST.Views.openEquipmentPicker();
+  } else {
+    alert("Equipment picker is not available.");
+  }
+};
+
+/* ----------------------------------------
    ADD NEW MST (used by New MST modal)
 ---------------------------------------- */
 MST.Editor.addNewMST = function () {
