@@ -1040,8 +1040,17 @@
       }
     }
 
-    // Select equipment and populate the form
+    // Select equipment and populate the form (or call custom callback)
     function selectEquipment(item) {
+      // If a custom callback is set, use it instead of default behaviour
+      if (typeof window.MST?.Views?._equipPickerCallback === 'function') {
+        const cb = window.MST.Views._equipPickerCallback;
+        window.MST.Views._equipPickerCallback = null; // one-shot
+        closeOverlay();
+        cb(item);
+        return;
+      }
+
       const equipInput = getEl('newEquipNo');
       const equipDesc = getEl('newEquipDesc');
 
