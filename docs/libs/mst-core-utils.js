@@ -116,9 +116,20 @@ window.MST.Utils = {
       }
     }
 
-    // Excel Serial
+    // Excel Serial or numeric yyyymmdd
     if (!isNaN(value)) {
       const n = Number(value);
+      const numericString = Number.isFinite(n) ? String(Math.trunc(n)) : "";
+      if (/^\d{8}$/.test(numericString)) {
+        const dObj = U.yyyymmddToDate(numericString);
+        if (dObj) {
+          const dd = String(dObj.getDate()).padStart(2, "0");
+          const mm = String(dObj.getMonth() + 1).padStart(2, "0");
+          const yy = dObj.getFullYear();
+          return `${dd}/${mm}/${yy}`;
+        }
+      }
+
       if (n > 30000 && n < 80000) {
         const date = new Date((n - 25569) * 86400 * 1000);
         const dd = String(date.getUTCDate()).padStart(2, "0");
