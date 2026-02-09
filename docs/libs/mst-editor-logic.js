@@ -254,6 +254,7 @@ const getDomElements = () => ({
   saveBtn: document.getElementById("saveBtn"),
   saveTvBtn: document.getElementById("saveTvBtn"),
   sidebar: document.getElementById("sidebar"),
+  stdJobDisplay: document.getElementById("stdJobDisplay"),
   taskDisplay: document.getElementById("taskDisplay"),
   tvActions: document.getElementById("tvActions"),
   tvAppliedLabel: document.getElementById("tvAppliedLabel"),
@@ -293,6 +294,7 @@ const exposeDomElements = (elements) => {
     saveBtn,
     saveTvBtn,
     sidebar,
+    stdJobDisplay,
     taskDisplay,
     tvActions,
     tvAppliedLabel,
@@ -332,6 +334,7 @@ const exposeDomElements = (elements) => {
   window.saveBtn = saveBtn;
   window.saveTvBtn = saveTvBtn;
   window.sidebarEl = sidebar;
+  window.stdJobDisplay = stdJobDisplay;
   window.taskDisplay = taskDisplay;
   window.tvActions = tvActions;
   window.tvAppliedLabel = tvAppliedLabel;
@@ -1265,6 +1268,7 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     // Reset form visually
       [
         window.equipDisplay,
+        window.stdJobDisplay,
         window.taskDisplay,
         window.mstIdDisplay,
         window.desc1Display,
@@ -1296,6 +1300,7 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
 
     /* ----- READ-ONLY ----- */
     window.equipDisplay.value = isNew ? (orig.equipmentNo || "") : (orig["Equipment Number"] || "");
+    window.stdJobDisplay.value = stdJobNo;
     window.taskDisplay.value  = isNew ? (orig.taskNo       || "") : (orig["MST Task Number"]  || "");
     window.mstIdDisplay.value = mstId;
     window.desc1Display.value = isNew ? (orig.desc1        || "") : (orig["MST Description 1"] || "");
@@ -2075,6 +2080,217 @@ MST.Editor.changeEquipment = function () {
   } else {
     alert("Equipment picker is not available.");
   }
+};
+
+/* ----------------------------------------
+   CHANGE STANDARD JOB NUMBER
+   Deactivates the current MST and creates a
+   new MST on the same equipment with the
+   new Standard Job Number. Counts as
+   1x change + 1x new.
+   ---------------------------------------- */
+MST.Editor.changeStandardJob = function () {
+  const mstId = window.selectedMstId || window.currentMstId;
+  if (!mstId) {
+    alert("Please select an MST first.");
+    return;
+  }
+
+  const baseEvent = window.calendar.getEventById(`${mstId}_0`);
+  if (!baseEvent) {
+    alert("Cannot find the selected MST.");
+    return;
+  }
+
+  const props = baseEvent.extendedProps;
+
+  // Don't allow changing standard job on already-deactivated MSTs
+  if (props.workGroup === "DNXXXXX" || props.schedIndicator === "9") {
+    alert("This MST is already deactivated. Cannot change Standard Job Number.");
+    return;
+  }
+
+  const orig = props.isNew ? props : window.originalProps[mstId];
+  const currentStdJobNo = (
+    props.stdJobNo ||
+    (orig && (orig["Std Job No"] || orig["Standard Job Number"])) ||
+    ""
+  ).toString().trim();
+  const equipNo =
+    props.equipmentNo ||
+    (orig && (orig["Equipment Number"] || orig.equipmentNo)) ||
+    "";
+
+  const newStdJobNoInput = prompt("Enter new Standard Job Number:", currentStdJobNo);
+  if (newStdJobNoInput === null) return;
+
+  const newStdJobNo = newStdJobNoInput.toString().trim();
+  if (!newStdJobNo) {
+    alert("Standard Job Number cannot be empty.");
+    return;
+  }
+  if (newStdJobNo === currentStdJobNo) {
+    alert("The Standard Job Number is unchanged.");
+    return;
+  }
+
+  const stdJobEntry = window.STANDARD_JOBS?.[newStdJobNo];
+  if (!stdJobEntry) {
+    const proceed = confirm(
+      `Standard Job Number "${newStdJobNo}" is not in the standard job library.\n\n` +
+      "Do you want to continue anyway?"
+    );
+    if (!proceed) return;
+  }
+
+  const newDesc1 = stdJobEntry?.desc1 || props.desc1 || (orig && orig["MST Description 1"]) || "";
+  const desc2 = clampDesc2(props.desc2 ?? (orig && orig["MST Description 2"]) ?? "");
+  const freq = parseInt(props.frequency || (orig && orig["MST Frequency"]) || 0, 10);
+  const jobDescCode = props.jobDescCode || (orig && orig["Job Description Code"]) || "";
+  const unitsReq = props.unitsRequired || (orig && orig["Units Required"]) || "";
+  const stdJobUom =
+    stdJobEntry?.uom ||
+    resolveStdJobUom(newStdJobNo, baseEvent, orig) ||
+    props.stdJobUom ||
+    props.unitMeasure ||
+    (orig && orig["Unit of Measure"]) ||
+    "";
+  const segFrom = props.segFrom ?? (orig && orig["MST Segment Mileage From"]) ?? "";
+  const segTo = props.segTo ?? (orig && orig["MST Segment Mileage To"]) ?? "";
+  const protType = props.protType || (orig && orig["Protection Type Code"]) || "";
+  const protMethod = props.protMethod || (orig && orig["Protection Method Code"]) || "";
+  const allowMultiple = normalizeAllowMultipleFlag(
+    props.allowMultiple || (orig && orig["Allow Multiple workorders"]) || ""
+  );
+  const equipDesc =
+    props.equipmentDesc1 ||
+    (orig && (orig["Equipment Description 1"] || orig.equipmentDesc1)) ||
+    "";
+
+  if (!confirm(
+    `Change Standard Job Number from "${currentStdJobNo}" to "${newStdJobNo}"?\n\n` +
+    "This will deactivate the current MST and create a new one with the selected Standard Job Number."
+  )) {
+    return;
+  }
+
+  // ---- 1. DEACTIVATE the current MST (same logic as deactivateMST but silent) ----
+  const preDeactivateWorkGroup = props.workGroup || (orig && orig["Work Group Code"]) || "";
+
+  props.workGroup = "DNXXXXX";
+  props.schedIndicator = "9";
+  baseEvent.setProp("backgroundColor", "#000");
+  baseEvent.setProp("borderColor", "#000");
+  baseEvent.setProp("textColor", "#fff");
+  baseEvent.setProp("classNames", ["deactivated-mst"]);
+
+  if (!window.changes[mstId]) {
+    window.changes[mstId] = {
+      MST_ID: mstId,
+      Equipment: (orig && (orig["Equipment Number"] || orig.equipmentNo)) || props.equipmentNo || "",
+      "Task No": (orig && (orig["MST Task Number"] || orig.taskNo)) || props.taskNo || "",
+      "MST Desc 1": (orig && (orig["MST Description 1"] || orig.desc1)) || props.desc1 || "",
+      "MST Desc 2": (orig && (orig["MST Description 2"] || orig.desc2)) || props.desc2 || "",
+      Old_Work_Group_Code: (orig && orig["Work Group Code"]) || "",
+      New_Work_Group_Code: "DNXXXXX",
+      Old_Scheduling_Indicator_Code: (orig && orig["Scheduling Indicator Code"]) || "",
+      New_Scheduling_Indicator_Code: "9"
+    };
+  }
+  window.changeCount.innerText = `Changes: ${Object.keys(window.changes).length}`;
+
+  // ---- 2. CREATE a new MST on the same equipment with new Standard Job Number ----
+  const lastDate = new Date(baseEvent.start);
+  lastDate.setHours(9, 0, 0, 0);
+  const lastDateStr = U.dateToInputYYYYMMDD(lastDate) || "";
+  const wgCode = preDeactivateWorkGroup;
+
+  const newMstId = `${equipNo}_${newStdJobNo}`;
+
+  if (window.calendar.getEventById(`${newMstId}_0`)) {
+    alert(`An MST already exists for equipment ${equipNo} with standard job ${newStdJobNo}. Cannot create duplicate.`);
+    return;
+  }
+
+  const newBaseEvent = window.calendar.addEvent({
+    id: `${newMstId}_0`,
+    title: `${equipNo} — ${newDesc1}`,
+    start: lastDate,
+    backgroundColor: MST.Utils.BASE_COLOR,
+    borderColor: MST.Utils.BASE_COLOR,
+    extendedProps: {
+      mstId: newMstId,
+      equipmentNo: equipNo,
+      equipmentDesc1: equipDesc,
+      taskNo: "",
+      stdJobNo: newStdJobNo,
+      desc1: newDesc1,
+      desc2,
+      frequency: freq,
+      workGroup: wgCode,
+      jobDescCode,
+      unitsRequired: unitsReq,
+      stdJobUom,
+      segFrom,
+      segTo,
+      protType,
+      protMethod,
+      allowMultiple,
+      unitMeasure: stdJobUom,
+      instance: 0,
+      isNew: true,
+      tvReference: "",
+      tvExpiryDate: "",
+      hasTvReference: false
+    }
+  });
+
+  if (typeof E.rebuildFutureInstances === "function") {
+    E.rebuildFutureInstances(newMstId, lastDate, freq, newDesc1, desc2);
+  }
+
+  if (!window.createdMSTs) window.createdMSTs = {};
+  window.createdMSTs[newMstId] = {
+    "Equipment": equipNo,
+    "Task No": "",
+    "Comp Code": "",
+    "Mod Code": "",
+    "Job Desc Code": jobDescCode,
+    "MST Type": "",
+    "StatutoryMST": "",
+    "Allow Multiple workorders": allowMultiple,
+    "MST Desc 1": newDesc1,
+    "MST Desc 2": desc2,
+    "Freq": freq,
+    "Unit Required": unitsReq,
+    "Unit of Work": stdJobUom,
+    "Sched Ind": "1",
+    "Work Group": wgCode,
+    "Std Job No": newStdJobNo,
+    "LPD": "",
+    "LSD": lastDateStr,
+    "NSD": "",
+    "Segment From": segFrom,
+    "Segment To": segTo,
+    "Segment UOM": "",
+    "Assign To": "",
+    "ProtectionType": protType,
+    "ProtectionMethod": protMethod,
+    "TV Reference": "",
+    "TV Expiry Date": ""
+  };
+
+  if (typeof E.updateNewMstCount === "function") {
+    E.updateNewMstCount();
+  }
+
+  MST.Editor.openEditorForMST(newMstId, newBaseEvent);
+
+  alert(
+    `New MST created on asset ${equipNo} with Standard Job Number ${newStdJobNo}.\n\n` +
+    `Previous MST on ${equipNo} has been deactivated.\n` +
+    `(1x deactivation + 1x new MST)`
+  );
 };
 
 /* ----------------------------------------
