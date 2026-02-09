@@ -585,6 +585,23 @@
       </div>
 
       <div class="field-block">
+        <label>Standard Job Number</label>
+        <input id="stdJobDisplay" disabled />
+        <button id="changeStdJobBtn" type="button" style="
+          background:#3b82f6;
+          color:white;
+          border:none;
+          border-radius:6px;
+          padding:6px 14px;
+          font-weight:bold;
+          margin-top:6px;
+          cursor:pointer;
+          width:100%;
+          font-size:0.85em;
+        ">Change Standard Job</button>
+      </div>
+
+      <div class="field-block">
         <label>MST Task Number</label>
         <input id="taskDisplay" disabled />
       </div>
@@ -1652,6 +1669,7 @@ document.getElementById("newMSTBtn")?.addEventListener("click", () => MST.Editor
 
 // Change Equipment button
 document.getElementById("changeEquipBtn")?.addEventListener("click", () => MST.Editor.changeEquipment());
+document.getElementById("changeStdJobBtn")?.addEventListener("click", () => MST.Editor.changeStandardJob());
 
   </script>
 
