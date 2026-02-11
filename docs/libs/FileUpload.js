@@ -528,6 +528,8 @@ document.addEventListener("DOMContentLoaded", function () {
         populateUnique(document.getElementById("filterProtType"),   annotatedRows, "Protection Type Code");
         populateUnique(document.getElementById("filterProtMethod"), annotatedRows, "Protection Method Code");
         populateUnique(document.getElementById("filterEquipDesc1"), annotatedRows, "Equipment Description 1");
+        populateUnique(document.getElementById("filterElr"),        annotatedRows, "ELR");
+        populateUnique(document.getElementById("filterTrackId"),    annotatedRows, "Track ID");
 
         debugStep("Filter dropdowns populated");
         updateLoadingProgress(80, "Indexing equipment numbers...");

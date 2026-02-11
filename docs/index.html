@@ -388,7 +388,8 @@
       display: none;
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,0.35);
+      backdrop-filter: blur(2px);
+      background: rgba(15, 23, 42, 0.45);
       z-index: 1100;
     }
     #filterOverlay.active { display: block; }
@@ -398,12 +399,12 @@
       position: fixed;
       top: 0;
       right: 0;
-      width: 320px;
+      width: 380px;
       max-width: 85vw;
       height: 100%;
-      background: #fff;
-      border-left: 1px solid #ddd;
-      box-shadow: -4px 0 14px rgba(0,0,0,0.12);
+      background: #f8fafc;
+      border-left: 1px solid #dbeafe;
+      box-shadow: -8px 0 28px rgba(15, 23, 42, 0.22);
       z-index: 1200;
       transform: translateX(100%);
       transition: transform 0.25s ease;
@@ -415,42 +416,53 @@
     }
 
     #filterPanelHeader {
-      padding: 14px 16px;
-      border-bottom: 1px solid #eee;
+      padding: 16px 18px;
+      border-bottom: 1px solid #dbeafe;
       display: flex;
       align-items: center;
       justify-content: space-between;
+      background: linear-gradient(120deg, #0f172a, #1d4ed8);
+      color: #fff;
     }
     #filterPanelHeader h3 {
       margin: 0;
       font-size: 16px;
+      letter-spacing: 0.2px;
     }
     #filterPanelBody {
-      padding: 14px 16px 100px 16px;
+      padding: 16px 18px 100px 18px;
       overflow-y: auto;
       flex: 1;
     }
     .filter-field {
       margin-bottom: 12px;
+      padding: 10px;
+      border-radius: 10px;
+      border: 1px solid #dbeafe;
+      background: #fff;
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.06);
     }
     .filter-field label {
       display: block;
       font-size: 12px;
       font-weight: 700;
-      color: #444;
-      margin-bottom: 4px;
+      color: #1e3a8a;
+      margin-bottom: 6px;
     }
     .filter-field select {
       width: 100%;
-      padding: 6px 8px;
+      padding: 7px 9px;
       font-size: 14px;
+      border-radius: 8px;
+      border: 1px solid #cbd5e1;
+      background: #f8fafc;
     }
     #filterPanelFooter {
-      padding: 12px 16px;
-      border-top: 1px solid #eee;
+      padding: 12px 18px;
+      border-top: 1px solid #dbeafe;
       display: flex;
       gap: 8px;
-      background: #fafafa;
+      background: #eef2ff;
     }
     #openFilterBtn {
       background: #2563eb;
@@ -461,20 +473,24 @@
       font-weight: 700;
       cursor: pointer;
     }
+    #openFilterBtn.has-active-filters {
+      background: #1d4ed8;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.24);
+    }
     #applyFiltersBtn {
-      background: #10b981;
+      background: #2563eb;
       color: #fff;
       border: none;
-      border-radius: 4px;
+      border-radius: 8px;
       padding: 8px 12px;
       font-weight: 700;
       cursor: pointer;
     }
     #resetFiltersBtn {
-      background: #ef4444;
-      color: #fff;
-      border: none;
-      border-radius: 4px;
+      background: #fff;
+      color: #1e293b;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
       padding: 8px 12px;
       font-weight: 700;
       cursor: pointer;
@@ -482,10 +498,15 @@
     #closeFilterBtn {
       background: transparent;
       border: none;
-      font-size: 18px;
+      font-size: 20px;
       cursor: pointer;
       line-height: 1;
-      color: #444;
+      color: #dbeafe;
+      border-radius: 8px;
+      padding: 4px 8px;
+    }
+    #closeFilterBtn:hover {
+      background: rgba(255, 255, 255, 0.16);
     }
 
     /* SQL reference block */
@@ -726,6 +747,7 @@
       </div>
 	  
       <div id="filterPanelBody">
+<div class="muted-helper" style="margin-bottom:10px;">Narrow down the calendar using one or more fields.</div>
        <!-- Work Group -->
 <div class="filter-field">
   <label for="filterWorkGroup"><strong>Work Group Code</strong></label>
@@ -766,6 +788,18 @@
 <div class="filter-field">
   <label for="filterProtMethod"><strong>Protection Method</strong></label>
   <select id="filterProtMethod"><option value="">(All)</option></select>
+</div>
+
+<!-- ELR -->
+<div class="filter-field">
+  <label for="filterElr"><strong>ELR</strong></label>
+  <select id="filterElr"><option value="">(All)</option></select>
+</div>
+
+<!-- Track ID -->
+<div class="filter-field">
+  <label for="filterTrackId"><strong>Track ID</strong></label>
+  <select id="filterTrackId"><option value="">(All)</option></select>
 </div>
 
 

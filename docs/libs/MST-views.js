@@ -18,8 +18,33 @@
     const filterProtType  = getEl('filterProtType');
     const filterProtMethod= getEl('filterProtMethod');
     const filterEquipDesc1= getEl('filterEquipDesc1');
+    const filterElr       = getEl('filterElr');
+    const filterTrackId   = getEl('filterTrackId');
 
     if (!filterOverlay || !openFilterBtn || !closeFilterBtn) return;
+
+    const getActiveFilterCount = () => {
+      const values = [
+        filterWorkGroup?.value,
+        filterJobDesc?.value,
+        filterDesc1?.value,
+        filterDesc2?.value,
+        filterProtType?.value,
+        filterProtMethod?.value,
+        filterEquipDesc1?.value,
+        filterElr?.value,
+        filterTrackId?.value
+      ];
+
+      return values.filter((v) => (v || '').toString().trim()).length;
+    };
+
+    const updateFilterButtonState = () => {
+      if (!openFilterBtn) return;
+      const active = getActiveFilterCount();
+      openFilterBtn.textContent = active ? `⚙️ Filters (${active})` : '⚙️ Filters';
+      openFilterBtn.classList.toggle('has-active-filters', active > 0);
+    };
 
     function applyFilters() {
       const calendar = window.calendar;
@@ -34,8 +59,10 @@
       const pt  = (filterProtType?.value || '').trim().split(' — ')[0];
       const pm  = (filterProtMethod?.value || '').trim().split(' — ')[0];
       const ad1 = (filterEquipDesc1?.value || '').trim();
+      const elr = (filterElr?.value || '').trim();
+      const trk = (filterTrackId?.value || '').trim();
 
-      const noActive = !wg && !jd && !d1 && !d2 && !pt && !pm && !ad1;
+      const noActive = !wg && !jd && !d1 && !d2 && !pt && !pm && !ad1 && !elr && !trk;
 
       const events = calendar.getEvents();
       const bases  = events.filter((e) => (e.extendedProps || {}).instance === 0);
@@ -59,7 +86,9 @@
             (!d2  || (p.desc2          || '').trim() === d2) &&
             (!pt  || (p.protType       || '').trim() === pt) &&
             (!pm  || (p.protMethod     || '').trim() === pm) &&
-            (!ad1 || (p.equipmentDesc1 || '').trim() === ad1);
+            (!ad1 || (p.equipmentDesc1 || '').trim() === ad1) &&
+            (!elr || (p.elr            || '').trim() === elr) &&
+            (!trk || (p.trackId        || '').trim() === trk);
 
           visibilityByMstId.set(p.mstId, match);
         });
@@ -71,6 +100,8 @@
           if (ev.display !== desired) ev.setProp('display', desired);
         });
       });
+
+      updateFilterButtonState();
     }
 
     function resetFilters() {
@@ -81,6 +112,8 @@
       if (filterProtType)  filterProtType.value  = '';
       if (filterProtMethod)filterProtMethod.value= '';
       if (filterEquipDesc1)filterEquipDesc1.value= '';
+      if (filterElr)       filterElr.value       = '';
+      if (filterTrackId)   filterTrackId.value   = '';
 
       const calendar = window.calendar;
       if (!calendar) return;
@@ -92,6 +125,8 @@
           if (e.display !== visibleDisplay) e.setProp('display', visibleDisplay);
         });
       });
+
+      updateFilterButtonState();
     }
 
     openFilterBtn.addEventListener('click', () => filterOverlay.classList.add('active'));
@@ -107,6 +142,20 @@
       resetFilters();
       filterOverlay.classList.remove('active');
     });
+
+    [
+      filterWorkGroup,
+      filterJobDesc,
+      filterDesc1,
+      filterDesc2,
+      filterProtType,
+      filterProtMethod,
+      filterEquipDesc1,
+      filterElr,
+      filterTrackId
+    ].forEach((selectEl) => selectEl?.addEventListener('change', updateFilterButtonState));
+
+    updateFilterButtonState();
 
     window.MST = window.MST || {};
     window.MST.Views = window.MST.Views || {};
