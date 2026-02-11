@@ -2209,11 +2209,12 @@ MST.Editor.changeStandardJob = function () {
   const lastDateStr = U.dateToInputYYYYMMDD(lastDate) || "";
   const wgCode = preDeactivateWorkGroup;
 
-  const newMstId = `${equipNo}_${newStdJobNo}`;
+  const newMstIdBase = `${equipNo}_${newStdJobNo}`;
+  let newMstId = newMstIdBase;
+  let duplicateCounter = 1;
 
-  if (window.calendar.getEventById(`${newMstId}_0`)) {
-    alert(`An MST already exists for equipment ${equipNo} with standard job ${newStdJobNo}. Cannot create duplicate.`);
-    return;
+  while (window.calendar.getEventById(`${newMstId}_0`)) {
+    newMstId = `${newMstIdBase}__${duplicateCounter++}`;
   }
 
   const newBaseEvent = window.calendar.addEvent({
