@@ -405,10 +405,24 @@ document.addEventListener("DOMContentLoaded", function () {
       const eq = safeTrim(r["Equipment Number"]);
       if (!eq) return;
 
-      const desc = safeTrim(r["Equipment Description 1"]);
+      const desc1 = safeTrim(r["Equipment Description 1"]);
+      const desc2 = safeTrim(r["Equipment Description 2"]);
+      const plantNo =
+        safeTrim(r["Plant No."]) ||
+        safeTrim(r["Plant No"]) ||
+        safeTrim(r["Plant Number"]);
+
       if (!map.has(eq)) {
-        map.set(eq, desc);
+        map.set(eq, { desc1, desc2, plantNo });
+        return;
       }
+
+      const current = map.get(eq) || {};
+      map.set(eq, {
+        desc1: current.desc1 || desc1,
+        desc2: current.desc2 || desc2,
+        plantNo: current.plantNo || plantNo
+      });
     });
 
     return map;

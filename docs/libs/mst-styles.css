@@ -42,6 +42,33 @@ input, button {
   height: 32px;
 }
 
+.editor-action-btn {
+  background: #3b82f6;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-weight: 700;
+  margin-top: 6px;
+  width: 100%;
+  font-size: 0.85em;
+}
+
+.editor-action-btn:hover {
+  background: #2563eb;
+}
+
+.equipment-meta-line {
+  margin-top: 3px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: #eef2ff;
+  color: #334155;
+  font-size: 12px;
+  line-height: 1.3;
+  min-height: 16px;
+}
+
 .char-counter {
   margin-top: 4px;
   text-align: right;
@@ -1452,6 +1479,17 @@ input, button {
 .equip-picker-table tbody td:last-child {
   color: #475569;
 }
+
+.equip-picker-table thead th {
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.equip-picker-table tbody td {
+  vertical-align: top;
+  word-break: break-word;
+}
+
 
 /* Highlight matching text */
 .equip-picker-highlight {
