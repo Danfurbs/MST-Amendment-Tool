@@ -26,6 +26,89 @@ function formatDateTimeStamp(date) {
 }
 
 
+const normalizeDateInput = (value) => {
+  if (window.MST?.Utils?.normalizeDateInput) return window.MST.Utils.normalizeDateInput(value);
+  const raw = (value ?? "").toString().trim();
+  if (!raw) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  if (/^\d{8}$/.test(raw)) return `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`;
+  return "";
+};
+
+const toDate = (value) => {
+  const normalized = normalizeDateInput(value);
+  if (!normalized) return null;
+  const [y, m, d] = normalized.split("-").map(Number);
+  const dt = new Date(y, m - 1, d, 9, 0, 0, 0);
+  return Number.isNaN(dt.getTime()) ? null : dt;
+};
+
+const normalizeStdJobNo = (value) => {
+  const raw = (value ?? "").toString().trim();
+  if (!raw) return "";
+  return raw.replace(/^0+/, "") || raw;
+};
+
+const isAbpStdJob = (stdJobNo) => {
+  const normalized = normalizeStdJobNo(stdJobNo);
+  if (!normalized) return false;
+  return Boolean(window.STANDARD_JOBS?.[normalized]?.abp || window.STANDARD_JOBS?.[stdJobNo]?.abp);
+};
+
+const getFyStartForDate = (dateValue) => {
+  const date = toDate(dateValue);
+  if (!date) return null;
+  const year = date.getMonth() >= 3 ? date.getFullYear() : date.getFullYear() - 1;
+  return new Date(year, 3, 1, 9, 0, 0, 0);
+};
+
+const getFyEndFromStart = (fyStart) => new Date(fyStart.getFullYear() + 1, 2, 31, 23, 59, 59, 999);
+
+const getRoughPeriodLabel = (date, fyStart) => {
+  const dayMs = 24 * 60 * 60 * 1000;
+  const offsetDays = Math.floor((date - fyStart) / dayMs);
+  const period = Math.min(13, Math.max(1, Math.floor(offsetDays / 28) + 1));
+  return `P${String(period).padStart(2, "0")}`;
+};
+
+const countInstancesAndVolume = ({ lsd, freq, units, rangeStart, rangeEnd }) => {
+  const startDate = toDate(lsd);
+  const frequency = Number.parseInt(freq, 10) || 0;
+  const unitsNum = Number.parseFloat((units ?? "").toString());
+  const unitValue = Number.isFinite(unitsNum) ? unitsNum : 0;
+
+  if (!startDate || frequency <= 0 || !rangeStart || !rangeEnd || rangeEnd < rangeStart) {
+    return { instances: 0, volume: 0, periodVolumes: {} };
+  }
+
+  const periodVolumes = {};
+  let instances = 0;
+  let cursor = new Date(startDate);
+
+  while (cursor <= rangeEnd) {
+    if (cursor >= rangeStart) {
+      instances += 1;
+      const label = getRoughPeriodLabel(cursor, rangeStart);
+      periodVolumes[label] = (periodVolumes[label] || 0) + unitValue;
+    }
+    cursor.setDate(cursor.getDate() + frequency);
+  }
+
+  return {
+    instances,
+    volume: instances * unitValue,
+    periodVolumes
+  };
+};
+
+const formatPeriodVolumes = (periodVolumes = {}) => {
+  const labels = Object.keys(periodVolumes).sort();
+  if (!labels.length) return "";
+  return labels.map((label) => `${label}:${periodVolumes[label]}`).join(" | ");
+};
+
+
+
 
 
 (function () {
@@ -342,6 +425,143 @@ function formatDateTimeStamp(date) {
             });
 
             ws2.views = [{ state: 'frozen', ySplit: 1 }];
+        }
+
+
+        // ------------------------------------------------------
+        // 4️⃣ Sheet: ABP Impact Summary (rough guide)
+        // ------------------------------------------------------
+        const abpRows = [];
+        const todayIso = normalizeDateInput(new Date().toISOString().slice(0, 10));
+        const changeDataForAbp = Object.values(window.changes || {});
+        const newDataForAbp = Object.values(window.createdMSTs || {});
+
+        const addAbpRow = (entry) => {
+            if (!entry || !entry.stdJobNo || !isAbpStdJob(entry.stdJobNo)) return;
+
+            const baseFyStart = getFyStartForDate(entry.baseLsd || entry.newLsd || entry.oldLsd);
+            if (!baseFyStart) return;
+
+            const currentFyStart = baseFyStart;
+            const currentFyEnd = getFyEndFromStart(currentFyStart);
+            const nextFyStart = new Date(currentFyStart.getFullYear() + 1, 3, 1, 9, 0, 0, 0);
+            const nextFyEnd = getFyEndFromStart(nextFyStart);
+
+            const oldCurrent = countInstancesAndVolume({
+              lsd: entry.oldLsd,
+              freq: entry.oldFreq,
+              units: entry.oldUnits,
+              rangeStart: currentFyStart,
+              rangeEnd: currentFyEnd
+            });
+            const newCurrent = countInstancesAndVolume({
+              lsd: entry.newLsd,
+              freq: entry.newFreq,
+              units: entry.newUnits,
+              rangeStart: currentFyStart,
+              rangeEnd: currentFyEnd
+            });
+            const oldNext = countInstancesAndVolume({
+              lsd: entry.oldLsd,
+              freq: entry.oldFreq,
+              units: entry.oldUnits,
+              rangeStart: nextFyStart,
+              rangeEnd: nextFyEnd
+            });
+            const newNext = countInstancesAndVolume({
+              lsd: entry.newLsd,
+              freq: entry.newFreq,
+              units: entry.newUnits,
+              rangeStart: nextFyStart,
+              rangeEnd: nextFyEnd
+            });
+
+            abpRows.push({
+              "MST ID": entry.mstId || "",
+              "Std Job No": entry.stdJobNo,
+              "Change Type": entry.changeType,
+              "ABP Commentary": entry.commentary || "",
+              "FY (Current)": `${currentFyStart.getFullYear()}/${String((currentFyStart.getFullYear() + 1) % 100).padStart(2, "0")}`,
+              "Old Vol (Curr FY)": oldCurrent.volume,
+              "New Vol (Curr FY)": newCurrent.volume,
+              "Delta Vol (Curr FY)": newCurrent.volume - oldCurrent.volume,
+              "Old Vol (Next FY)": oldNext.volume,
+              "New Vol (Next FY)": newNext.volume,
+              "Delta Vol (Next FY)": newNext.volume - oldNext.volume,
+              "Rough 4-Week Periods (Curr FY New)": formatPeriodVolumes(newCurrent.periodVolumes)
+            });
+        };
+
+        changeDataForAbp.forEach((row) => {
+            const orig = window.originalProps?.[row.MST_ID] || {};
+            const stdJobNo = normalizeStdJobNo(row.Std_Job_No || orig["Standard Job Number"] || orig["Std Job No"] || "");
+            if (!isAbpStdJob(stdJobNo)) return;
+
+            const deactivated = row.New_Work_Group_Code === "DNXXXXX" || row.New_Scheduling_Indicator_Code === "9";
+            addAbpRow({
+              mstId: row.MST_ID,
+              stdJobNo,
+              changeType: deactivated ? "Deactivate MST" : "Amend MST",
+              commentary: row.ABP_Commentary || "",
+              baseLsd: row.Old_Last_Scheduled_Date || row.New_Last_Scheduled_Date || orig["Last Scheduled Date"],
+              oldLsd: row.Old_Last_Scheduled_Date || orig["Last Scheduled Date"],
+              oldFreq: row.Old_Frequency || orig["MST Frequency"],
+              oldUnits: row.Old_Units_Required || orig["Units Required"],
+              newLsd: deactivated ? todayIso : (row.New_Last_Scheduled_Date || row.Old_Last_Scheduled_Date || orig["Last Scheduled Date"]),
+              newFreq: deactivated ? row.Old_Frequency || orig["MST Frequency"] : (row.New_Frequency || row.Old_Frequency || orig["MST Frequency"]),
+              newUnits: deactivated ? 0 : (row.New_Units_Required || row.Old_Units_Required || orig["Units Required"])
+            });
+        });
+
+        newDataForAbp.forEach((row) => {
+            const stdJobNo = normalizeStdJobNo(row["Std Job No"] || "");
+            if (!isAbpStdJob(stdJobNo)) return;
+
+            addAbpRow({
+              mstId: "",
+              stdJobNo,
+              changeType: "New MST",
+              commentary: row["ABP Commentary"] || "",
+              baseLsd: row["LSD"],
+              oldLsd: row["LSD"],
+              oldFreq: row["Freq"],
+              oldUnits: 0,
+              newLsd: row["LSD"],
+              newFreq: row["Freq"],
+              newUnits: row["Unit Required"]
+            });
+        });
+
+        if (abpRows.length) {
+            const wsAbp = workbook.addWorksheet("ABP Impact Summary");
+            wsAbp.columns = [
+              { header: "MST ID", key: "MST ID", width: 20 },
+              { header: "Std Job No", key: "Std Job No", width: 12 },
+              { header: "Change Type", key: "Change Type", width: 16 },
+              { header: "ABP Commentary", key: "ABP Commentary", width: 48 },
+              { header: "FY (Current)", key: "FY (Current)", width: 14 },
+              { header: "Old Vol (Curr FY)", key: "Old Vol (Curr FY)", width: 18 },
+              { header: "New Vol (Curr FY)", key: "New Vol (Curr FY)", width: 18 },
+              { header: "Delta Vol (Curr FY)", key: "Delta Vol (Curr FY)", width: 18 },
+              { header: "Old Vol (Next FY)", key: "Old Vol (Next FY)", width: 18 },
+              { header: "New Vol (Next FY)", key: "New Vol (Next FY)", width: 18 },
+              { header: "Delta Vol (Next FY)", key: "Delta Vol (Next FY)", width: 18 },
+              { header: "Rough 4-Week Periods (Curr FY New)", key: "Rough 4-Week Periods (Curr FY New)", width: 52 }
+            ];
+
+            wsAbp.addRow(["ABP volume impact is a rough guide only. Figures are estimated from LSD, frequency, and units across Apr-Mar FY windows."]);
+            wsAbp.mergeCells("A1:L1");
+            wsAbp.getCell("A1").font = { bold: true, color: { argb: "FF7C2D12" } };
+            wsAbp.getCell("A1").fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFDE68A" } };
+
+            const headerRow = wsAbp.getRow(2);
+            wsAbp.columns.forEach((col, idx) => {
+              headerRow.getCell(idx + 1).value = col.header;
+            });
+            headerRow.eachCell((cell) => Object.assign(cell, { style: headerStyle }));
+
+            abpRows.forEach((row) => wsAbp.addRow(row));
+            wsAbp.views = [{ state: 'frozen', ySplit: 2 }];
         }
 
         // ------------------------------------------------------

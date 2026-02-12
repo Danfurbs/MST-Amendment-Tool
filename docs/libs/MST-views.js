@@ -892,9 +892,38 @@
     };
 
     const applyBulkUpdates = () => {
+      const requiresAbpCommentary = pendingChanges.filter((item) => {
+        const requirement = window.MST?.Editor?.getAbpCommentaryRequirement?.(item.mstId, item.updates);
+        item._abpRequirement = requirement || { required: false, abpTracked: false, stdJobNo: '' };
+        return item._abpRequirement.required;
+      });
+
+      let bulkAbpCommentary = '';
+      if (requiresAbpCommentary.length) {
+        const stdJobs = [...new Set(requiresAbpCommentary.map((item) => item._abpRequirement.stdJobNo).filter(Boolean))];
+        const response = prompt(
+          `ABP commentary is required for ${requiresAbpCommentary.length} bulk amendment(s) across Standard Job(s): ${stdJobs.join(', ')}.
+
+` +
+          'Please provide one overarching comment for this bulk update:'
+        );
+
+        if (response === null) return;
+        bulkAbpCommentary = response.toString().trim();
+        if (!bulkAbpCommentary) {
+          alert('Commentary is required for ABP-tracked bulk amendments.');
+          return;
+        }
+      }
+
       let updated = 0;
       pendingChanges.forEach((item) => {
-        const result = window.MST.Editor.applyBulkEdits(item.mstId, item.updates);
+        const updates = { ...item.updates };
+        if (item._abpRequirement?.required && bulkAbpCommentary) {
+          updates.abpCommentary = bulkAbpCommentary;
+        }
+
+        const result = window.MST.Editor.applyBulkEdits(item.mstId, updates);
         if (result) updated += 1;
       });
 
