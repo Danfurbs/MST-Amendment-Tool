@@ -624,6 +624,8 @@ window.MST.Editor.closeNewMSTModal = function () {
 
   const equipDesc = document.getElementById("newEquipDesc");
   if (equipDesc) equipDesc.textContent = "";
+
+  MST.Editor.clearBulkCreateRows();
 };
 
 
@@ -657,6 +659,7 @@ window.MST.Editor.setupBulkCreateMSTTable = function() {
   const closeBtn = document.getElementById("closeBulkCreateMSTBtn");
   const cancelBtn = document.getElementById("bulkCreateCancelBtn");
   const addRowsBtn = document.getElementById("bulkCreateAddRowsBtn");
+  const clearAllBtn = document.getElementById("bulkCreateClearAllBtn");
   const applyBtn = document.getElementById("bulkCreateApplyBtn");
 
   closeBtn?.addEventListener("click", MST.Editor.closeBulkCreateMSTModal);
@@ -665,7 +668,16 @@ window.MST.Editor.setupBulkCreateMSTTable = function() {
     if (evt.target === overlay) MST.Editor.closeBulkCreateMSTModal();
   });
   addRowsBtn?.addEventListener("click", () => MST.Editor.addBulkCreateRows(10));
+  clearAllBtn?.addEventListener("click", MST.Editor.clearBulkCreateRows);
   applyBtn?.addEventListener("click", MST.Editor.applyBulkCreateMSTs);
+};
+
+window.MST.Editor.clearBulkCreateRows = function() {
+  const body = document.getElementById("bulkCreateMSTBody");
+  if (!body) return;
+
+  body.replaceChildren();
+  MST.Editor.addBulkCreateRows(10);
 };
 
 window.MST.Editor.addBulkCreateRows = function(count = 10) {
