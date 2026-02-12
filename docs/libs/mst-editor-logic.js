@@ -1653,6 +1653,12 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     if (!baseEvent) return null;
 
     const props = baseEvent.extendedProps || {};
+    const isDeactivated = props.isDeactivated === true || (baseEvent.classNames || []).includes("deactivated-mst");
+    if (isDeactivated) {
+      alert("This MST is deactivated. Revert it before applying edits.");
+      return null;
+    }
+
     const isNew = props.isNew === true;
     const pickValue = (value, fallback) => (value === undefined ? fallback : value);
 
@@ -1858,11 +1864,17 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     const baseEvent = window.calendar.getEventById(`${mstId}_0`);
     if (!baseEvent) return;
 
+    if (baseEvent.extendedProps?.isDeactivated === true || (baseEvent.classNames || []).includes("deactivated-mst")) {
+      alert("This MST is already deactivated.");
+      return;
+    }
+
     const orig = window.originalProps[mstId];
     const props = baseEvent.extendedProps;
 
     props.workGroup = "DNXXXXX";
     props.schedIndicator = "9";
+    baseEvent.setExtendedProp("isDeactivated", true);
     baseEvent.setProp("backgroundColor", "#000");
     baseEvent.setProp("borderColor", "#000");
     baseEvent.setProp("textColor", "#fff");
