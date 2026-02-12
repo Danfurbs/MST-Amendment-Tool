@@ -3,6 +3,17 @@ const formatDateDMY = (value) => {
   return value ?? "";
 };
 
+const chunkString = (value, chunkSize = 30000) => {
+  const text = String(value ?? "");
+  if (!text) return [""];
+
+  const chunks = [];
+  for (let i = 0; i < text.length; i += chunkSize) {
+    chunks.push(text.slice(i, i + chunkSize));
+  }
+  return chunks;
+};
+
 function formatDateTimeStamp(date) {
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const d = String(date.getDate()).padStart(2, "0");
@@ -44,6 +55,33 @@ function formatDateTimeStamp(date) {
         }
 
         const workbook = new ExcelJS.Workbook();
+
+        const sessionSheet = workbook.addWorksheet("_MST_SESSION");
+        sessionSheet.state = "veryHidden";
+
+        const sessionPayload = {
+            version: 1,
+            exportedAt: new Date().toISOString(),
+            batchNumber,
+            username: username || "",
+            changes: window.changes || {},
+            createdMSTs: window.createdMSTs || {}
+        };
+
+        const payloadText = JSON.stringify(sessionPayload);
+        const payloadChunks = chunkString(payloadText);
+
+        sessionSheet.columns = [
+            { key: "key", width: 30 },
+            { key: "value", width: 120 }
+        ];
+
+        sessionSheet.addRow(["SESSION_SCHEMA", "MST_BATCH_RESUME_V1"]);
+        sessionSheet.addRow(["PAYLOAD_CHUNK_COUNT", String(payloadChunks.length)]);
+        payloadChunks.forEach((chunk, idx) => {
+            const chunkNo = String(idx + 1).padStart(4, "0");
+            sessionSheet.addRow([`PAYLOAD_${chunkNo}`, chunk]);
+        });
 
         const headerSheet = workbook.addWorksheet("Header");
         headerSheet.columns = [
