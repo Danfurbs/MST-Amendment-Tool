@@ -965,7 +965,7 @@
 
     if (!overlay || !panel || !tableBody) return;
 
-    let allEquipment = []; // Cached array of { number, desc }
+    let allEquipment = []; // Cached array of { number, desc1, desc2, plantNo }
     let filteredEquipment = [];
     let currentSearchTerm = '';
     let debounceTimer = null;
@@ -987,10 +987,16 @@
       const map = window.equipmentDescriptions;
 
       if (map && typeof map.forEach === 'function') {
-        map.forEach((desc, equipNo) => {
+        map.forEach((data, equipNo) => {
+          const item = (data && typeof data === 'object')
+            ? data
+            : { desc1: data || '', desc2: '', plantNo: '' };
+
           allEquipment.push({
             number: equipNo || '',
-            desc: desc || ''
+            desc1: item.desc1 || '',
+            desc2: item.desc2 || '',
+            plantNo: item.plantNo || ''
           });
         });
       }
@@ -1039,8 +1045,10 @@
       } else {
         filteredEquipment = allEquipment.filter(item => {
           const numMatch = normalizeText(item.number).includes(normalizedTerm);
-          const descMatch = normalizeText(item.desc).includes(normalizedTerm);
-          return numMatch || descMatch;
+          const desc1Match = normalizeText(item.desc1).includes(normalizedTerm);
+          const desc2Match = normalizeText(item.desc2).includes(normalizedTerm);
+          const plantMatch = normalizeText(item.plantNo).includes(normalizedTerm);
+          return numMatch || desc1Match || desc2Match || plantMatch;
         });
       }
 
@@ -1054,7 +1062,7 @@
       if (equipment.length === 0) {
         const emptyRow = document.createElement('tr');
         emptyRow.innerHTML = `
-          <td colspan="2" class="equip-picker-empty">
+          <td colspan="4" class="equip-picker-empty">
             <span class="equip-picker-empty-icon">&#128269;</span>
             ${searchTerm ? 'No equipment found matching "' + escapeHtml(searchTerm) + '"' : 'No equipment data available'}
           </td>
@@ -1071,7 +1079,9 @@
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td>${highlightMatch(item.number, searchTerm)}</td>
-          <td>${highlightMatch(item.desc, searchTerm)}</td>
+          <td>${highlightMatch(item.desc1, searchTerm)}</td>
+          <td>${highlightMatch(item.desc2, searchTerm)}</td>
+          <td>${highlightMatch(item.plantNo, searchTerm)}</td>
         `;
         tr.addEventListener('click', () => selectEquipment(item));
         tableBody.appendChild(tr);
@@ -1111,7 +1121,7 @@
       }
 
       if (equipDesc) {
-        equipDesc.textContent = item.desc;
+        equipDesc.textContent = item.desc1;
       }
 
       closeOverlay();

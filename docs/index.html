@@ -610,35 +610,15 @@
       <div class="field-block">
         <label>Equipment Number</label>
         <input id="equipDisplay" disabled />
-        <button id="changeEquipBtn" type="button" style="
-          background:#3b82f6;
-          color:white;
-          border:none;
-          border-radius:6px;
-          padding:6px 14px;
-          font-weight:bold;
-          margin-top:6px;
-          cursor:pointer;
-          width:100%;
-          font-size:0.85em;
-        ">Change Equipment</button>
+        <div id="equipDesc1Display" class="equipment-meta-line"></div>
+        <div id="equipDesc2Display" class="equipment-meta-line"></div>
+        <button id="changeEquipBtn" type="button" class="editor-action-btn">Change Equipment</button>
       </div>
 
       <div class="field-block">
         <label>Standard Job Number</label>
         <input id="stdJobDisplay" disabled />
-        <button id="changeStdJobBtn" type="button" style="
-          background:#3b82f6;
-          color:white;
-          border:none;
-          border-radius:6px;
-          padding:6px 14px;
-          font-weight:bold;
-          margin-top:6px;
-          cursor:pointer;
-          width:100%;
-          font-size:0.85em;
-        ">Change Standard Job</button>
+        <button id="changeStdJobBtn" type="button" class="editor-action-btn">Change Standard Job</button>
       </div>
 
       <div class="field-block">
@@ -1447,7 +1427,7 @@ WHERE
      EQUIPMENT PICKER MODAL
 ========================== -->
 <div id="equipPickerOverlay" class="bulk-overlay">
-  <div id="equipPickerPanel" class="bulk-panel" style="width: min(700px, 95vw);">
+  <div id="equipPickerPanel" class="bulk-panel" style="width: min(1050px, 96vw);">
     <div class="bulk-header">
       <h3>Select Equipment</h3>
       <button id="closeEquipPickerBtn" class="bulk-close-btn" title="Close">Close</button>
@@ -1455,7 +1435,7 @@ WHERE
     <div class="bulk-body">
       <div class="equip-picker-search">
         <div class="equip-picker-search-row">
-          <input type="text" id="equipPickerSearch" placeholder="Search by equipment number or description..." autocomplete="off" />
+          <input type="text" id="equipPickerSearch" placeholder="Search by equipment number, descriptions, or plant number..." autocomplete="off" />
           <button id="equipPickerClearBtn" class="equip-picker-clear-btn" title="Clear search">Clear</button>
         </div>
         <div class="equip-picker-stats" id="equipPickerStats"></div>
@@ -1464,8 +1444,10 @@ WHERE
         <table class="bulk-table equip-picker-table">
           <thead>
             <tr>
-              <th style="width:30%;">Equipment Number</th>
-              <th style="width:70%;">Description</th>
+              <th style="width:20%;">Equipment Number</th>
+              <th style="width:30%;">Equipment Description 1</th>
+              <th style="width:30%;">Equipment Description 2</th>
+              <th style="width:20%;">Plant No.</th>
             </tr>
           </thead>
           <tbody id="equipPickerBody"></tbody>

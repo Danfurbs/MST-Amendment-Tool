@@ -223,6 +223,8 @@ const getDomElements = () => ({
   editForm: document.getElementById("editForm"),
   editTvBtn: document.getElementById("editTvBtn"),
   equipDisplay: document.getElementById("equipDisplay"),
+  equipDesc1Display: document.getElementById("equipDesc1Display"),
+  equipDesc2Display: document.getElementById("equipDesc2Display"),
   exportBtn: document.getElementById("exportBtn"),
   exportBtnCompact: document.getElementById("exportBtnCompact"),
   filterDesc1: document.getElementById("filterDesc1"),
@@ -282,6 +284,8 @@ const exposeDomElements = (elements) => {
     editForm,
     editTvBtn,
     equipDisplay,
+    equipDesc1Display,
+    equipDesc2Display,
     freqInput,
     jobDescCodeInput,
     lastDateInput,
@@ -322,6 +326,8 @@ const exposeDomElements = (elements) => {
   window.editForm = editForm;
   window.editTvBtn = editTvBtn;
   window.equipDisplay = equipDisplay;
+  window.equipDesc1Display = equipDesc1Display;
+  window.equipDesc2Display = equipDesc2Display;
   window.freqInput = freqInput;
   window.jobDescCodeInput = jobDescCodeInput;
   window.lastDateInput = lastDateInput;
@@ -590,7 +596,8 @@ window.MST.Editor.openNewMSTModal = function () {
         return;
       }
 
-      equipDesc.textContent = map.get(code) || "";
+      const value = map.get(code);
+      equipDesc.textContent = (value && typeof value === "object") ? (value.desc1 || "") : (value || "");
     };
 
     if (!equipInput.dataset.equipDescBound) {
@@ -1520,11 +1527,20 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
         }
       });
 
+    if (window.equipDesc1Display) window.equipDesc1Display.textContent = "";
+    if (window.equipDesc2Display) window.equipDesc2Display.textContent = "";
+
     window.detailsIntro.style.display = "none";
     window.editForm.style.display = "block";
 
     /* ----- READ-ONLY ----- */
     window.equipDisplay.value = isNew ? (orig.equipmentNo || "") : (orig["Equipment Number"] || "");
+    const equipmentDesc1 = String(baseEvent.extendedProps.equipmentDesc1 ?? (orig["Equipment Description 1"] || "")).trim();
+    const equipmentDesc2 = String(baseEvent.extendedProps.equipmentDesc2 ?? (orig["Equipment Description 2"] || "")).trim();
+
+    if (window.equipDesc1Display) window.equipDesc1Display.textContent = equipmentDesc1;
+    if (window.equipDesc2Display) window.equipDesc2Display.textContent = equipmentDesc2;
+
     window.stdJobDisplay.value = stdJobNo;
     window.taskDisplay.value  = isNew ? (orig.taskNo       || "") : (orig["MST Task Number"]  || "");
     window.mstIdDisplay.value = mstId;
@@ -1813,6 +1829,8 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
       const desc1 = safeText(r["MST Description 1"]);
       const desc2 = clampDesc2(safeText(r["MST Description 2"], MAX_DESC2_LENGTH));
       const equipmentDesc1 = safeText(r["Equipment Description 1"], 200);
+      const equipmentDesc2 = safeText(r["Equipment Description 2"], 200);
+      const plantNo = safeText(r["Plant No."] || r["Plant No"] || r["Plant Number"], 60);
       const workGroup = safeText(r["Work Group Code"]);
       const jobDescCode = safeText(r["Job Description Code"]);
       const tvReference = safeText(r["Temp Var Reference Number"] || r["TV Reference"]);
@@ -1841,6 +1859,8 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
             stdJobUom,
             unitMeasure: stdJobUom,
             equipmentDesc1,
+            equipmentDesc2,
+            plantNo,
             elr: safeText(r["ELR"]),
             trackId: safeText(r["Track ID"]),
             workGroup,
@@ -2165,7 +2185,9 @@ MST.Editor.changeEquipment = function () {
   window.MST.Views = window.MST.Views || {};
   window.MST.Views._equipPickerCallback = function (selectedItem) {
     const newEquipNo = selectedItem.number;
-    const newEquipDesc = selectedItem.desc || "";
+    const newEquipDesc = selectedItem.desc1 || "";
+    const newEquipDesc2 = selectedItem.desc2 || "";
+    const newPlantNo = selectedItem.plantNo || "";
 
     if (!newEquipNo) return;
 
@@ -2247,6 +2269,8 @@ MST.Editor.changeEquipment = function () {
         mstId: newMstId,
         equipmentNo: newEquipNo,
         equipmentDesc1: newEquipDesc,
+        equipmentDesc2: newEquipDesc2,
+        plantNo: newPlantNo,
         taskNo: "",
         stdJobNo,
         desc1,
