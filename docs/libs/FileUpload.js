@@ -552,16 +552,37 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!window.createdMSTs || typeof window.createdMSTs !== "object") window.createdMSTs = {};
 
     const missingMstIds = [];
+    const filteredOutMstIds = [];
     const changeEntries = Object.entries(sessionChanges);
+    const fullDownloadRows = Array.isArray(window.fullDownloadRows) ? window.fullDownloadRows : [];
+    const downloadMstIdSet = new Set(
+      fullDownloadRows
+        .map(deriveMstId)
+        .filter(Boolean)
+    );
 
     changeEntries.forEach(([mstId, row]) => {
       const baseEvent = window.calendar?.getEventById(`${mstId}_0`);
       if (!baseEvent) {
-        missingMstIds.push(mstId);
+        if (downloadMstIdSet.has(mstId)) {
+          filteredOutMstIds.push(mstId);
+        } else {
+          missingMstIds.push(mstId);
+        }
         return;
       }
 
       const props = baseEvent.extendedProps || {};
+      const nextFrequency = row.New_Frequency !== undefined && row.New_Frequency !== ""
+        ? Number.parseInt(row.New_Frequency, 10)
+        : Number.parseInt(props.frequency, 10);
+
+      const scheduleDateValue = row.New_Last_Scheduled_Date || row.Old_Last_Scheduled_Date || "";
+      const normalizedScheduleDate = window.MST?.Utils?.normalizeDateInput?.(scheduleDateValue) || "";
+      const nextScheduleDate = parseIsoDateToLocal(normalizedScheduleDate);
+      const scheduleChanged =
+        (row.New_Frequency !== undefined && row.New_Frequency !== "" && row.New_Frequency != row.Old_Frequency) ||
+        (row.New_Last_Scheduled_Date !== undefined && row.New_Last_Scheduled_Date !== row.Old_Last_Scheduled_Date);
 
       if (row.New_Frequency !== undefined && row.New_Frequency !== "") props.frequency = row.New_Frequency;
       if (row.New_Desc2 !== undefined) props.desc2 = row.New_Desc2;
@@ -577,16 +598,30 @@ document.addEventListener("DOMContentLoaded", function () {
       if (row.New_TV_Expiry_Date !== undefined) props.tvExpiryDate = row.New_TV_Expiry_Date;
       baseEvent.setExtendedProp("_resumeApplied", true);
 
-      if (row.New_Last_Scheduled_Date) {
-        const normalized = window.MST?.Utils?.normalizeDateInput?.(row.New_Last_Scheduled_Date) || "";
-        const lastSched = parseIsoDateToLocal(normalized);
-        if (lastSched) baseEvent.setStart(lastSched);
+      if (nextScheduleDate) {
+        baseEvent.setStart(nextScheduleDate);
       }
 
       if (row.New_Scheduling_Indicator_Code === "9" || row.New_Work_Group_Code === "DNXXXXX") {
         applyDeactivatedStyle(baseEvent);
       } else if (typeof window.MST?.Editor?.markMSTAsChanged === "function") {
         window.MST.Editor.markMSTAsChanged(mstId);
+
+        if (
+          scheduleChanged &&
+          Number.isFinite(nextFrequency) &&
+          nextFrequency > 0 &&
+          nextScheduleDate &&
+          typeof window.MST?.Editor?.rebuildFutureInstances === "function"
+        ) {
+          window.MST.Editor.rebuildFutureInstances(
+            mstId,
+            nextScheduleDate,
+            nextFrequency,
+            props.desc1 || "",
+            props.desc2 || ""
+          );
+        }
       }
 
       window.changes[mstId] = row;
@@ -612,16 +647,30 @@ document.addEventListener("DOMContentLoaded", function () {
       if (compact && batchInput) compact.value = batchInput.value;
     }
 
+    const importWarnings = [];
+
     if (missingMstIds.length) {
       const preview = missingMstIds.slice(0, 10).join(", ");
       const suffix = missingMstIds.length > 10 ? ` ... (+${missingMstIds.length - 10} more)` : "";
-      alert(
-        `Imported batch with ${changeEntries.length} saved change(s).
-
-` +
+      importWarnings.push(
         `${missingMstIds.length} MST(s) are no longer in the current download and could not be re-applied:
-` +
-        `${preview}${suffix}`
+${preview}${suffix}`
+      );
+    }
+
+    if (filteredOutMstIds.length) {
+      const preview = filteredOutMstIds.slice(0, 10).join(", ");
+      const suffix = filteredOutMstIds.length > 10 ? ` ... (+${filteredOutMstIds.length - 10} more)` : "";
+      importWarnings.push(
+        `${filteredOutMstIds.length} MST(s) were skipped because they are not in the currently loaded calendar subset (but they do exist in this download):
+${preview}${suffix}`
+      );
+    }
+
+    if (importWarnings.length) {
+      alert(
+        `Imported batch with ${changeEntries.length} saved change(s).\n\n` +
+        importWarnings.join("\n\n")
       );
       return;
     }
