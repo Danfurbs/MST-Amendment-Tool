@@ -611,6 +611,7 @@ input, button {
 
 /* Submit/cancel buttons */
 #addMSTBtn,
+#openBulkCreateMSTBtn,
 #cancelMSTBtn {
   padding: 10px 24px;
   border-radius: 8px;
@@ -620,7 +621,34 @@ input, button {
   border: none;
 }
 #addMSTBtn { background: #10b981; color: white; }
+#openBulkCreateMSTBtn { background: #2563eb; color: white; margin-left: 10px; }
 #cancelMSTBtn { background: #ef4444; color: white; margin-left: 10px; }
+
+.bulk-create-panel {
+  width: min(96vw, 1800px);
+}
+
+.bulk-create-table-wrapper {
+  max-height: 58vh;
+  overflow: auto;
+}
+
+.bulk-create-table input,
+.bulk-create-table select {
+  min-width: 90px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.bulk-create-table td {
+  padding: 4px;
+}
+
+.bulk-create-table input[readonly] {
+  background: #f3f4f6;
+  color: #374151;
+  cursor: not-allowed;
+}
 
 /* Field that spans both columns */
 #newMSTForm .wide-field {

@@ -1369,11 +1369,11 @@ WHERE
   </label>
 
   <!-- Row 7 -->
-   <label>
+  <label>
   <span class="label-title">
-    Protection Method <span class="required-star">*</span>
+    Protection Method
   </span>
-    <select id="newProtMethod" required></select>
+    <select id="newProtMethod"></select>
   </label>
 
   <label style="display:block;">
@@ -1390,9 +1390,54 @@ WHERE
       <button id="addMSTBtn" style="background:#10b981;color:white;border:none;padding:8px 20px;border-radius:6px;">
         Add MST
       </button>
+      <button id="openBulkCreateMSTBtn" style="background:#2563eb;color:white;border:none;padding:8px 20px;border-radius:6px;margin-left:10px;">
+        Bulk Create
+      </button>
       <button id="cancelMSTBtn" style="background:#ef4444;color:white;border:none;padding:8px 20px;border-radius:6px;margin-left:10px;">
         Cancel
       </button>
+    </div>
+  </div>
+</div>
+
+<div id="bulkCreateMSTOverlay" class="bulk-overlay" aria-hidden="true">
+  <div id="bulkCreateMSTPanel" class="bulk-panel bulk-create-panel" role="dialog" aria-modal="true" aria-labelledby="bulkCreateMSTTitle">
+    <div class="bulk-header">
+      <h3 id="bulkCreateMSTTitle">Bulk Create MSTs</h3>
+      <button id="closeBulkCreateMSTBtn" class="bulk-close-btn" title="Close">✕</button>
+    </div>
+    <div class="bulk-body">
+      <p class="muted-helper">Paste directly into cells (single column or multi-column tabular data). Rows will auto-expand to fit large pastes. Desc 1 and UoM are auto-filled from Std Job.</p>
+      <div class="bulk-table-wrapper bulk-create-table-wrapper">
+        <table class="bulk-table bulk-create-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Equipment *</th>
+              <th>Std Job *</th>
+              <th>Desc 1 *</th>
+              <th>Desc 2</th>
+              <th>Work Group *</th>
+              <th>Job Code *</th>
+              <th>Freq *</th>
+              <th>Last Date *</th>
+              <th>Units *</th>
+              <th>UoM</th>
+              <th>Mileage From</th>
+              <th>Mileage To</th>
+              <th>Protection Type *</th>
+              <th>Protection Method</th>
+              <th>Allow Multiple</th>
+            </tr>
+          </thead>
+          <tbody id="bulkCreateMSTBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="bulk-footer">
+      <button id="bulkCreateAddRowsBtn" class="bulk-secondary-btn">Add 10 rows</button>
+      <button id="bulkCreateApplyBtn" class="primary-action-btn">Create MSTs</button>
+      <button id="bulkCreateCancelBtn" class="bulk-secondary-btn">Close</button>
     </div>
   </div>
 </div>
@@ -1751,10 +1796,12 @@ if (pageHeader && toggleHeaderBtn) {
 const newMSTModal    = document.getElementById("newMSTModal");
 const addMSTBtn      = document.getElementById("addMSTBtn");
 const cancelMSTBtn   = document.getElementById("cancelMSTBtn");
+const openBulkCreateMSTBtn = document.getElementById("openBulkCreateMSTBtn");
 
 // Add MST
 if (addMSTBtn) addMSTBtn.addEventListener("click", () => MST.Editor.addNewMST());
 if (cancelMSTBtn) cancelMSTBtn.addEventListener("click", () => MST.Editor.closeNewMSTModal());
+if (openBulkCreateMSTBtn) openBulkCreateMSTBtn.addEventListener("click", () => MST.Editor.openBulkCreateMSTModal());
 
 document.getElementById("newMSTBtn")?.addEventListener("click", () => MST.Editor.openNewMSTModal());
 

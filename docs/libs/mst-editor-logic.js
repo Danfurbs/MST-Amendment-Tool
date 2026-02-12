@@ -627,6 +627,217 @@ window.MST.Editor.closeNewMSTModal = function () {
 };
 
 
+window.MST.Editor.openBulkCreateMSTModal = function() {
+  const overlay = document.getElementById("bulkCreateMSTOverlay");
+  const body = document.getElementById("bulkCreateMSTBody");
+  if (!overlay || !body) return;
+
+  overlay.classList.add("active");
+  overlay.setAttribute("aria-hidden", "false");
+
+  if (!body.dataset.initialized) {
+    MST.Editor.setupBulkCreateMSTTable();
+    body.dataset.initialized = "true";
+  }
+
+  if (!body.children.length) {
+    MST.Editor.addBulkCreateRows(10);
+  }
+};
+
+window.MST.Editor.closeBulkCreateMSTModal = function() {
+  const overlay = document.getElementById("bulkCreateMSTOverlay");
+  if (!overlay) return;
+  overlay.classList.remove("active");
+  overlay.setAttribute("aria-hidden", "true");
+};
+
+window.MST.Editor.setupBulkCreateMSTTable = function() {
+  const overlay = document.getElementById("bulkCreateMSTOverlay");
+  const closeBtn = document.getElementById("closeBulkCreateMSTBtn");
+  const cancelBtn = document.getElementById("bulkCreateCancelBtn");
+  const addRowsBtn = document.getElementById("bulkCreateAddRowsBtn");
+  const applyBtn = document.getElementById("bulkCreateApplyBtn");
+
+  closeBtn?.addEventListener("click", MST.Editor.closeBulkCreateMSTModal);
+  cancelBtn?.addEventListener("click", MST.Editor.closeBulkCreateMSTModal);
+  overlay?.addEventListener("click", (evt) => {
+    if (evt.target === overlay) MST.Editor.closeBulkCreateMSTModal();
+  });
+  addRowsBtn?.addEventListener("click", () => MST.Editor.addBulkCreateRows(10));
+  applyBtn?.addEventListener("click", MST.Editor.applyBulkCreateMSTs);
+};
+
+window.MST.Editor.addBulkCreateRows = function(count = 10) {
+  const body = document.getElementById("bulkCreateMSTBody");
+  if (!body) return;
+
+  const start = body.children.length;
+  for (let i = 0; i < count; i += 1) {
+    const rowIndex = start + i + 1;
+    body.appendChild(MST.Editor.buildBulkCreateRow(rowIndex));
+  }
+};
+
+window.MST.Editor.ensureBulkCreateRowCount = function(requiredRows) {
+  const body = document.getElementById("bulkCreateMSTBody");
+  if (!body) return;
+  const missing = requiredRows - body.children.length;
+  if (missing > 0) {
+    MST.Editor.addBulkCreateRows(missing);
+  }
+};
+
+window.MST.Editor.populateBulkCreateStdJobFields = function(rowEl) {
+  if (!rowEl) return;
+  const stdJobField = rowEl.querySelector('input[data-col="stdJobNo"]');
+  const desc1Field = rowEl.querySelector('input[data-col="desc1"]');
+  const uomField = rowEl.querySelector('input[data-col="stdJobUom"]');
+  if (!stdJobField || !desc1Field || !uomField) return;
+
+  const code = stdJobField.value.trim();
+  const jobDef = window.STANDARD_JOBS?.[code];
+  desc1Field.value = jobDef?.desc1 || "";
+  uomField.value = jobDef?.uom || "";
+};
+
+window.MST.Editor.buildBulkCreateRow = function(rowIndex) {
+  const tr = document.createElement("tr");
+  tr.innerHTML = `
+    <td>${rowIndex}</td>
+    <td><input data-col="equipNo" /></td>
+    <td><input data-col="stdJobNo" /></td>
+    <td><input data-col="desc1" readonly tabindex="-1" /></td>
+    <td><input data-col="desc2" maxlength="45" /></td>
+    <td><input data-col="wgCode" /></td>
+    <td><select data-col="jobDescCode"></select></td>
+    <td><input data-col="freq" type="number" min="1" /></td>
+    <td><input data-col="lastDateStr" type="date" /></td>
+    <td><input data-col="unitsReq" type="number" /></td>
+    <td><input data-col="stdJobUom" readonly tabindex="-1" /></td>
+    <td><input data-col="segFrom" /></td>
+    <td><input data-col="segTo" /></td>
+    <td><select data-col="protType"></select></td>
+    <td><select data-col="protMethod"></select></td>
+    <td><input data-col="allowMultiple" placeholder="YES/NO" /></td>
+  `;
+
+  const selectJob = tr.querySelector('select[data-col="jobDescCode"]');
+  selectJob.innerHTML = '<option value=""></option>';
+  (window.MST_VARIABLES?.jobDescCodes || []).forEach(jd => {
+    const opt = document.createElement("option");
+    opt.value = jd.code;
+    opt.textContent = `${jd.code} — ${jd.desc}`;
+    selectJob.appendChild(opt);
+  });
+
+  const selectPt = tr.querySelector('select[data-col="protType"]');
+  selectPt.innerHTML = '<option value=""></option>';
+  (window.MST_VARIABLES?.protectionTypes || []).forEach(pt => {
+    const opt = document.createElement("option");
+    opt.value = pt.code;
+    opt.textContent = `${pt.code} — ${pt.desc}`;
+    selectPt.appendChild(opt);
+  });
+
+  const selectPm = tr.querySelector('select[data-col="protMethod"]');
+  selectPm.innerHTML = '<option value=""></option>';
+  (window.MST_VARIABLES?.protectionMethods || []).forEach(pm => {
+    const opt = document.createElement("option");
+    opt.value = pm.code;
+    opt.textContent = `${pm.code} — ${pm.desc}`;
+    selectPm.appendChild(opt);
+  });
+
+  const stdJobField = tr.querySelector('input[data-col="stdJobNo"]');
+  stdJobField?.addEventListener("input", () => MST.Editor.populateBulkCreateStdJobFields(tr));
+
+  tr.querySelectorAll("input, select").forEach((field) => {
+    field.addEventListener("paste", MST.Editor.handleBulkCreatePaste);
+  });
+
+  return tr;
+};
+
+window.MST.Editor.handleBulkCreatePaste = function(evt) {
+  const target = evt.target;
+  if (!target?.dataset?.col) return;
+
+  const text = evt.clipboardData?.getData("text/plain");
+  if (!text) return;
+
+  const rows = text.replace(/\r/g, "").split("\n").filter(Boolean).map(line => line.split("\t"));
+  if (!rows.length) return;
+
+  evt.preventDefault();
+
+  const tr = target.closest("tr");
+  const body = tr?.parentElement;
+  if (!tr || !body) return;
+
+  const startRow = Array.from(body.children).indexOf(tr);
+  const fields = Array.from(tr.querySelectorAll("input, select"));
+  const startCol = fields.indexOf(target);
+
+  MST.Editor.ensureBulkCreateRowCount(startRow + rows.length);
+
+  rows.forEach((vals, rowOffset) => {
+    const destRow = body.children[startRow + rowOffset];
+    if (!destRow) return;
+    const destFields = Array.from(destRow.querySelectorAll("input, select"));
+
+    vals.forEach((val, colOffset) => {
+      const field = destFields[startCol + colOffset];
+      if (!field || field.hasAttribute("readonly")) return;
+      field.value = val.trim();
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    MST.Editor.populateBulkCreateStdJobFields(destRow);
+  });
+};
+
+
+window.MST.Editor.applyBulkCreateMSTs = function() {
+  const body = document.getElementById("bulkCreateMSTBody");
+  if (!body) return;
+
+  const rows = Array.from(body.querySelectorAll("tr"));
+  const payloads = [];
+  const errors = [];
+
+  rows.forEach((row, idx) => {
+    const fields = Object.fromEntries(
+      Array.from(row.querySelectorAll("input, select")).map((el) => [el.dataset.col, el.value])
+    );
+
+    const hasData = Object.values(fields).some(v => String(v || "").trim() !== "");
+    if (!hasData) return;
+
+    const result = MST.Editor.buildNewMstPayload(fields, { rowLabel: `Row ${idx + 1}` });
+    if (!result.ok) {
+      errors.push(result.error);
+      return;
+    }
+
+    payloads.push(result.data);
+  });
+
+  if (!payloads.length && !errors.length) {
+    alert("No data entered. Add at least one MST row.");
+    return;
+  }
+
+  if (errors.length) {
+    alert("Cannot create MSTs until all errors are fixed:\n\n" + errors.join("\n"));
+    return;
+  }
+
+  payloads.forEach(payload => MST.Editor.createMstFromPayload(payload));
+
+  alert(`Created ${payloads.length} MST(s).`);
+  MST.Editor.closeBulkCreateMSTModal();
+};
 
 (function() {
 
@@ -1376,6 +1587,7 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     /* Protection Type */
     const ptSelect = window.protTypeInput;
     ptSelect.innerHTML = "";
+    ptSelect.appendChild(new Option("", "", true, false));
     const currentPTRaw =
       (baseEvent.extendedProps.protType ||
        orig["Protection Type Code"] ||
@@ -1392,9 +1604,14 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
       ptSelect.appendChild(opt);
     });
 
+    if (![...ptSelect.options].some(o => o.value === currentPT)) {
+      ptSelect.value = "";
+    }
+
     /* Protection Method */
     const pmSelect = window.protMethodInput;
     pmSelect.innerHTML = "";
+    pmSelect.appendChild(new Option("", "", true, false));
     const currentPMRaw =
       (baseEvent.extendedProps.protMethod ||
        orig["Protection Method Code"] ||
@@ -1410,6 +1627,10 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
       if (pm.code === currentPM) opt.selected = true;
       pmSelect.appendChild(opt);
     });
+
+    if (![...pmSelect.options].some(o => o.value === currentPM)) {
+      pmSelect.value = "";
+    }
 
     if (typeof MST?.Editor?.refreshNextScheduledDisplay === "function") {
       MST.Editor.refreshNextScheduledDisplay();
@@ -2311,47 +2532,99 @@ MST.Editor.changeStandardJob = function () {
 };
 
 /* ----------------------------------------
-   ADD NEW MST (used by New MST modal)
+   NEW MST CREATION HELPERS
 ---------------------------------------- */
-MST.Editor.addNewMST = function () {
+MST.Editor.buildNewMstPayload = function(input, options = {}) {
+  const rowLabel = options.rowLabel || "MST";
 
-  const equipNo     = document.getElementById("newEquipNo").value.trim();
-  const stdJobNo    = document.getElementById("newStdJobNo").value.trim();
-  const stdJobUom   = (
+  const equipNo = String(input.equipNo || "").trim();
+  const stdJobNo = String(input.stdJobNo || "").trim();
+  const desc1 = String(input.desc1 || "").trim();
+  const desc2 = clampDesc2(String(input.desc2 || "").trim());
+  const jobDescCode = String(input.jobDescCode || "").trim();
+  const freq = parseInt(String(input.freq || "").trim(), 10);
+  const lastDateStr = String(input.lastDateStr || "").trim();
+  const unitsReq = String(input.unitsReq || "").trim();
+  const protType = String(input.protType || "").trim();
+  const protMethod = String(input.protMethod || "").trim();
+  const wgCode = String(input.wgCode || "").trim();
+  const segFrom = String(input.segFrom || "").trim();
+  const segTo = String(input.segTo || "").trim();
+  const allowMultiple = normalizeAllowMultipleFlag(input.allowMultiple);
+
+  const stdJobUom = (
     window.STANDARD_JOBS?.[stdJobNo]?.uom ||
-    document.getElementById("newUnitMeasure").value.trim() ||
+    String(input.stdJobUom || "").trim() ||
     ""
   ).toString().trim();
-  const desc1       = document.getElementById("newDesc1").value.trim();
-  const desc2       = clampDesc2(document.getElementById("newDesc2").value.trim());
-  const jobDescCode = document.getElementById("newJobCode").value.trim();
-  const freq        = parseInt(document.getElementById("newFreq").value.trim(), 10);
-  const lastDateStr = document.getElementById("newLastDate").value;
-    const unitsReq    = document.getElementById("newUnits").value.trim();
-    const protType    = document.getElementById("newProtType").value.trim();
-    const protMethod  = document.getElementById("newProtMethod").value.trim();
-    const wgCode      = document.getElementById("newWorkGroup").value.trim();
-    const allowMultiple = normalizeAllowMultipleFlag(
-      document.getElementById("newAllowMultiple")?.checked ? "YES" : ""
-    );
 
-  // Validation
-  if (!equipNo || !stdJobNo || !desc1 || !jobDescCode ||
-      !freq || !lastDateStr || !unitsReq || !protType || !protMethod) {
-    alert("Please complete all mandatory fields marked with *.");
-    return;
+  if (!equipNo || !stdJobNo || !desc1 || !jobDescCode || !freq || !lastDateStr || !unitsReq || !protType || !wgCode) {
+    return { ok: false, error: `${rowLabel}: Please complete all mandatory fields marked with *.` };
   }
 
   const lastDate = new Date(lastDateStr);
-  lastDate.setHours(9,0,0,0);
-  const mstId = `${equipNo}_${stdJobNo}`;
+  if (Number.isNaN(lastDate.getTime())) {
+    return { ok: false, error: `${rowLabel}: Last Scheduled Date is invalid.` };
+  }
 
-  // Add base event (GREEN)
+  lastDate.setHours(9, 0, 0, 0);
+  const mstId = `${equipNo}_${stdJobNo}`;
+  if (window.calendar.getEventById(`${mstId}_0`)) {
+    return {
+      ok: false,
+      error: `${rowLabel}: MST ${mstId} already exists. Duplicates are not allowed.`
+    };
+  }
+
+  return {
+    ok: true,
+    data: {
+      mstId,
+      equipNo,
+      stdJobNo,
+      stdJobUom,
+      desc1,
+      desc2,
+      jobDescCode,
+      freq,
+      lastDate,
+      lastDateStr,
+      unitsReq,
+      protType,
+      protMethod,
+      wgCode,
+      segFrom,
+      segTo,
+      allowMultiple
+    }
+  };
+};
+
+MST.Editor.createMstFromPayload = function(payload) {
+  const {
+    mstId,
+    equipNo,
+    stdJobNo,
+    stdJobUom,
+    desc1,
+    desc2,
+    jobDescCode,
+    freq,
+    lastDate,
+    lastDateStr,
+    unitsReq,
+    protType,
+    protMethod,
+    wgCode,
+    segFrom,
+    segTo,
+    allowMultiple
+  } = payload;
+
   const baseEvent = window.calendar.addEvent({
     id: `${mstId}_0`,
     title: `${equipNo} — ${desc1}`,
     start: lastDate,
-
     backgroundColor: MST.Utils.BASE_COLOR,
     borderColor: MST.Utils.BASE_COLOR,
     extendedProps: {
@@ -2366,8 +2639,8 @@ MST.Editor.addNewMST = function () {
       jobDescCode,
       unitsRequired: unitsReq,
       stdJobUom,
-      segFrom: document.getElementById("newFrom").value.trim(),
-      segTo: document.getElementById("newTo").value.trim(),
+      segFrom,
+      segTo,
       protType,
       protMethod,
       allowMultiple,
@@ -2380,18 +2653,10 @@ MST.Editor.addNewMST = function () {
     }
   });
 
-  // Build amber + red future instances
   if (typeof E.rebuildFutureInstances === "function") {
-    E.rebuildFutureInstances(
-      mstId,
-      lastDate,
-      freq,
-      desc1,
-      desc2
-    );
+    E.rebuildFutureInstances(mstId, lastDate, freq, desc1, desc2);
   }
 
-  // Track newly created MSTs for export
   if (!window.createdMSTs) window.createdMSTs = {};
   window.createdMSTs[mstId] = {
     "Equipment": equipNo,
@@ -2406,15 +2671,15 @@ MST.Editor.addNewMST = function () {
     "MST Desc 2": desc2,
     "Freq": freq,
     "Unit Required": unitsReq,
-    "Unit of Work": document.getElementById("newUnitMeasure").value.trim(),
+    "Unit of Work": stdJobUom,
     "Sched Ind": "1",
     "Work Group": wgCode,
     "Std Job No": stdJobNo,
     "LPD": "",
     "LSD": lastDateStr,
     "NSD": "",
-    "Segment From": document.getElementById("newFrom").value.trim(),
-    "Segment To": document.getElementById("newTo").value.trim(),
+    "Segment From": segFrom,
+    "Segment To": segTo,
     "Segment UOM": "",
     "Assign To": "",
     "ProtectionType": protType,
@@ -2423,15 +2688,43 @@ MST.Editor.addNewMST = function () {
     "TV Expiry Date": ""
   };
 
-  // Update new MST count display
   if (typeof E.updateNewMstCount === "function") {
     E.updateNewMstCount();
   }
 
-  // Close modal
-  MST.Editor.closeNewMSTModal();
+  return { mstId, baseEvent };
+};
 
-  // Immediately open the editor
+/* ----------------------------------------
+   ADD NEW MST (used by New MST modal)
+---------------------------------------- */
+MST.Editor.addNewMST = function () {
+  const payloadResult = MST.Editor.buildNewMstPayload({
+    equipNo: document.getElementById("newEquipNo")?.value,
+    stdJobNo: document.getElementById("newStdJobNo")?.value,
+    stdJobUom: document.getElementById("newUnitMeasure")?.value,
+    desc1: document.getElementById("newDesc1")?.value,
+    desc2: document.getElementById("newDesc2")?.value,
+    jobDescCode: document.getElementById("newJobCode")?.value,
+    freq: document.getElementById("newFreq")?.value,
+    lastDateStr: document.getElementById("newLastDate")?.value,
+    unitsReq: document.getElementById("newUnits")?.value,
+    protType: document.getElementById("newProtType")?.value,
+    protMethod: document.getElementById("newProtMethod")?.value,
+    wgCode: document.getElementById("newWorkGroup")?.value,
+    segFrom: document.getElementById("newFrom")?.value,
+    segTo: document.getElementById("newTo")?.value,
+    allowMultiple: document.getElementById("newAllowMultiple")?.checked ? "YES" : ""
+  });
+
+  if (!payloadResult.ok) {
+    alert(payloadResult.error);
+    return;
+  }
+
+  const { mstId, baseEvent } = MST.Editor.createMstFromPayload(payloadResult.data);
+
+  MST.Editor.closeNewMSTModal();
   MST.Editor.openEditorForMST(mstId, baseEvent);
 };
 
