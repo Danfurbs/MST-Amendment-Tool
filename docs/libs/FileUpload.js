@@ -38,6 +38,8 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   const fileInput = document.getElementById("fileInput");
+  const previousBatchInput = document.getElementById("previousBatchInput");
+  const continueBatchBtn = document.getElementById("continueBatchBtn");
   const fileInputLabel = document.querySelector('label[for="fileInput"]');
   const fileInputLabelText = document.querySelector(".file-upload-label-text");
   const loading = document.getElementById("loading");
@@ -52,6 +54,12 @@ document.addEventListener("DOMContentLoaded", function () {
   const loadingMessage = document.getElementById("loadingMessage");
   const loadingProgressBar = document.getElementById("loadingProgressBar");
   const loadingStep = document.getElementById("loadingStep");
+  const resumeBatchModal = document.getElementById("resumeBatchModal");
+  const resumeBatchMessage = document.getElementById("resumeBatchMessage");
+  const resumeBatchUpload = document.getElementById("resumeBatchUpload");
+  const resumeBatchCancel = document.getElementById("resumeBatchCancel");
+
+  let pendingSessionPayload = null;
 
   /** Show loading overlay with progress */
   function showLoading(title, message, step) {
@@ -406,6 +414,247 @@ document.addEventListener("DOMContentLoaded", function () {
     return map;
   }
 
+
+  function parseSessionPayloadFromWorkbook(workbook) {
+    const sessionSheet = workbook.Sheets["_MST_SESSION"];
+    if (!sessionSheet) return null;
+
+    const rows = XLSX.utils.sheet_to_json(sessionSheet, { header: 1, blankrows: false, defval: "" });
+    if (!rows.length) return null;
+
+    const rowMap = new Map();
+    rows.forEach(r => {
+      if (!Array.isArray(r) || !r.length) return;
+      const key = safeTrim(r[0]);
+      if (!key) return;
+      rowMap.set(key, r[1] ?? "");
+    });
+
+    const schema = safeTrim(rowMap.get("SESSION_SCHEMA"));
+    if (schema !== "MST_BATCH_RESUME_V1") return null;
+
+    const chunkCount = Number.parseInt(rowMap.get("PAYLOAD_CHUNK_COUNT"), 10);
+    if (!Number.isFinite(chunkCount) || chunkCount <= 0) return null;
+
+    const chunks = [];
+    for (let i = 1; i <= chunkCount; i += 1) {
+      const chunkNo = String(i).padStart(4, "0");
+      const key = `PAYLOAD_${chunkNo}`;
+      chunks.push(String(rowMap.get(key) ?? ""));
+    }
+
+    const payloadText = chunks.join("");
+    if (!payloadText) return null;
+
+    return JSON.parse(payloadText);
+  }
+
+  function showResumeModal(message) {
+    if (!resumeBatchModal) return;
+    if (resumeBatchMessage) {
+      resumeBatchMessage.textContent = message || "Please upload the latest MST download to continue this batch.";
+    }
+    resumeBatchModal.style.display = "flex";
+  }
+
+  function hideResumeModal() {
+    if (!resumeBatchModal) return;
+    resumeBatchModal.style.display = "none";
+  }
+
+  function parseIsoDateToLocal(iso) {
+    if (!iso || typeof iso !== "string") return null;
+    const match = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) return null;
+    const year = Number(match[1]);
+    const month = Number(match[2]) - 1;
+    const day = Number(match[3]);
+    const d = new Date(year, month, day, 9, 0, 0, 0);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+
+  function applyDeactivatedStyle(baseEvent) {
+    if (!baseEvent) return;
+    baseEvent.setProp("backgroundColor", "#000");
+    baseEvent.setProp("borderColor", "#000");
+    baseEvent.setProp("textColor", "#fff");
+    baseEvent.setProp("classNames", ["deactivated-mst"]);
+  }
+
+  function hydrateCreatedMstFromSession(createdRows) {
+    if (!window.calendar || !Array.isArray(createdRows)) return;
+
+    createdRows.forEach(row => {
+      const equipNo = safeTrim(row["Equipment"]);
+      const stdJobNo = safeTrim(row["Std Job No"]);
+      if (!equipNo || !stdJobNo) return;
+
+      const mstId = `${equipNo}_${stdJobNo}`;
+      if (window.calendar.getEventById(`${mstId}_0`)) return;
+
+      const lsd = safeTrim(row["LSD"]);
+      const normalizedLsd = (window.MST?.Utils?.normalizeDateInput?.(lsd) || "");
+      const startDate = parseIsoDateToLocal(normalizedLsd);
+      if (!startDate) return;
+
+      const frequency = Number.parseInt(row["Freq"], 10) || 0;
+      const desc1 = safeTrim(row["MST Desc 1"]);
+      const desc2 = safeTrim(row["MST Desc 2"]);
+
+      window.calendar.addEvent({
+        id: `${mstId}_0`,
+        title: `${equipNo} — ${desc1}`,
+        start: startDate,
+        backgroundColor: window.MST?.Utils?.BASE_COLOR || "#10b981",
+        borderColor: window.MST?.Utils?.BASE_COLOR || "#10b981",
+        extendedProps: {
+          mstId,
+          equipmentNo: equipNo,
+          taskNo: "",
+          stdJobNo,
+          desc1,
+          desc2,
+          frequency,
+          workGroup: safeTrim(row["Work Group"]),
+          jobDescCode: safeTrim(row["Job Desc Code"]),
+          unitsRequired: safeTrim(row["Unit Required"]),
+          stdJobUom: safeTrim(row["Unit of Work"]),
+          unitMeasure: safeTrim(row["Unit of Work"]),
+          segFrom: safeTrim(row["Segment From"]),
+          segTo: safeTrim(row["Segment To"]),
+          protType: safeTrim(row["ProtectionType"]),
+          protMethod: safeTrim(row["ProtectionMethod"]),
+          allowMultiple: safeTrim(row["Allow Multiple workorders"]),
+          instance: 0,
+          isNew: true,
+          tvReference: safeTrim(row["TV Reference"]),
+          tvExpiryDate: safeTrim(row["TV Expiry Date"]),
+          hasTvReference: Boolean(safeTrim(row["TV Reference"]))
+        }
+      });
+
+      if (typeof window.MST?.Editor?.rebuildFutureInstances === "function") {
+        window.MST.Editor.rebuildFutureInstances(mstId, startDate, frequency, desc1, desc2);
+      }
+    });
+  }
+
+  function applySessionPayload(payload) {
+    if (!payload || typeof payload !== "object") {
+      alert("The selected batch file did not contain usable session data.");
+      return;
+    }
+
+    const sessionChanges = payload.changes && typeof payload.changes === "object" ? payload.changes : {};
+    const sessionCreated = payload.createdMSTs && typeof payload.createdMSTs === "object" ? payload.createdMSTs : {};
+
+    if (!window.changes || typeof window.changes !== "object") window.changes = {};
+    if (!window.createdMSTs || typeof window.createdMSTs !== "object") window.createdMSTs = {};
+
+    const missingMstIds = [];
+    const changeEntries = Object.entries(sessionChanges);
+
+    changeEntries.forEach(([mstId, row]) => {
+      const baseEvent = window.calendar?.getEventById(`${mstId}_0`);
+      if (!baseEvent) {
+        missingMstIds.push(mstId);
+        return;
+      }
+
+      const props = baseEvent.extendedProps || {};
+
+      if (row.New_Frequency !== undefined && row.New_Frequency !== "") props.frequency = row.New_Frequency;
+      if (row.New_Desc2 !== undefined) props.desc2 = row.New_Desc2;
+      if (row.New_Work_Group_Code !== undefined && row.New_Work_Group_Code !== "") props.workGroup = row.New_Work_Group_Code;
+      if (row.New_Job_Desc_Code !== undefined && row.New_Job_Desc_Code !== "") props.jobDescCode = row.New_Job_Desc_Code;
+      if (row.New_Units_Required !== undefined && row.New_Units_Required !== "") props.unitsRequired = row.New_Units_Required;
+      if (row.New_Segment_From !== undefined && row.New_Segment_From !== "") props.segFrom = row.New_Segment_From;
+      if (row.New_Segment_To !== undefined && row.New_Segment_To !== "") props.segTo = row.New_Segment_To;
+      if (row.New_Protection_Type_Code !== undefined && row.New_Protection_Type_Code !== "") props.protType = row.New_Protection_Type_Code;
+      if (row.New_Protection_Method_Code !== undefined && row.New_Protection_Method_Code !== "") props.protMethod = row.New_Protection_Method_Code;
+      if (row.New_Allow_Multiple_Workorders !== undefined) props.allowMultiple = row.New_Allow_Multiple_Workorders;
+      if (row.New_TV_Reference !== undefined) props.tvReference = row.New_TV_Reference;
+      if (row.New_TV_Expiry_Date !== undefined) props.tvExpiryDate = row.New_TV_Expiry_Date;
+      baseEvent.setExtendedProp("_resumeApplied", true);
+
+      if (row.New_Last_Scheduled_Date) {
+        const normalized = window.MST?.Utils?.normalizeDateInput?.(row.New_Last_Scheduled_Date) || "";
+        const lastSched = parseIsoDateToLocal(normalized);
+        if (lastSched) baseEvent.setStart(lastSched);
+      }
+
+      if (row.New_Scheduling_Indicator_Code === "9" || row.New_Work_Group_Code === "DNXXXXX") {
+        applyDeactivatedStyle(baseEvent);
+      } else if (typeof window.MST?.Editor?.markMSTAsChanged === "function") {
+        window.MST.Editor.markMSTAsChanged(mstId);
+      }
+
+      window.changes[mstId] = row;
+    });
+
+    Object.assign(window.createdMSTs, sessionCreated);
+    hydrateCreatedMstFromSession(Object.values(sessionCreated));
+
+    if (window.changeCount) {
+      window.changeCount.innerText = `Changes: ${Object.keys(window.changes).length}`;
+    }
+
+    const newMstCountEl = document.getElementById("newMstCount");
+    if (newMstCountEl) {
+      const count = Object.keys(window.createdMSTs || {}).length;
+      newMstCountEl.textContent = count ? `New MSTs: ${count}` : "";
+    }
+
+    if (payload.batchNumber) {
+      const batchInput = document.getElementById("batchNumber");
+      const compact = document.getElementById("batchNumberCompact");
+      if (batchInput && !batchInput.value.trim()) batchInput.value = payload.batchNumber;
+      if (compact && batchInput) compact.value = batchInput.value;
+    }
+
+    if (missingMstIds.length) {
+      const preview = missingMstIds.slice(0, 10).join(", ");
+      const suffix = missingMstIds.length > 10 ? ` ... (+${missingMstIds.length - 10} more)` : "";
+      alert(
+        `Imported batch with ${changeEntries.length} saved change(s).
+
+` +
+        `${missingMstIds.length} MST(s) are no longer in the current download and could not be re-applied:
+` +
+        `${preview}${suffix}`
+      );
+      return;
+    }
+
+    alert("Previous batch data has been imported and re-applied.");
+  }
+
+  function handleSessionWorkbook(data) {
+    try {
+      const workbook = XLSX.read(data, { type: "binary" });
+      const payload = parseSessionPayloadFromWorkbook(workbook);
+
+      if (!payload) {
+        alert("No resumable batch metadata was found in that file.");
+        return;
+      }
+
+      const hasSavedChanges = Object.keys(payload.changes || {}).length > 0;
+      const hasDownloadLoaded = Array.isArray(window.originalRows) && window.originalRows.length > 0;
+
+      if (!hasDownloadLoaded && hasSavedChanges) {
+        pendingSessionPayload = payload;
+        showResumeModal("This batch includes MST amendments. Upload the latest MST download first so we can re-apply the saved changes safely.");
+        return;
+      }
+
+      applySessionPayload(payload);
+    } catch (err) {
+      console.error(err);
+      alert("Unable to read the selected batch file. Please choose an exported MST Changes workbook.");
+    }
+  }
+
   function parseAndLoadWorkbook(rawData, workbookType) {
     debugStep("Workbook data captured");
     updateLoadingProgress(20, "Parsing Excel workbook...");
@@ -550,6 +799,11 @@ document.addEventListener("DOMContentLoaded", function () {
         try {
           debugStep("Requesting MST render");
           MST.Editor.loadMSTs(annotatedRows);
+          if (pendingSessionPayload) {
+            const payloadToApply = pendingSessionPayload;
+            pendingSessionPayload = null;
+            applySessionPayload(payloadToApply);
+          }
           debugStep("MST render requested successfully");
           updateLoadingProgress(100, "Complete!");
           setTimeout(hideLoading, 300);
@@ -784,6 +1038,32 @@ document.addEventListener("DOMContentLoaded", function () {
       alert(msg);
     }
   }
+
+  continueBatchBtn?.addEventListener("click", () => {
+    previousBatchInput?.click();
+  });
+
+  previousBatchInput?.addEventListener("change", e => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      handleSessionWorkbook(ev.target.result);
+      if (previousBatchInput) previousBatchInput.value = "";
+    };
+    reader.readAsBinaryString(file);
+  });
+
+  resumeBatchCancel?.addEventListener("click", () => {
+    pendingSessionPayload = null;
+    hideResumeModal();
+  });
+
+  resumeBatchUpload?.addEventListener("click", () => {
+    hideResumeModal();
+    fileInput?.click();
+  });
 
   fileInput.addEventListener("change", e => {
     debugStep("File change event fired");

@@ -178,6 +178,25 @@
       box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
       font-size: 12.5px;
     }
+    .secondary-upload-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: #0f766e;
+      color: #fff;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+      text-decoration: none;
+      box-shadow: 0 2px 10px rgba(15, 118, 110, 0.25);
+      font-size: 12.5px;
+    }
+    .secondary-upload-btn:hover {
+      background: #0b5f59;
+    }
     .file-upload-btn.disabled {
       background: #94a3b8;
       cursor: not-allowed;
@@ -855,6 +874,8 @@
                 <span class="file-upload-label-text">📄 Choose file</span>
                 <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" />
               </label>
+              <button id="continueBatchBtn" type="button" class="secondary-upload-btn">↺ Continue Working on a Batch</button>
+              <input type="file" id="previousBatchInput" accept=".xlsx,.xls" style="display:none;" />
               <div class="batch-field">
                 <label for="batchNumber">Batch Number</label>
                 <input type="text" id="batchNumber" placeholder="LANDC....." />
@@ -1558,6 +1579,42 @@ Hold <strong>Ctrl</strong> (or <strong>Cmd</strong> on Mac) to select multiple
       <div id="loadingProgressBar" class="loading-progress-bar"></div>
     </div>
     <p id="loadingStep" class="loading-step">Initializing...</p>
+  </div>
+</div>
+
+<div id="resumeBatchModal" style="
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(15,23,42,0.6);
+  z-index:10020;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+">
+  <div style="
+    background:#ffffff;
+    width:min(520px, 92vw);
+    border-radius:14px;
+    border:1px solid #cbd5e1;
+    box-shadow:0 20px 45px rgba(15,23,42,0.25);
+    padding:18px;
+    color:#0f172a;
+  ">
+    <h3 style="margin:0 0 10px 0; font-size:18px;">Upload latest MST download</h3>
+    <p id="resumeBatchMessage" style="margin:0 0 16px 0; color:#334155; line-height:1.35; font-size:13px;"></p>
+    <div style="display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap;">
+      <button id="resumeBatchCancel" type="button" style="
+        border:1px solid #94a3b8;
+        background:#fff;
+        color:#334155;
+        border-radius:8px;
+        padding:8px 12px;
+        font-weight:700;
+        cursor:pointer;
+      ">Cancel</button>
+      <button id="resumeBatchUpload" type="button" class="primary-action-btn">Upload MST Download</button>
+    </div>
   </div>
 </div>
 
