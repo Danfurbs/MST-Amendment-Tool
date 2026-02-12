@@ -505,6 +505,7 @@ document.addEventListener("DOMContentLoaded", function () {
         id: `${mstId}_0`,
         title: `${equipNo} — ${desc1}`,
         start: startDate,
+        allDay: false,
         backgroundColor: window.MST?.Utils?.BASE_COLOR || "#10b981",
         borderColor: window.MST?.Utils?.BASE_COLOR || "#10b981",
         extendedProps: {
@@ -595,7 +596,9 @@ document.addEventListener("DOMContentLoaded", function () {
       baseEvent.setExtendedProp("_resumeApplied", true);
 
       if (nextScheduleDate) {
+        baseEvent.setAllDay(false);
         baseEvent.setStart(nextScheduleDate);
+        baseEvent.setEnd(null);
       }
 
       if (row.New_Scheduling_Indicator_Code === "9" || row.New_Work_Group_Code === "DNXXXXX") {
