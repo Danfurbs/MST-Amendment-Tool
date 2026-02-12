@@ -77,6 +77,97 @@ const resolveStdJobUom = (stdJobNo, baseEvent, orig = {}) => {
   return (fromExtended || fromStdJobs || fromOriginal || "").toString().trim();
 };
 
+const normalizeStdJobNo = (value) => {
+  const raw = (value ?? "").toString().trim();
+  if (!raw) return "";
+  return raw.replace(/^0+/, "") || raw;
+};
+
+const getStdJobNoForMst = (baseEvent, orig = {}) => {
+  const fromProps = baseEvent?.extendedProps?.stdJobNo;
+  const fromOrig = orig["Std Job No"] || orig["Standard Job Number"] || "";
+  return normalizeStdJobNo(fromProps || fromOrig);
+};
+
+const isAbpStdJob = (stdJobNo) => {
+  const normalized = normalizeStdJobNo(stdJobNo);
+  if (!normalized) return false;
+
+  return Boolean(
+    window.STANDARD_JOBS?.[normalized]?.abp ||
+    window.STANDARD_JOBS?.[stdJobNo]?.abp
+  );
+};
+
+const captureAbpCommentary = (message) => {
+  const input = prompt(message);
+  if (input === null) return null;
+  const value = input.toString().trim();
+  if (!value) {
+    alert("Commentary is required for ABP-tracked Standard Job changes.");
+    return null;
+  }
+  return value;
+};
+
+const getAbpFyStart = (dateValue) => {
+  const normalized = U.normalizeDateInput(dateValue || "");
+  if (!normalized) return null;
+  const [y, m, d] = normalized.split("-").map(Number);
+  const date = new Date(y, m - 1, d, 9, 0, 0, 0);
+  if (Number.isNaN(date.getTime())) return null;
+
+  const fyYear = date.getMonth() >= 3 ? date.getFullYear() : date.getFullYear() - 1;
+  return new Date(fyYear, 3, 1, 9, 0, 0, 0);
+};
+
+const getAbpFyEnd = (fyStart) => new Date(fyStart.getFullYear() + 1, 2, 31, 23, 59, 59, 999);
+
+const getAbpPeriodLabel = (date, fyStart) => {
+  const dayMs = 24 * 60 * 60 * 1000;
+  const offsetDays = Math.floor((date - fyStart) / dayMs);
+  const period = Math.min(13, Math.max(1, Math.floor(offsetDays / 28) + 1));
+  return `P${String(period).padStart(2, "0")}`;
+};
+
+const buildAbpPeriodSignature = ({ lsd, freq, fyStart, fyEnd }) => {
+  const normalized = U.normalizeDateInput(lsd || "");
+  const frequency = Number.parseInt(freq || "0", 10) || 0;
+  if (!normalized || frequency <= 0 || !fyStart || !fyEnd) return "";
+
+  const [y, m, d] = normalized.split("-").map(Number);
+  let cursor = new Date(y, m - 1, d, 9, 0, 0, 0);
+  if (Number.isNaN(cursor.getTime())) return "";
+
+  const labels = new Set();
+  while (cursor <= fyEnd) {
+    if (cursor >= fyStart) labels.add(getAbpPeriodLabel(cursor, fyStart));
+    cursor.setDate(cursor.getDate() + frequency);
+  }
+
+  return [...labels].sort().join("|");
+};
+
+const lsdMovesOutsideOriginalAbpPeriods = ({ oldLsd, newLsd, freq }) => {
+  const oldNorm = U.normalizeDateInput(oldLsd || "");
+  const newNorm = U.normalizeDateInput(newLsd || "");
+  if (!oldNorm || !newNorm || oldNorm === newNorm) return false;
+
+  const baseFyStart = getAbpFyStart(oldNorm);
+  if (!baseFyStart) return true;
+  const currentFyStart = baseFyStart;
+  const currentFyEnd = getAbpFyEnd(currentFyStart);
+  const nextFyStart = new Date(currentFyStart.getFullYear() + 1, 3, 1, 9, 0, 0, 0);
+  const nextFyEnd = getAbpFyEnd(nextFyStart);
+
+  const oldCurrent = buildAbpPeriodSignature({ lsd: oldNorm, freq, fyStart: currentFyStart, fyEnd: currentFyEnd });
+  const newCurrent = buildAbpPeriodSignature({ lsd: newNorm, freq, fyStart: currentFyStart, fyEnd: currentFyEnd });
+  const oldNext = buildAbpPeriodSignature({ lsd: oldNorm, freq, fyStart: nextFyStart, fyEnd: nextFyEnd });
+  const newNext = buildAbpPeriodSignature({ lsd: newNorm, freq, fyStart: nextFyStart, fyEnd: nextFyEnd });
+
+  return oldCurrent !== newCurrent || oldNext !== newNext;
+};
+
 const setTvControlsVisible = (visible) => {
   if (window.tvActions?.classList) {
     window.tvActions.classList.toggle("visible", !!visible);
@@ -852,7 +943,34 @@ window.MST.Editor.applyBulkCreateMSTs = function() {
     return;
   }
 
-  payloads.forEach(payload => MST.Editor.createMstFromPayload(payload));
+  const abpPayloads = payloads.filter((payload) => isAbpStdJob(payload.stdJobNo));
+  let bulkAbpCommentary = "";
+
+  if (abpPayloads.length) {
+    const stdJobs = [...new Set(abpPayloads.map((payload) => normalizeStdJobNo(payload.stdJobNo)).filter(Boolean))];
+    const input = prompt(
+      `ABP commentary is required for ${abpPayloads.length} bulk-created MST(s) across Standard Job(s): ${stdJobs.join(", ")}.\n\n` +
+      "Please provide one overarching comment for this bulk creation:"
+    );
+
+    if (input === null) return;
+    bulkAbpCommentary = input.toString().trim();
+    if (!bulkAbpCommentary) {
+      alert("Commentary is required for ABP-tracked bulk creations.");
+      return;
+    }
+  }
+
+  payloads.forEach((payload) => {
+    const created = MST.Editor.createMstFromPayload(payload);
+    if (!created || !bulkAbpCommentary || !isAbpStdJob(payload.stdJobNo)) return;
+
+    const { mstId, baseEvent } = created;
+    if (window.createdMSTs?.[mstId]) {
+      window.createdMSTs[mstId]["ABP Commentary"] = bulkAbpCommentary;
+    }
+    baseEvent?.setExtendedProp?.("abpCommentary", bulkAbpCommentary);
+  });
 
   alert(`Created ${payloads.length} MST(s).`);
   MST.Editor.closeBulkCreateMSTModal();
@@ -1901,6 +2019,38 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
   /* ----------------------------------------
      SAVE MST EDITS
      ---------------------------------------- */
+  const getAbpCommentaryRequirementForUpdate = ({ mstId, baseEvent, props, freq, unitsRequired, newDateStr }) => {
+    const currentDateStr = U.dateToInputYYYYMMDD(baseEvent.start);
+    const normalizedCurrentDate = U.normalizeDateInput(currentDateStr || "");
+    const normalizedCurrentUnits = U.normalizeNumericField(props.unitsRequired ?? "");
+    const normalizedNewUnits = U.normalizeNumericField(unitsRequired ?? "");
+
+    const frequencyChanged = parseInt(props.frequency || "0", 10) !== freq;
+    const effectiveNewDate = newDateStr || normalizedCurrentDate;
+    const lsdChanged = normalizedCurrentDate !== effectiveNewDate;
+    const unitsChanged = normalizedCurrentUnits != normalizedNewUnits;
+
+    const lsdPeriodImpactChanged = lsdMovesOutsideOriginalAbpPeriods({
+      oldLsd: normalizedCurrentDate,
+      newLsd: effectiveNewDate,
+      freq: parseInt(props.frequency || "0", 10)
+    });
+
+    const hasAbpRelevantChange =
+      frequencyChanged ||
+      unitsChanged ||
+      (lsdChanged && lsdPeriodImpactChanged);
+
+    const stdJobNo = getStdJobNoForMst(baseEvent, window.originalProps?.[mstId] || {});
+    const abpTracked = isAbpStdJob(stdJobNo);
+
+    return {
+      stdJobNo,
+      abpTracked,
+      required: Boolean(abpTracked && hasAbpRelevantChange)
+    };
+  };
+
   const applyMstUpdates = (mstId, updates = {}) => {
     const baseEvent = window.calendar?.getEventById(`${mstId}_0`);
     if (!baseEvent) return null;
@@ -1938,6 +2088,30 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
         : "";
     const allowMultiple = normalizeAllowMultipleFlag(allowMultipleRaw);
 
+    const rawDate = pickValue(updates.lastDate, "");
+    const newDateStr = U.normalizeDateInput(rawDate || "");
+
+    const abpRequirement = getAbpCommentaryRequirementForUpdate({
+      mstId,
+      baseEvent,
+      props,
+      freq,
+      unitsRequired,
+      newDateStr
+    });
+    const stdJobNo = abpRequirement.stdJobNo;
+    const abpTracked = abpRequirement.abpTracked;
+    let abpCommentary = (updates.abpCommentary ?? "").toString().trim();
+
+    if (abpRequirement.required && !abpCommentary) {
+      const captured = captureAbpCommentary(
+        `ABP commentary required for Standard Job ${stdJobNo}.\n\nPlease provide a short note explaining this change for annual plan review:`
+      );
+      if (captured === null) return null;
+      abpCommentary = captured;
+    }
+
+    baseEvent.setExtendedProp("abpCommentary", abpCommentary || props.abpCommentary || "");
     baseEvent.setExtendedProp("frequency", freq);
     baseEvent.setExtendedProp("desc2", desc2);
     baseEvent.setExtendedProp("workGroup", workGroup);
@@ -1950,8 +2124,6 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     baseEvent.setExtendedProp("allowMultiple", allowMultiple);
 
     let newBase = baseEvent.start;
-    const rawDate = pickValue(updates.lastDate, "");
-    const newDateStr = U.normalizeDateInput(rawDate || "");
     if (newDateStr) {
       const [y, m, d] = newDateStr.split("-");
       newBase = new Date(+y, +m - 1, +d);
@@ -1981,10 +2153,14 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
         "Segment To": formattedSegTo,
         "ProtectionType": protType,
         "ProtectionMethod": protMethod,
-        "LSD": newDateStr || U.dateToInputYYYYMMDD(baseEvent.start)
+        "LSD": newDateStr || U.dateToInputYYYYMMDD(baseEvent.start),
+        "ABP Commentary": abpCommentary
       });
     } else {
       E.markMSTAsChanged(mstId);
+      if (window.changes?.[mstId] && abpCommentary) {
+        window.changes[mstId].ABP_Commentary = abpCommentary;
+      }
     }
 
     if (typeof window.MST?.ErrorUI?.recheckSingleMst === "function") {
@@ -2001,6 +2177,27 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
   MST.Editor.applyBulkEdits = function(mstId, updates) {
     const result = applyMstUpdates(mstId, updates);
     return Boolean(result);
+  };
+
+  MST.Editor.getAbpCommentaryRequirement = function(mstId, updates = {}) {
+    const baseEvent = window.calendar?.getEventById(`${mstId}_0`);
+    if (!baseEvent) return { required: false, abpTracked: false, stdJobNo: "" };
+
+    const props = baseEvent.extendedProps || {};
+    const rawFreq = updates.frequency === undefined ? props.frequency : updates.frequency;
+    const freq = parseInt(rawFreq || "0", 10);
+    const unitsRequired = updates.unitsRequired === undefined ? (props.unitsRequired ?? "") : updates.unitsRequired;
+    const rawDate = updates.lastDate === undefined ? U.dateToInputYYYYMMDD(baseEvent.start) : updates.lastDate;
+    const newDateStr = U.normalizeDateInput(rawDate || "");
+
+    return getAbpCommentaryRequirementForUpdate({
+      mstId,
+      baseEvent,
+      props,
+      freq,
+      unitsRequired,
+      newDateStr
+    });
   };
 
   MST.Editor.saveMSTEdits = function(mstId) {
@@ -2124,6 +2321,17 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
 
     const orig = window.originalProps[mstId];
     const props = baseEvent.extendedProps;
+    const stdJobNo = getStdJobNoForMst(baseEvent, orig || {});
+    const abpTracked = isAbpStdJob(stdJobNo);
+    let abpCommentary = "";
+
+    if (abpTracked) {
+      const captured = captureAbpCommentary(
+        `ABP commentary required for Standard Job ${stdJobNo}.\n\nPlease provide a short note explaining this deactivation for annual plan review:`
+      );
+      if (captured === null) return;
+      abpCommentary = captured;
+    }
 
     props.workGroup = "DNXXXXX";
     props.schedIndicator = "9";
@@ -2144,8 +2352,15 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
         Old_Work_Group_Code: orig["Work Group Code"] || "",
         New_Work_Group_Code: "DNXXXXX",
         Old_Scheduling_Indicator_Code: orig["Scheduling Indicator Code"] || "",
-        New_Scheduling_Indicator_Code: "9"
+        New_Scheduling_Indicator_Code: "9",
+        Std_Job_No: stdJobNo,
+        ABP_Commentary: abpCommentary,
+        ABP_Deactivated_On: U.dateToInputYYYYMMDD(new Date())
       };
+    } else if (abpTracked) {
+      window.changes[mstId].ABP_Commentary = abpCommentary;
+      window.changes[mstId].Std_Job_No = stdJobNo;
+      window.changes[mstId].ABP_Deactivated_On = U.dateToInputYYYYMMDD(new Date());
     }
 
     window.changeCount.innerText = `Changes: ${Object.keys(window.changes).length}`;
@@ -2758,7 +2973,21 @@ MST.Editor.addNewMST = function () {
     return;
   }
 
+  let abpCommentary = "";
+  if (isAbpStdJob(payloadResult.data.stdJobNo)) {
+    const captured = captureAbpCommentary(
+      `ABP commentary required for Standard Job ${payloadResult.data.stdJobNo}.\n\nPlease provide a short note explaining this new MST for annual plan review:`
+    );
+    if (captured === null) return;
+    abpCommentary = captured;
+  }
+
   const { mstId, baseEvent } = MST.Editor.createMstFromPayload(payloadResult.data);
+
+  if (abpCommentary && window.createdMSTs?.[mstId]) {
+    window.createdMSTs[mstId]["ABP Commentary"] = abpCommentary;
+    baseEvent?.setExtendedProp?.("abpCommentary", abpCommentary);
+  }
 
   MST.Editor.closeNewMSTModal();
   MST.Editor.openEditorForMST(mstId, baseEvent);
@@ -2789,7 +3018,9 @@ MST.Editor.addNewMST = function () {
       pm: baseEvent.extendedProps.protMethod,
       allowMultiple: normalizeAllowMultipleFlag(baseEvent.extendedProps.allowMultiple),
       tvReference: baseEvent.extendedProps.tvReference,
-      tvExpiry: normalizeTvExpiry(baseEvent.extendedProps.tvExpiryDate)
+      tvExpiry: normalizeTvExpiry(baseEvent.extendedProps.tvExpiryDate),
+      stdJobNo: getStdJobNoForMst(baseEvent, orig),
+      abpCommentary: (baseEvent.extendedProps.abpCommentary || "").toString().trim()
     };
 
     const normalizedLastSched = U.normalizeDateInput(orig["Last Scheduled Date"] || "");
@@ -2856,7 +3087,10 @@ MST.Editor.addNewMST = function () {
       New_TV_Reference: normalizeTvReference(cur.tvReference),
 
       Old_TV_Expiry_Date: origTvExpiry,
-      New_TV_Expiry_Date: cur.tvExpiry
+      New_TV_Expiry_Date: cur.tvExpiry,
+
+      Std_Job_No: cur.stdJobNo,
+      ABP_Commentary: cur.abpCommentary
     };
   };
 
