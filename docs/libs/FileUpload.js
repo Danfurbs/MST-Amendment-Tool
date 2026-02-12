@@ -580,10 +580,6 @@ document.addEventListener("DOMContentLoaded", function () {
       const scheduleDateValue = row.New_Last_Scheduled_Date || row.Old_Last_Scheduled_Date || "";
       const normalizedScheduleDate = window.MST?.Utils?.normalizeDateInput?.(scheduleDateValue) || "";
       const nextScheduleDate = parseIsoDateToLocal(normalizedScheduleDate);
-      const scheduleChanged =
-        (row.New_Frequency !== undefined && row.New_Frequency !== "" && row.New_Frequency != row.Old_Frequency) ||
-        (row.New_Last_Scheduled_Date !== undefined && row.New_Last_Scheduled_Date !== row.Old_Last_Scheduled_Date);
-
       if (row.New_Frequency !== undefined && row.New_Frequency !== "") props.frequency = row.New_Frequency;
       if (row.New_Desc2 !== undefined) props.desc2 = row.New_Desc2;
       if (row.New_Work_Group_Code !== undefined && row.New_Work_Group_Code !== "") props.workGroup = row.New_Work_Group_Code;
@@ -608,7 +604,6 @@ document.addEventListener("DOMContentLoaded", function () {
         window.MST.Editor.markMSTAsChanged(mstId);
 
         if (
-          scheduleChanged &&
           Number.isFinite(nextFrequency) &&
           nextFrequency > 0 &&
           nextScheduleDate &&
