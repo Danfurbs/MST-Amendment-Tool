@@ -168,6 +168,48 @@ const lsdMovesOutsideOriginalAbpPeriods = ({ oldLsd, newLsd, freq }) => {
   return oldCurrent !== newCurrent || oldNext !== newNext;
 };
 
+const countAbpInstancesAndVolume = ({ lsd, freq, units, rangeStart, rangeEnd }) => {
+  const normalized = U.normalizeDateInput(lsd || "");
+  const frequency = Number.parseInt(freq || "0", 10) || 0;
+  const unitValue = Number.parseFloat((units ?? "").toString()) || 0;
+  if (!normalized || frequency <= 0 || !rangeStart || !rangeEnd) {
+    return { instances: 0, volume: 0 };
+  }
+
+  const [y, m, d] = normalized.split("-").map(Number);
+  let cursor = new Date(y, m - 1, d, 9, 0, 0, 0);
+  if (Number.isNaN(cursor.getTime())) return { instances: 0, volume: 0 };
+
+  let instances = 0;
+  while (cursor <= rangeEnd) {
+    if (cursor >= rangeStart) instances += 1;
+    cursor.setDate(cursor.getDate() + frequency);
+  }
+
+  return { instances, volume: instances * unitValue };
+};
+
+const getFyLabel = (fyStart) => `${fyStart.getFullYear()}/${String(fyStart.getFullYear() + 1).slice(-2)}`;
+
+const buildAbpVolumeImpactMessage = ({ oldLsd, oldFreq, oldUnits, newLsd, newFreq, newUnits, anchorDate }) => {
+  const anchor = U.normalizeDateInput(anchorDate || "") || U.normalizeDateInput(oldLsd || "") || U.normalizeDateInput(newLsd || "");
+  const fyStart = getAbpFyStart(anchor);
+  if (!fyStart) return "";
+
+  const fy2Start = new Date(fyStart.getFullYear() + 1, 3, 1, 9, 0, 0, 0);
+  const fy1Old = countAbpInstancesAndVolume({ lsd: oldLsd, freq: oldFreq, units: oldUnits, rangeStart: fyStart, rangeEnd: getAbpFyEnd(fyStart) });
+  const fy1New = countAbpInstancesAndVolume({ lsd: newLsd, freq: newFreq, units: newUnits, rangeStart: fyStart, rangeEnd: getAbpFyEnd(fyStart) });
+  const fy2Old = countAbpInstancesAndVolume({ lsd: oldLsd, freq: oldFreq, units: oldUnits, rangeStart: fy2Start, rangeEnd: getAbpFyEnd(fy2Start) });
+  const fy2New = countAbpInstancesAndVolume({ lsd: newLsd, freq: newFreq, units: newUnits, rangeStart: fy2Start, rangeEnd: getAbpFyEnd(fy2Start) });
+
+  return [
+    "",
+    "Estimated volume impact (rough guide):",
+    `• FY ${getFyLabel(fyStart)}: ${fy1Old.volume} → ${fy1New.volume} (Δ ${fy1New.volume - fy1Old.volume})`,
+    `• FY ${getFyLabel(fy2Start)}: ${fy2Old.volume} → ${fy2New.volume} (Δ ${fy2New.volume - fy2Old.volume})`
+  ].join("\n");
+};
+
 const setTvControlsVisible = (visible) => {
   if (window.tvActions?.classList) {
     window.tvActions.classList.toggle("visible", !!visible);
@@ -2104,8 +2146,17 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     let abpCommentary = (updates.abpCommentary ?? "").toString().trim();
 
     if (abpRequirement.required && !abpCommentary) {
+      const impactSummary = buildAbpVolumeImpactMessage({
+        oldLsd: normalizedCurrentDate,
+        oldFreq: props.frequency,
+        oldUnits: props.unitsRequired,
+        newLsd: effectiveNewDate,
+        newFreq: freq,
+        newUnits: unitsRequired,
+        anchorDate: normalizedCurrentDate
+      });
       const captured = captureAbpCommentary(
-        `ABP commentary required for Standard Job ${stdJobNo}.\n\nPlease provide a short note explaining this change for annual plan review:`
+        `ABP commentary required for Standard Job ${stdJobNo}.\n\nPlease provide a short note explaining this change for annual plan review:${impactSummary}`
       );
       if (captured === null) return null;
       abpCommentary = captured;
@@ -2326,8 +2377,18 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     let abpCommentary = "";
 
     if (abpTracked) {
+      const oldLsd = U.normalizeDateInput(orig?.["Last Scheduled Date"] || orig?.["LSD"] || U.dateToInputYYYYMMDD(baseEvent.start));
+      const impactSummary = buildAbpVolumeImpactMessage({
+        oldLsd,
+        oldFreq: props.frequency || orig?.["Frequency"] || "0",
+        oldUnits: props.unitsRequired || orig?.["Units Required"] || "0",
+        newLsd: "",
+        newFreq: 0,
+        newUnits: 0,
+        anchorDate: oldLsd
+      });
       const captured = captureAbpCommentary(
-        `ABP commentary required for Standard Job ${stdJobNo}.\n\nPlease provide a short note explaining this deactivation for annual plan review:`
+        `ABP commentary required for Standard Job ${stdJobNo}.\n\nPlease provide a short note explaining this deactivation for annual plan review:${impactSummary}`
       );
       if (captured === null) return;
       abpCommentary = captured;
@@ -2975,8 +3036,17 @@ MST.Editor.addNewMST = function () {
 
   let abpCommentary = "";
   if (isAbpStdJob(payloadResult.data.stdJobNo)) {
+    const impactSummary = buildAbpVolumeImpactMessage({
+      oldLsd: "",
+      oldFreq: 0,
+      oldUnits: 0,
+      newLsd: payloadResult.data.lastDateStr,
+      newFreq: payloadResult.data.freq,
+      newUnits: payloadResult.data.unitsReq,
+      anchorDate: payloadResult.data.lastDateStr
+    });
     const captured = captureAbpCommentary(
-      `ABP commentary required for Standard Job ${payloadResult.data.stdJobNo}.\n\nPlease provide a short note explaining this new MST for annual plan review:`
+      `ABP commentary required for Standard Job ${payloadResult.data.stdJobNo}.\n\nPlease provide a short note explaining this new MST for annual plan review:${impactSummary}`
     );
     if (captured === null) return;
     abpCommentary = captured;
