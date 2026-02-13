@@ -1,3 +1,5 @@
+(function () {
+
 const formatDateDMY = (value) => {
   if (window.MST?.Utils?.formatDateDMY) return window.MST.Utils.formatDateDMY(value);
   return value ?? "";
@@ -110,8 +112,6 @@ const formatPeriodVolumes = (periodVolumes = {}) => {
 
 
 
-
-(function () {
 
     MST.Export = MST.Export || {};
 
