@@ -905,7 +905,11 @@
         <pre class="sql-code-block"><code>SELECT
     MSTs.equip_no                                                AS "Equipment Number",
     asset.item_name_1                                            AS "Equipment Description 1",
+    asset.item_name_2                                            AS "Equipment Description 2",
+    asset.PLANT_NO                                               AS "Plant No",
     asset.equip_status                                           AS "Asset Status Code",
+    NVL(RTRIM(elr.attrib_value), '')                             AS "ELR",
+    NVL(RTRIM(trackid.attrib_value), '')                         AS "Track ID",
 
     MSTs.comp_code                                               AS "Component Code",
     cmpcddesc.table_desc                                         AS "Component Description",
@@ -982,6 +986,16 @@ FROM
     LEFT JOIN msf600 asset
         ON asset.equip_no = MSTs.equip_no
 
+    /* Equipment ELR (Nameplate Attribute) */
+    LEFT JOIN msf6a7 elr
+        ON elr.equip_no = MSTs.equip_no
+       AND UPPER(elr.attribute_name) = 'ELR'
+
+    /* Equipment Track ID (Nameplate Attribute) */
+    LEFT JOIN msf6a7 trackid
+        ON trackid.equip_no = MSTs.equip_no
+       AND UPPER(trackid.attribute_name) = 'TRACKID'
+
     /* Work group set */
     LEFT JOIN msf010 wgset
         ON SUBSTR(wg.work_group_set, 1, 8) = SUBSTR(wgset.table_code, 1, 8)
@@ -992,11 +1006,10 @@ FROM
         ON SUBSTR(wgset.assoc_rec, 3, 4) = SUBSTR(engineer.table_code, 1, 4)
        AND engineer.table_type = '+ME '
 
-    /* Delivery Unit – changed to INNER JOIN because you filter on it (big speedup) */
+    /* Delivery Unit */
     INNER JOIN msf010 delivery_unit
         ON SUBSTR(engineer.assoc_rec, 1, 2) = SUBSTR(delivery_unit.table_code, 1, 2)
        AND delivery_unit.table_type = '+MDU'
-       AND delivery_unit.table_desc LIKE '%Lancs%'
 
     /* Other MSF010 lookups */
     LEFT JOIN msf010 jdccode
@@ -1021,7 +1034,7 @@ FROM
         ON cmpmdcddesc.table_code = MSTs.comp_mod_code
        AND cmpmdcddesc.table_type = 'MO  '
 
-    /* MST Extended Attributes – rewritten to column joins (big speedup) */
+    /* MST Extended Attributes */
     LEFT JOIN mst_extended_attr fxsch
         ON fxsch.equip_no        = MSTs.equip_no
        AND fxsch.maint_sch_task  = MSTs.maint_sch_task
@@ -1076,7 +1089,16 @@ FROM
        AND SUBSTR(RTRIM(tvdate.entity_key), 7, 12) = MSTs.equip_no
        AND SUBSTR(RTRIM(tvdate.entity_key), 19, 4) = MSTs.maint_sch_task
 WHERE
-    MSTs.work_group LIKE 'D%' /ADD START OF WORKGROUPS HERE
+    /* ----------------------------------------------
+       🔧 USER-EDITABLE FILTERS
+       Change the delivery unit filter here for similar queries
+       Examples:
+         - delivery_unit.table_desc LIKE '%Lancs%'
+         - delivery_unit.table_desc LIKE '%Cumbria%'
+       ---------------------------------------------- */
+    delivery_unit.table_desc LIKE '%Lancs%'
+
+    /* Active MST filter */
     AND MSTs.sched_ind_700 = 1</code></pre>
       </details>
     </div>
