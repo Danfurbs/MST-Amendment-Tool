@@ -1,134 +1,198 @@
 SELECT
     MSTs.equip_no                                                AS "Equipment Number",
-    equipdesc.item_name_1                                        AS "Equipment Description 1",
+    asset.item_name_1                                            AS "Equipment Description 1",
+    asset.item_name_2                                            AS "Equipment Description 2",
+    asset.PLANT_NO                                               AS "Plant No",
+    asset.equip_status                                           AS "Asset Status Code",
+    NVL(RTRIM(elr.attrib_value), '')                             AS "ELR",
+    NVL(RTRIM(trackid.attrib_value), '')                         AS "Track ID",
+
     MSTs.comp_code                                               AS "Component Code",
     cmpcddesc.table_desc                                         AS "Component Description",
     MSTs.comp_mod_code                                           AS "Component Modifier Code",
     cmpmdcddesc.table_desc                                       AS "Component Modifier Description",
+
     MSTs.maint_sch_task                                          AS "MST Task Number",
     MSTs.job_desc_code                                           AS "Job Description Code",
     jdccode.table_desc                                           AS "Job Description",
+
     MSTs.sched_desc_1                                            AS "MST Description 1",
     MSTs.sched_desc_2                                            AS "MST Description 2",
-    "WORK GROUP SET".table_code                                  AS "Work Group Set Code",
-    "WORK GROUP SET".table_desc                                  AS "Work Group Set Description",
+
+    wgset.table_code                                             AS "Work Group Set Code",
+    wgset.table_desc                                             AS "Work Group Set Description",
+
     MSTs.work_group                                              AS "Work Group Code",
-    "WORK GROUP".work_grp_desc                                   AS "Work Group Description",
+    wg.work_grp_desc                                             AS "Work Group Description",
+
     MSTs.sched_freq_1                                            AS "MST Frequency",
     MSTs.sched_ind_700                                           AS "Scheduling Indicator Code",
     schind.table_desc                                            AS "Scheduling Indicator Desc",
+
     MSTs.last_sch_date                                           AS "Last Scheduled Date",
     MSTs.last_perf_date                                          AS "Last Performed Date",
     MSTs.next_sch_date                                           AS "Next Scheduled Date",
+
     MSTs.std_job_no                                              AS "Standard Job Number",
     MSTs.next_sch_ind                                            AS "Next Scheduled Date Indicator",
+
     MSTs.dstrct_code                                             AS "District Code",
     stdjob.calc_lab_hrs                                          AS "Norm Time",
-    ROUND(stdjob.calc_lab_hrs * NVL(MSTs.std_units_required,1),2) AS "Resource Hours",
-    rtrim(ltrim(district.dstrct_name))                           AS "District Name",
+    ROUND(stdjob.calc_lab_hrs * NVL(MSTs.std_units_required, 1), 2) AS "Resource Hours",
+
+    RTRIM(LTRIM(district.dstrct_name))                           AS "District Name",
+
     MSTs.assign_person                                           AS "Assigned to Person ID",
-    rtrim(ltrim(assignto.first_name) || ' ' || rtrim(assignto.surname)) 
+    RTRIM(LTRIM(assignto.first_name) || ' ' || RTRIM(assignto.surname))
                                                                  AS "Assigned To Individual Name",
+
     MSTs.std_units_required                                      AS "Units Required",
     MSTs.sch_seg_fr                                              AS "MST Segment Mileage From",
     MSTs.sch_seg_to                                              AS "MST Segment Mileage To",
+
     NVL(RTRIM(msttype.property_value), 'false')                  AS "MST Type Code",
     NVL(RTRIM(MSTs.statutory_flg), 'N')                          AS "Statutory Flag",
+
     NVL(RTRIM(fxsch.fixed_scheduling), 'N')                      AS "Fixed Scheduling",
     NVL(RTRIM(fxsch.allow_multiple), 'N')                        AS "Allow Multiple Work Orders",
+
     prottypecd.property_value                                    AS "Protection Type Code",
     prottypeds.table_desc                                        AS "Protection Type Description",
+
     protmethcd.property_value                                    AS "Protection Method Code",
     protmethds.table_desc                                        AS "Protection Method Description",
-    "TV Ref".property_value                                      AS "Temp Var Reference Number",
-    TO_CHAR(TO_DATE("TV Date".property_value, 'YYYYMMDD'), 'DD/MM/YYYY') 
+
+    tvref.property_value                                         AS "Temp Var Reference Number",
+    TO_CHAR(TO_DATE(tvdate.property_value, 'YYYYMMDD'), 'DD/MM/YYYY')
                                                                  AS "Temp Var Expiry Date",
-    TRIM(MSTs.equip_no) || TRIM(MSTs.comp_code) || TRIM(MSTs.comp_mod_code) 
-        || TRIM(MSTs.maint_sch_task)                             AS CONCAT,
+
+    TRIM(MSTs.equip_no) || TRIM(MSTs.comp_code) || TRIM(MSTs.comp_mod_code) || TRIM(MSTs.maint_sch_task)
+                                                                 AS "CONCAT",
+
     engineer.table_desc                                          AS "Engineer",
-
-    -- NEW COLUMN FOR TODAY'S DATE
     TO_CHAR(SYSDATE, 'DD/MM/YYYY')                               AS "Download Date"
-
 FROM
     msf700 MSTs
-    LEFT JOIN msf720 "WORK GROUP" ON MSTs.work_group = "WORK GROUP".work_group
-    LEFT JOIN msf600 equipdesc ON MSTs.equip_no = equipdesc.equip_no
-    LEFT JOIN msf010 "WORK GROUP SET"
-        ON SUBSTR("WORK GROUP".work_group_set, 1, 8) = SUBSTR("WORK GROUP SET".table_code, 1, 8)
-       AND "WORK GROUP SET".table_type = 'WGST'
+
+    /* Work group */
+    LEFT JOIN msf720 wg
+        ON wg.work_group = MSTs.work_group
+
+    /* Equipment (single join used for both description + status) */
+    LEFT JOIN msf600 asset
+        ON asset.equip_no = MSTs.equip_no
+
+    /* Equipment ELR (Nameplate Attribute) */
+    LEFT JOIN msf6a7 elr
+        ON elr.equip_no = MSTs.equip_no
+       AND UPPER(elr.attribute_name) = 'ELR'
+
+    /* Equipment Track ID (Nameplate Attribute) */
+    LEFT JOIN msf6a7 trackid
+        ON trackid.equip_no = MSTs.equip_no
+       AND UPPER(trackid.attribute_name) = 'TRACKID'
+
+    /* Work group set */
+    LEFT JOIN msf010 wgset
+        ON SUBSTR(wg.work_group_set, 1, 8) = SUBSTR(wgset.table_code, 1, 8)
+       AND wgset.table_type = 'WGST'
+
+    /* Engineer */
     LEFT JOIN msf010 engineer
-        ON SUBSTR("WORK GROUP SET".assoc_rec, 3, 4) = SUBSTR(engineer.table_code, 1, 4)
+        ON SUBSTR(wgset.assoc_rec, 3, 4) = SUBSTR(engineer.table_code, 1, 4)
        AND engineer.table_type = '+ME '
-    LEFT JOIN msf010 "DELIVERY UNIT"
-        ON SUBSTR(engineer.assoc_rec, 1, 2) = SUBSTR("DELIVERY UNIT".table_code, 1, 2)
-       AND "DELIVERY UNIT".table_type = '+MDU'
-    LEFT JOIN msf010 route
-        ON SUBSTR("DELIVERY UNIT".assoc_rec, 1, 1) = SUBSTR(route.table_code, 1, 1)
-       AND route.table_type = '+ROU'
-    LEFT JOIN msf010 discipline
-        ON SUBSTR(engineer.assoc_rec, 7, 2) = SUBSTR(discipline.table_code, 1, 2)
-       AND discipline.table_type = '+MED'
-    LEFT JOIN msf010 "SUB DISCIPLINE"
-        ON SUBSTR("WORK GROUP SET".assoc_rec, 1, 2) = SUBSTR("SUB DISCIPLINE".table_code, 1, 2)
-       AND "SUB DISCIPLINE".table_type = '+DIS'
+
+    /* Delivery Unit */
+    INNER JOIN msf010 delivery_unit
+        ON SUBSTR(engineer.assoc_rec, 1, 2) = SUBSTR(delivery_unit.table_code, 1, 2)
+       AND delivery_unit.table_type = '+MDU'
+
+    /* Other MSF010 lookups */
     LEFT JOIN msf010 jdccode
         ON MSTs.job_desc_code = SUBSTR(jdccode.table_code, 1, 2)
        AND jdccode.table_type = 'JD  '
+
     LEFT JOIN msf010 schind
         ON MSTs.sched_ind_700 = SUBSTR(schind.table_code, 1, 1)
        AND schind.table_type = 'MI  '
-    LEFT JOIN msf810 assignto ON MSTs.assign_person = assignto.employee_id
-    LEFT JOIN msf000_dc0001 district ON MSTs.dstrct_code = district.dstrct_code
-    LEFT JOIN msf0p5 msttype
-        ON TRIM(MSTs.equip_no || MSTs.maint_sch_task || MSTs.rec_700_type) = TRIM(msttype.entity_key)
-       AND msttype.entity_type = 'MSTService.MST.ZMSTTYPE'
+
+    LEFT JOIN msf810 assignto
+        ON assignto.employee_id = MSTs.assign_person
+
+    LEFT JOIN msf000_dc0001 district
+        ON district.dstrct_code = MSTs.dstrct_code
+
     LEFT JOIN msf010 cmpcddesc
-        ON MSTs.comp_code = cmpcddesc.table_code
+        ON cmpcddesc.table_code = MSTs.comp_code
        AND cmpcddesc.table_type = 'CO  '
+
     LEFT JOIN msf010 cmpmdcddesc
-        ON MSTs.comp_mod_code = cmpmdcddesc.table_code
+        ON cmpmdcddesc.table_code = MSTs.comp_mod_code
        AND cmpmdcddesc.table_type = 'MO  '
+
+    /* MST Extended Attributes */
     LEFT JOIN mst_extended_attr fxsch
-        ON MSTs.equip_no || MSTs.maint_sch_task || MSTs.comp_code || MSTs.comp_mod_code
-         = fxsch.equip_no || fxsch.maint_sch_task || fxsch.comp_code || fxsch.comp_mod_code
+        ON fxsch.equip_no        = MSTs.equip_no
+       AND fxsch.maint_sch_task  = MSTs.maint_sch_task
+       AND fxsch.comp_code       = MSTs.comp_code
+       AND fxsch.comp_mod_code   = MSTs.comp_mod_code
+
+    /* Standard Job */
+    LEFT JOIN msf690 stdjob
+        ON stdjob.std_job_no  = MSTs.std_job_no
+       AND stdjob.dstrct_code = MSTs.dstrct_code
+
+    /* MST Type */
+    LEFT JOIN msf0p5 msttype
+        ON TRIM(msttype.entity_key) = TRIM(MSTs.equip_no || MSTs.maint_sch_task || MSTs.rec_700_type)
+       AND msttype.entity_type = 'MSTService.MST.ZMSTTYPE'
+
+    /* Protection type + method (still SUBSTR-based because entity_key is encoded) */
     LEFT JOIN msf0p5 prottypecd
-        ON SUBSTR(RTRIM(prottypecd.entity_key), 1, 4)  = MSTs.comp_code
+        ON prottypecd.entity_type = 'MSTService.MST.zProtType'
+       AND SUBSTR(RTRIM(prottypecd.entity_key), 1, 4)  = MSTs.comp_code
        AND SUBSTR(RTRIM(prottypecd.entity_key), 5, 2)  = MSTs.comp_mod_code
        AND SUBSTR(RTRIM(prottypecd.entity_key), 7, 12) = MSTs.equip_no
        AND SUBSTR(RTRIM(prottypecd.entity_key), 19, 4) = MSTs.maint_sch_task
-       AND prottypecd.entity_type = 'MSTService.MST.zProtType'
+
+    LEFT JOIN msf010 prottypeds
+        ON RTRIM(prottypeds.table_code) = RTRIM(prottypecd.property_value)
+       AND prottypeds.table_type = 'W8'
+
     LEFT JOIN msf0p5 protmethcd
-        ON SUBSTR(RTRIM(protmethcd.entity_key), 1, 4)  = MSTs.comp_code
+        ON protmethcd.entity_type = 'MSTService.MST.zProtMethod'
+       AND SUBSTR(RTRIM(protmethcd.entity_key), 1, 4)  = MSTs.comp_code
        AND SUBSTR(RTRIM(protmethcd.entity_key), 5, 2)  = MSTs.comp_mod_code
        AND SUBSTR(RTRIM(protmethcd.entity_key), 7, 12) = MSTs.equip_no
        AND SUBSTR(RTRIM(protmethcd.entity_key), 19, 4) = MSTs.maint_sch_task
-       AND protmethcd.entity_type = 'MSTService.MST.zProtMethod'
-    LEFT JOIN msf010 prottypeds
-        ON RTRIM(prottypecd.property_value) = RTRIM(prottypeds.table_code)
-       AND RTRIM(prottypeds.table_type) = 'W8'
+
     LEFT JOIN msf010 protmethds
-        ON RTRIM(protmethcd.property_value) = RTRIM(protmethds.table_code)
-       AND RTRIM(protmethds.table_type) = 'W9'
-    LEFT JOIN msf690 stdjob
-        ON MSTs.std_job_no = stdjob.std_job_no
-       AND MSTs.dstrct_code = stdjob.dstrct_code
-    LEFT JOIN msf0p5 "TV Ref"
-        ON SUBSTR(RTRIM("TV Ref".entity_key), 1, 4)   = MSTs.comp_code
-       AND SUBSTR(RTRIM("TV Ref".entity_key), 5, 2)   = MSTs.comp_mod_code
-       AND SUBSTR(RTRIM("TV Ref".entity_key), 7, 12)  = MSTs.equip_no
-       AND SUBSTR(RTRIM("TV Ref".entity_key), 19, 4)  = MSTs.maint_sch_task
-       AND "TV Ref".entity_type = 'MSTService.MST.zTVRef'
-    LEFT JOIN msf0p5 "TV Date"
-        ON SUBSTR(RTRIM("TV Date".entity_key), 1, 4)  = MSTs.comp_code
-       AND SUBSTR(RTRIM("TV Date".entity_key), 5, 2)  = MSTs.comp_mod_code
-       AND SUBSTR(RTRIM("TV Date".entity_key), 7, 12) = MSTs.equip_no
-       AND SUBSTR(RTRIM("TV Date".entity_key), 19, 4) = MSTs.maint_sch_task
-       AND "TV Date".entity_type = 'MSTService.MST.zTVDate'
+        ON RTRIM(protmethds.table_code) = RTRIM(protmethcd.property_value)
+       AND protmethds.table_type = 'W9'
 
+    /* Temp Var ref/date */
+    LEFT JOIN msf0p5 tvref
+        ON tvref.entity_type = 'MSTService.MST.zTVRef'
+       AND SUBSTR(RTRIM(tvref.entity_key), 1, 4)   = MSTs.comp_code
+       AND SUBSTR(RTRIM(tvref.entity_key), 5, 2)   = MSTs.comp_mod_code
+       AND SUBSTR(RTRIM(tvref.entity_key), 7, 12)  = MSTs.equip_no
+       AND SUBSTR(RTRIM(tvref.entity_key), 19, 4)  = MSTs.maint_sch_task
+
+    LEFT JOIN msf0p5 tvdate
+        ON tvdate.entity_type = 'MSTService.MST.zTVDate'
+       AND SUBSTR(RTRIM(tvdate.entity_key), 1, 4)  = MSTs.comp_code
+       AND SUBSTR(RTRIM(tvdate.entity_key), 5, 2)  = MSTs.comp_mod_code
+       AND SUBSTR(RTRIM(tvdate.entity_key), 7, 12) = MSTs.equip_no
+       AND SUBSTR(RTRIM(tvdate.entity_key), 19, 4) = MSTs.maint_sch_task
 WHERE
-    MSTs.work_group LIKE 'D%'
-    AND MSTs.sched_ind_700 = '1'
-    AND "DELIVERY UNIT".table_desc LIKE '%Lancs%'
+    /* ----------------------------------------------
+       🔧 USER-EDITABLE FILTERS
+       Change the delivery unit filter here for similar queries
+       Examples:
+         - delivery_unit.table_desc LIKE '%Lancs%'
+         - delivery_unit.table_desc LIKE '%Cumbria%'
+       ---------------------------------------------- */
+    delivery_unit.table_desc LIKE '%Lancs%'
 
-FETCH FIRST 100 ROWS ONLY;
+    /* Active MST filter */
+    AND MSTs.sched_ind_700 = 1
