@@ -1521,3 +1521,26 @@ input, button {
   font-size: 14px;
 }
 
+.equip-picker-manual-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-right: auto;
+  flex: 1;
+}
+
+.equip-picker-manual-row input {
+  min-width: 280px;
+  width: min(420px, 100%);
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  font-size: 13px;
+}
+
+.equip-picker-manual-row input:focus {
+  border-color: #2563eb;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}

@@ -991,6 +991,8 @@
     const tableBody = getEl('equipPickerBody');
     const statsEl = getEl('equipPickerStats');
     const openBtn = getEl('openEquipPickerBtn');
+    const manualInput = getEl('equipPickerManualInput');
+    const manualApplyBtn = getEl('equipPickerManualApplyBtn');
 
     if (!overlay || !panel || !tableBody) return;
 
@@ -1129,6 +1131,23 @@
     }
 
     // Select equipment and populate the form (or call custom callback)
+
+    function selectManualEquipment() {
+      const manualNumber = (manualInput?.value || '').toString().trim();
+      if (!manualNumber) {
+        alert('Enter an equipment number first.');
+        manualInput?.focus();
+        return;
+      }
+
+      selectEquipment({
+        number: manualNumber,
+        desc1: '',
+        desc2: '',
+        plantNo: ''
+      });
+    }
+
     function selectEquipment(item) {
       // If a custom callback is set, use it instead of default behaviour
       if (typeof window.MST?.Views?._equipPickerCallback === 'function') {
@@ -1163,6 +1182,7 @@
 
       // Reset search
       if (searchInput) searchInput.value = '';
+      if (manualInput) manualInput.value = '';
       currentSearchTerm = '';
 
       // Filter and render
@@ -1179,6 +1199,7 @@
     function closeOverlay() {
       overlay.classList.remove('active');
       if (searchInput) searchInput.value = '';
+      if (manualInput) manualInput.value = '';
       if (tableBody) tableBody.innerHTML = '';
       if (statsEl) statsEl.textContent = '';
     }
@@ -1215,6 +1236,16 @@
       filterEquipment('');
       renderTable(filteredEquipment, '');
       searchInput?.focus();
+    });
+
+
+    manualApplyBtn?.addEventListener('click', selectManualEquipment);
+
+    manualInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        selectManualEquipment();
+      }
     });
 
     // Handle Enter key to select first result
