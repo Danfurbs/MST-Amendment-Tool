@@ -381,9 +381,11 @@ const getDomElements = () => ({
   newDesc2Counter: document.getElementById("newDesc2Counter"),
   newDesc2Input: document.getElementById("newDesc2"),
   nextDateCalc: document.getElementById("nextDateCalc"),
+  nextMstInstanceBtn: document.getElementById("nextMstInstanceBtn"),
   openFilterBtn: document.getElementById("openFilterBtn"),
   protMethodInput: document.getElementById("protMethodInput"),
   protTypeInput: document.getElementById("protTypeInput"),
+  prevMstInstanceBtn: document.getElementById("prevMstInstanceBtn"),
   removeTvBtn: document.getElementById("removeTvBtn"),
   resetAllBtn: document.getElementById("resetAllBtn"),
   resetFiltersBtn: document.getElementById("resetFiltersBtn"),
@@ -393,6 +395,7 @@ const getDomElements = () => ({
   sidebar: document.getElementById("sidebar"),
   stdJobDisplay: document.getElementById("stdJobDisplay"),
   taskDisplay: document.getElementById("taskDisplay"),
+  mstInstancePosition: document.getElementById("mstInstancePosition"),
   tvActions: document.getElementById("tvActions"),
   tvAppliedLabel: document.getElementById("tvAppliedLabel"),
   tvExpiryInput: document.getElementById("tvExpiryInput"),
@@ -435,6 +438,9 @@ const exposeDomElements = (elements) => {
     sidebar,
     stdJobDisplay,
     taskDisplay,
+    nextMstInstanceBtn,
+    prevMstInstanceBtn,
+    mstInstancePosition,
     tvActions,
     tvAppliedLabel,
     tvExpiryInput,
@@ -477,6 +483,9 @@ const exposeDomElements = (elements) => {
   window.sidebarEl = sidebar;
   window.stdJobDisplay = stdJobDisplay;
   window.taskDisplay = taskDisplay;
+  window.nextMstInstanceBtn = nextMstInstanceBtn;
+  window.prevMstInstanceBtn = prevMstInstanceBtn;
+  window.mstInstancePosition = mstInstancePosition;
   window.tvActions = tvActions;
   window.tvAppliedLabel = tvAppliedLabel;
   window.tvExpiryInput = tvExpiryInput;
@@ -1157,6 +1166,8 @@ window.MST.Editor.applyBulkCreateMSTs = function() {
     resetAllBtn?.addEventListener("click", MST.Editor.resetAllChanges);
 
     bindTvButtons(dom);
+    bindMstInstanceNavButtons(dom);
+    updateMstInstanceNav("");
 
     // ----------------------
     // INITIALIZE FULLCALENDAR
