@@ -546,6 +546,98 @@ const bindTvButtons = (elements) => {
   });
 };
 
+const getMstInstanceDates = (mstId) => {
+  if (!mstId) return [];
+
+  const baseEvent = window.calendar?.getEventById(`${mstId}_0`);
+  const futureInstances = window.virtualInstanceStore?.[mstId] || [];
+  const dates = [];
+
+  if (baseEvent?.start) dates.push(new Date(baseEvent.start.getTime()));
+
+  futureInstances.forEach((inst) => {
+    if (inst?.start) dates.push(new Date(inst.start));
+  });
+
+  const uniqueDates = [];
+  const seenDays = new Set();
+  dates
+    .filter((date) => date instanceof Date && !Number.isNaN(date.getTime()))
+    .sort((a, b) => a - b)
+    .forEach((date) => {
+      const dayKey = U.dateToInputYYYYMMDD(date);
+      if (!dayKey || seenDays.has(dayKey)) return;
+      seenDays.add(dayKey);
+      uniqueDates.push(date);
+    });
+
+  return uniqueDates;
+};
+
+const getCalendarInstanceJumpButtons = () => {
+  const calendarRoot = window.calendar?.el || document;
+  return {
+    prevBtn: calendarRoot.querySelector('.fc-jumpPrevInstance-button'),
+    nextBtn: calendarRoot.querySelector('.fc-jumpNextInstance-button'),
+  };
+};
+
+const setCalendarInstanceJumpButtonState = (button, disabled, title) => {
+  if (!button) return;
+  button.disabled = !!disabled;
+  if (disabled) button.classList.add('fc-button-disabled');
+  else button.classList.remove('fc-button-disabled');
+  if (title) button.title = title;
+};
+
+const updateMstInstanceNav = (mstId) => {
+  const { prevBtn, nextBtn } = getCalendarInstanceJumpButtons();
+  if (!prevBtn || !nextBtn) return;
+
+  if (!mstId) {
+    window.currentMstInstanceIndex = 0;
+    setCalendarInstanceJumpButtonState(prevBtn, true, 'Select an MST first');
+    setCalendarInstanceJumpButtonState(nextBtn, true, 'Select an MST first');
+    return;
+  }
+
+  const dates = getMstInstanceDates(mstId);
+  const total = dates.length || 1;
+  const rawIndex = Number.parseInt(window.currentMstInstanceIndex || 0, 10);
+  const boundedIndex = Math.min(Math.max(Number.isFinite(rawIndex) ? rawIndex : 0, 0), total - 1);
+  window.currentMstInstanceIndex = boundedIndex;
+
+  const disablePrev = total <= 1 || boundedIndex <= 0;
+  const disableNext = total <= 1 || boundedIndex >= total - 1;
+  setCalendarInstanceJumpButtonState(prevBtn, disablePrev, `Previous instance (${boundedIndex + 1} of ${total})`);
+  setCalendarInstanceJumpButtonState(nextBtn, disableNext, `Next instance (${boundedIndex + 1} of ${total})`);
+};
+
+const jumpToMstInstance = (direction) => {
+  const mstId = window.currentMstId || window.mstIdDisplay?.value;
+  if (!mstId) {
+    updateMstInstanceNav('');
+    return;
+  }
+
+  const dates = getMstInstanceDates(mstId);
+  if (!dates.length) {
+    updateMstInstanceNav(mstId);
+    return;
+  }
+
+  const rawIndex = Number.parseInt(window.currentMstInstanceIndex || 0, 10);
+  const currentIndex = Number.isFinite(rawIndex) ? rawIndex : 0;
+  const nextIndex = Math.min(Math.max(currentIndex + direction, 0), dates.length - 1);
+
+  if (nextIndex !== currentIndex) {
+    window.currentMstInstanceIndex = nextIndex;
+    window.calendar?.gotoDate(dates[nextIndex]);
+  }
+
+  updateMstInstanceNav(mstId);
+};
+
 // Calculate and display the next scheduled date from Last Scheduled Date + Frequency
 window.MST.Editor.refreshNextScheduledDisplay = function() {
   if (!window.lastDateInput || !window.freqInput || !window.nextDateCalc) return;
@@ -1131,10 +1223,21 @@ eventContent: function(arg) {
   };
 },
 
+    customButtons: {
+      jumpPrevInstance: {
+        text: '◀ Previous Instance',
+        click: () => jumpToMstInstance(-1)
+      },
+      jumpNextInstance: {
+        text: 'Next Instance ▶',
+        click: () => jumpToMstInstance(1)
+      }
+    },
+
     headerToolbar: {
-      left: 'prev,next today',
+      left: 'prev,next today jumpPrevInstance',
       center: 'title',
-      right: 'dayGridMonth,dayGridWeek,listWeek,listYear'
+      right: 'jumpNextInstance dayGridMonth,dayGridWeek,listWeek,listYear'
     },
 
     views: {
@@ -1145,6 +1248,8 @@ eventContent: function(arg) {
     eventClick(info) {
       const ev = info.event;
       const mstId = ev.extendedProps.mstId;
+      const clickedInstance = Number.parseInt(ev.extendedProps.instance || 0, 10);
+      window.pendingMstInstanceIndex = Number.isFinite(clickedInstance) ? clickedInstance : 0;
 
       // Always edit the base (green) MST instance so edits apply to the correct row
       let targetEvent = ev;
@@ -1276,6 +1381,7 @@ eventContent: function(arg) {
   }
 
   window.calendar.render();
+  updateMstInstanceNav(window.currentMstId || "");
 });
 
 
@@ -1607,6 +1713,7 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
      OPEN MST EDITOR PANEL
      ---------------------------------------- */
   MST.Editor.openEditorForMST = function(mstId, baseEvent) {
+    const previousMstId = window.currentMstId;
     const isNew = !!baseEvent.extendedProps.isNew;
     const orig = isNew
       ? baseEvent.extendedProps
@@ -1639,6 +1746,16 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     baseEvent.setExtendedProp("tvExpiryDate", tvExpiryDate);
     baseEvent.setExtendedProp("hasTvReference", hasTvReference);
     window.currentMstId = mstId;
+    const openedFromSameMst = previousMstId === mstId;
+    const pendingIndexRaw = Number.parseInt(window.pendingMstInstanceIndex, 10);
+    const hasPendingIndex = Number.isFinite(pendingIndexRaw) && pendingIndexRaw >= 0;
+    const existingIndexRaw = Number.parseInt(window.currentMstInstanceIndex, 10);
+    if (hasPendingIndex) {
+      window.currentMstInstanceIndex = pendingIndexRaw;
+    } else if (!openedFromSameMst || !Number.isFinite(existingIndexRaw)) {
+      window.currentMstInstanceIndex = 0;
+    }
+    window.pendingMstInstanceIndex = null;
     setTvControlsVisible(true);
 
     const stdJobUom = resolveStdJobUom(stdJobNo, baseEvent, orig);
@@ -1823,6 +1940,8 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     if (typeof MST?.Editor?.refreshNextScheduledDisplay === "function") {
       MST.Editor.refreshNextScheduledDisplay();
     }
+
+    updateMstInstanceNav(mstId);
 
     /* Buttons */
     window.saveBtn.onclick = () => MST.Editor.saveMSTEdits(mstId);
