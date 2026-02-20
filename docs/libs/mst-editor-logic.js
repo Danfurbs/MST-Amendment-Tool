@@ -599,12 +599,24 @@ const setCalendarInstanceJumpButtonState = (button, disabled, title) => {
   if (title) button.title = title;
 };
 
+const bindMstInstanceNavButtons = (elements) => {
+  const { prevMstInstanceBtn, nextMstInstanceBtn } = elements;
+
+  prevMstInstanceBtn?.addEventListener('click', () => jumpToMstInstance(-1));
+  nextMstInstanceBtn?.addEventListener('click', () => jumpToMstInstance(1));
+};
+
 const updateMstInstanceNav = (mstId) => {
+  const domPrevBtn = window.prevMstInstanceBtn;
+  const domNextBtn = window.nextMstInstanceBtn;
+  const positionLabel = window.mstInstancePosition;
   const { prevBtn, nextBtn } = getCalendarInstanceJumpButtons();
-  if (!prevBtn || !nextBtn) return;
 
   if (!mstId) {
     window.currentMstInstanceIndex = 0;
+    if (positionLabel) positionLabel.textContent = 'Select an MST to jump instances';
+    setCalendarInstanceJumpButtonState(domPrevBtn, true, 'Select an MST first');
+    setCalendarInstanceJumpButtonState(domNextBtn, true, 'Select an MST first');
     setCalendarInstanceJumpButtonState(prevBtn, true, 'Select an MST first');
     setCalendarInstanceJumpButtonState(nextBtn, true, 'Select an MST first');
     return;
@@ -615,9 +627,12 @@ const updateMstInstanceNav = (mstId) => {
   const rawIndex = Number.parseInt(window.currentMstInstanceIndex || 0, 10);
   const boundedIndex = Math.min(Math.max(Number.isFinite(rawIndex) ? rawIndex : 0, 0), total - 1);
   window.currentMstInstanceIndex = boundedIndex;
+  if (positionLabel) positionLabel.textContent = `Instance ${boundedIndex + 1} of ${total}`;
 
   const disablePrev = total <= 1 || boundedIndex <= 0;
   const disableNext = total <= 1 || boundedIndex >= total - 1;
+  setCalendarInstanceJumpButtonState(domPrevBtn, disablePrev, `Previous instance (${boundedIndex + 1} of ${total})`);
+  setCalendarInstanceJumpButtonState(domNextBtn, disableNext, `Next instance (${boundedIndex + 1} of ${total})`);
   setCalendarInstanceJumpButtonState(prevBtn, disablePrev, `Previous instance (${boundedIndex + 1} of ${total})`);
   setCalendarInstanceJumpButtonState(nextBtn, disableNext, `Next instance (${boundedIndex + 1} of ${total})`);
 };
