@@ -583,18 +583,30 @@ const getMstInstanceDates = (mstId) => {
   return uniqueDates;
 };
 
-const updateMstInstanceNav = (mstId) => {
-  const prevBtn = window.prevMstInstanceBtn;
-  const nextBtn = window.nextMstInstanceBtn;
-  const positionLabel = window.mstInstancePosition;
+const getCalendarInstanceJumpButtons = () => {
+  const calendarRoot = window.calendar?.el || document;
+  return {
+    prevBtn: calendarRoot.querySelector('.fc-jumpPrevInstance-button'),
+    nextBtn: calendarRoot.querySelector('.fc-jumpNextInstance-button'),
+  };
+};
 
-  if (!prevBtn || !nextBtn || !positionLabel) return;
+const setCalendarInstanceJumpButtonState = (button, disabled, title) => {
+  if (!button) return;
+  button.disabled = !!disabled;
+  if (disabled) button.classList.add('fc-button-disabled');
+  else button.classList.remove('fc-button-disabled');
+  if (title) button.title = title;
+};
+
+const updateMstInstanceNav = (mstId) => {
+  const { prevBtn, nextBtn } = getCalendarInstanceJumpButtons();
+  if (!prevBtn || !nextBtn) return;
 
   if (!mstId) {
     window.currentMstInstanceIndex = 0;
-    positionLabel.textContent = "Select an MST to jump instances";
-    prevBtn.disabled = true;
-    nextBtn.disabled = true;
+    setCalendarInstanceJumpButtonState(prevBtn, true, 'Select an MST first');
+    setCalendarInstanceJumpButtonState(nextBtn, true, 'Select an MST first');
     return;
   }
 
@@ -602,19 +614,18 @@ const updateMstInstanceNav = (mstId) => {
   const total = dates.length || 1;
   const rawIndex = Number.parseInt(window.currentMstInstanceIndex || 0, 10);
   const boundedIndex = Math.min(Math.max(Number.isFinite(rawIndex) ? rawIndex : 0, 0), total - 1);
-
   window.currentMstInstanceIndex = boundedIndex;
-  positionLabel.textContent = `Jump target ${boundedIndex + 1} of ${total}`;
 
-  const disableAll = total <= 1;
-  prevBtn.disabled = disableAll || boundedIndex <= 0;
-  nextBtn.disabled = disableAll || boundedIndex >= total - 1;
+  const disablePrev = total <= 1 || boundedIndex <= 0;
+  const disableNext = total <= 1 || boundedIndex >= total - 1;
+  setCalendarInstanceJumpButtonState(prevBtn, disablePrev, `Previous instance (${boundedIndex + 1} of ${total})`);
+  setCalendarInstanceJumpButtonState(nextBtn, disableNext, `Next instance (${boundedIndex + 1} of ${total})`);
 };
 
 const jumpToMstInstance = (direction) => {
   const mstId = window.currentMstId || window.mstIdDisplay?.value;
   if (!mstId) {
-    updateMstInstanceNav("");
+    updateMstInstanceNav('');
     return;
   }
 
@@ -628,21 +639,12 @@ const jumpToMstInstance = (direction) => {
   const currentIndex = Number.isFinite(rawIndex) ? rawIndex : 0;
   const nextIndex = Math.min(Math.max(currentIndex + direction, 0), dates.length - 1);
 
-  if (nextIndex === currentIndex) {
-    updateMstInstanceNav(mstId);
-    return;
+  if (nextIndex !== currentIndex) {
+    window.currentMstInstanceIndex = nextIndex;
+    window.calendar?.gotoDate(dates[nextIndex]);
   }
 
-  window.currentMstInstanceIndex = nextIndex;
-  window.calendar?.gotoDate(dates[nextIndex]);
   updateMstInstanceNav(mstId);
-};
-
-const bindMstInstanceNavButtons = (elements) => {
-  const { prevMstInstanceBtn, nextMstInstanceBtn } = elements;
-
-  prevMstInstanceBtn?.addEventListener("click", () => jumpToMstInstance(-1));
-  nextMstInstanceBtn?.addEventListener("click", () => jumpToMstInstance(1));
 };
 
 // Calculate and display the next scheduled date from Last Scheduled Date + Frequency
@@ -1232,9 +1234,20 @@ eventContent: function(arg) {
   };
 },
 
+    customButtons: {
+      jumpPrevInstance: {
+        text: '◀ Previous Instance',
+        click: () => jumpToMstInstance(-1)
+      },
+      jumpNextInstance: {
+        text: 'Next Instance ▶',
+        click: () => jumpToMstInstance(1)
+      }
+    },
+
     headerToolbar: {
       left: 'prev,next today',
-      center: 'title',
+      center: 'jumpPrevInstance,title,jumpNextInstance',
       right: 'dayGridMonth,dayGridWeek,listWeek,listYear'
     },
 
@@ -1379,6 +1392,7 @@ eventContent: function(arg) {
   }
 
   window.calendar.render();
+  updateMstInstanceNav(window.currentMstId || "");
 });
 
 
