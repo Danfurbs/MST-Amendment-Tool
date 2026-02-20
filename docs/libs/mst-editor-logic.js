@@ -2638,7 +2638,7 @@ MST.Editor.changeEquipment = function () {
    new Standard Job Number. Counts as
    1x change + 1x new.
    ---------------------------------------- */
-MST.Editor.changeStandardJob = function () {
+MST.Editor.changeStandardJob = async function () {
   const mstId = window.selectedMstId || window.currentMstId;
   if (!mstId) {
     alert("Please select an MST first.");
@@ -2670,7 +2670,21 @@ MST.Editor.changeStandardJob = function () {
     (orig && (orig["Equipment Number"] || orig.equipmentNo)) ||
     "";
 
-  const newStdJobNoInput = prompt("Enter new Standard Job Number:", currentStdJobNo);
+  let newStdJobNoInput = null;
+
+  if (typeof window.MST?.Views?.openStandardJobPicker === "function") {
+    newStdJobNoInput = await new Promise((resolve) => {
+      window.MST.Views.openStandardJobPicker({
+        title: "Select new Standard Job Number",
+        initialValue: currentStdJobNo,
+        onSelect: (item) => resolve(item?.number || ""),
+        onCancel: () => resolve(null)
+      });
+    });
+  } else {
+    newStdJobNoInput = prompt("Enter new Standard Job Number:", currentStdJobNo);
+  }
+
   if (newStdJobNoInput === null) return;
 
   const newStdJobNo = newStdJobNoInput.toString().trim();
