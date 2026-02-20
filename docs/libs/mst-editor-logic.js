@@ -1246,9 +1246,9 @@ eventContent: function(arg) {
     },
 
     headerToolbar: {
-      left: 'prev,next today',
-      center: 'jumpPrevInstance,title,jumpNextInstance',
-      right: 'dayGridMonth,dayGridWeek,listWeek,listYear'
+      left: 'prev,next today jumpPrevInstance',
+      center: 'title',
+      right: 'jumpNextInstance dayGridMonth,dayGridWeek,listWeek,listYear'
     },
 
     views: {
