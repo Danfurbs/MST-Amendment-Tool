@@ -80,7 +80,7 @@ jobDescCodes: [
 ],
 
   // -----------------------------------------------------
-  // 🔹 PROTECTION TYPES
+  // 🔹 PROTECTION TYPES (W8 Table)
   // -----------------------------------------------------
  protectionTypes: [
   { code: "G1", desc: "Safeguarded" },
@@ -103,7 +103,7 @@ jobDescCodes: [
 ],
 
   // -----------------------------------------------------
-  // 🔹 PROTECTION METHODS
+  // 🔹 PROTECTION METHODS (W9 Table)
   // -----------------------------------------------------
 protectionMethods: [
   { code: "01", desc: "Line Blockage (Simple)" },
@@ -126,6 +126,7 @@ protectionMethods: [
   { code: "18", desc: "Line Blockage + Remote Disconnection Device" },
   { code: "19", desc: "Line Blockage + Signal Post Replacement" },
   { code: "20", desc: "Line Blockage + T-COD English Tokenless" },
+  { code: "21", desc: "Possession with engineering controls (T3-E)" },
   { code: "22", desc: "Possession With Disconnection (T3-D)" },
   { code: "23", desc: "Published Line Blockage - Simple" },
   { code: "24", desc: "Published Line Blockage - Additional Protection" },
