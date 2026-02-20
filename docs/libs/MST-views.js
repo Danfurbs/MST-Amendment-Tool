@@ -1272,11 +1272,263 @@
     window.MST.Views.closeEquipmentPicker = closeOverlay;
   }
 
+  function setupStandardJobPicker() {
+    const overlay = getEl('stdJobPickerOverlay');
+    const openBtn = getEl('openStdJobPickerBtn');
+    const closeBtn = getEl('closeStdJobPickerBtn');
+    const cancelBtn = getEl('stdJobPickerCancelBtn');
+    const searchInput = getEl('stdJobPickerSearch');
+    const clearBtn = getEl('stdJobPickerClearBtn');
+    const tableBody = getEl('stdJobPickerBody');
+    const statsEl = getEl('stdJobPickerStats');
+    const titleEl = getEl('stdJobPickerTitle');
+    const manualInput = getEl('stdJobPickerManualInput');
+    const manualApplyBtn = getEl('stdJobPickerManualApplyBtn');
+
+    if (!overlay || !tableBody) return;
+
+    let allStdJobs = [];
+    let filteredStdJobs = [];
+    let currentSearchTerm = '';
+    let debounceTimer = null;
+
+    function normalizeText(value) {
+      return (value || '').toString().toLowerCase().trim();
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    function highlightMatch(text, term) {
+      if (!term || !text) return escapeHtml(text || '');
+      const normalizedText = text.toLowerCase();
+      const normalizedTerm = term.toLowerCase();
+      const index = normalizedText.indexOf(normalizedTerm);
+      if (index === -1) return escapeHtml(text);
+
+      const before = text.substring(0, index);
+      const match = text.substring(index, index + term.length);
+      const after = text.substring(index + term.length);
+
+      return escapeHtml(before) +
+             '<span class="equip-picker-highlight">' + escapeHtml(match) + '</span>' +
+             escapeHtml(after);
+    }
+
+    function buildStdJobList() {
+      allStdJobs = [];
+      const map = window.STANDARD_JOBS || {};
+
+      Object.keys(map).forEach((stdJobNo) => {
+        const item = map[stdJobNo] || {};
+        allStdJobs.push({
+          number: (stdJobNo || '').toString(),
+          desc1: (item.desc1 || '').toString(),
+          uom: (item.uom || '').toString()
+        });
+      });
+
+      allStdJobs.sort((a, b) => a.number.localeCompare(b.number, undefined, { numeric: true }));
+      return allStdJobs;
+    }
+
+    function filterStdJobs(term) {
+      currentSearchTerm = term;
+      const normalizedTerm = normalizeText(term);
+
+      if (!normalizedTerm) {
+        filteredStdJobs = [...allStdJobs];
+      } else {
+        filteredStdJobs = allStdJobs.filter((item) => {
+          return normalizeText(item.number).includes(normalizedTerm) ||
+                 normalizeText(item.desc1).includes(normalizedTerm) ||
+                 normalizeText(item.uom).includes(normalizedTerm);
+        });
+      }
+
+      return filteredStdJobs;
+    }
+
+    function renderTable(stdJobs, searchTerm) {
+      tableBody.innerHTML = '';
+
+      if (!stdJobs.length) {
+        const emptyRow = document.createElement('tr');
+        emptyRow.innerHTML = `
+          <td colspan="3" class="equip-picker-empty">
+            <span class="equip-picker-empty-icon">&#128269;</span>
+            ${searchTerm ? 'No standard jobs found matching "' + escapeHtml(searchTerm) + '"' : 'No standard job data available'}
+          </td>
+        `;
+        tableBody.appendChild(emptyRow);
+        return;
+      }
+
+      const maxDisplay = 250;
+      const displayRows = stdJobs.slice(0, maxDisplay);
+
+      displayRows.forEach((item) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${highlightMatch(item.number, searchTerm)}</td>
+          <td>${highlightMatch(item.desc1, searchTerm)}</td>
+          <td>${highlightMatch(item.uom, searchTerm)}</td>
+        `;
+        tr.addEventListener('click', () => selectStandardJob(item));
+        tableBody.appendChild(tr);
+      });
+
+      if (statsEl) {
+        if (stdJobs.length > maxDisplay) {
+          statsEl.textContent = `Showing ${maxDisplay} of ${stdJobs.length} standard jobs. Type to narrow results.`;
+        } else if (searchTerm) {
+          statsEl.textContent = `Found ${stdJobs.length} standard job${stdJobs.length === 1 ? '' : 's'}`;
+        } else {
+          statsEl.textContent = `${stdJobs.length} standard jobs available. Type to search.`;
+        }
+      }
+    }
+
+    function selectManualStandardJob() {
+      const manualNumber = (manualInput?.value || '').toString().trim();
+      if (!manualNumber) {
+        alert('Enter a Standard Job Number first.');
+        manualInput?.focus();
+        return;
+      }
+
+      const known = window.STANDARD_JOBS?.[manualNumber];
+      selectStandardJob({
+        number: manualNumber,
+        desc1: known?.desc1 || '',
+        uom: known?.uom || ''
+      });
+    }
+
+    function selectStandardJob(item) {
+      const cb = window.MST?.Views?._stdJobPickerCallback;
+      if (typeof cb === 'function') {
+        window.MST.Views._stdJobPickerCallback = null;
+        closeOverlay();
+        cb(item);
+        return;
+      }
+
+      const stdJobInput = getEl('newStdJobNo');
+      if (stdJobInput) {
+        stdJobInput.value = item.number;
+        stdJobInput.dispatchEvent(new Event('input', { bubbles: true }));
+        stdJobInput.dispatchEvent(new Event('blur', { bubbles: true }));
+      }
+      closeOverlay();
+    }
+
+    function openOverlay(options = {}) {
+      buildStdJobList();
+      const initialValue = (options.initialValue || '').toString().trim();
+
+      window.MST = window.MST || {};
+      window.MST.Views = window.MST.Views || {};
+      window.MST.Views._stdJobPickerCallback = typeof options.onSelect === 'function' ? options.onSelect : null;
+      window.MST.Views._stdJobPickerCancel = typeof options.onCancel === 'function' ? options.onCancel : null;
+
+      if (titleEl) titleEl.textContent = options.title || 'Select Standard Job';
+      if (searchInput) searchInput.value = initialValue;
+      if (manualInput) manualInput.value = initialValue;
+      currentSearchTerm = initialValue;
+
+      filterStdJobs(initialValue);
+      renderTable(filteredStdJobs, initialValue);
+
+      overlay.classList.add('active');
+      setTimeout(() => searchInput?.focus(), 50);
+    }
+
+    function closeOverlay(triggerCancel = false) {
+      overlay.classList.remove('active');
+      if (searchInput) searchInput.value = '';
+      if (manualInput) manualInput.value = '';
+      if (tableBody) tableBody.innerHTML = '';
+      if (statsEl) statsEl.textContent = '';
+
+      const cancelCb = window.MST?.Views?._stdJobPickerCancel;
+      if (triggerCancel && typeof cancelCb === 'function') {
+        window.MST.Views._stdJobPickerCancel = null;
+        window.MST.Views._stdJobPickerCallback = null;
+        cancelCb();
+      } else {
+        if (window.MST?.Views) {
+          window.MST.Views._stdJobPickerCancel = null;
+          window.MST.Views._stdJobPickerCallback = null;
+        }
+      }
+    }
+
+    function handleSearch() {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        const term = searchInput?.value || '';
+        filterStdJobs(term);
+        renderTable(filteredStdJobs, term);
+      }, 150);
+    }
+
+    openBtn?.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      openOverlay();
+    });
+
+    closeBtn?.addEventListener('click', () => closeOverlay(true));
+    cancelBtn?.addEventListener('click', () => closeOverlay(true));
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) closeOverlay(true);
+    });
+
+    searchInput?.addEventListener('input', handleSearch);
+    clearBtn?.addEventListener('click', () => {
+      if (searchInput) searchInput.value = '';
+      filterStdJobs('');
+      renderTable(filteredStdJobs, '');
+      searchInput?.focus();
+    });
+
+    manualApplyBtn?.addEventListener('click', selectManualStandardJob);
+    manualInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        selectManualStandardJob();
+      }
+    });
+
+    searchInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && filteredStdJobs.length > 0) {
+        e.preventDefault();
+        selectStandardJob(filteredStdJobs[0]);
+      } else if (e.key === 'Escape') {
+        closeOverlay(true);
+      }
+    });
+
+    overlay.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeOverlay(true);
+    });
+
+    window.MST = window.MST || {};
+    window.MST.Views = window.MST.Views || {};
+    window.MST.Views.openStandardJobPicker = openOverlay;
+    window.MST.Views.closeStandardJobPicker = closeOverlay;
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
     setupFilters();
     setupGoto();
     setupFlaggedListView();
     setupBulkUpdate();
     setupEquipmentPicker();
+    setupStandardJobPicker();
   });
 })();

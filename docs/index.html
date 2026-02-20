@@ -1295,9 +1295,9 @@ WHERE
 <label>
    <span class="label-title">
     Standard Job Number <span class="required-star">*</span>
+    <button type="button" id="openStdJobPickerBtn" class="equip-picker-btn" title="Search standard jobs">Browse...</button>
   </span>
     <input id="newStdJobNo" required />
-    <small><a href="https://networkrail.sharepoint.com/:x:/r/sites/asd/_layouts/15/Doc.aspx?sourcedoc=%7B62BADB1E-7450-46C4-A0C1-353E38D2AA72%7D&file=Standard%20Job%20List.xls&action=default&mobileredirect=true&DefaultItemOpen=1%3Fweb%3D1" id="stdJobListLink" target="_blank">View Standard Job List</a></small>
   </label>
 
   <!-- Row 2 -->
@@ -1441,6 +1441,51 @@ WHERE
       <button id="bulkCreateClearAllBtn" class="bulk-secondary-btn">Clear all</button>
       <button id="bulkCreateApplyBtn" class="primary-action-btn">Create MSTs</button>
       <button id="bulkCreateCancelBtn" class="bulk-secondary-btn">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- =========================
+     STANDARD JOB PICKER MODAL
+========================== -->
+<div id="stdJobPickerOverlay" class="bulk-overlay">
+  <div id="stdJobPickerPanel" class="bulk-panel" style="width: min(1080px, 96vw);">
+    <div class="bulk-header">
+      <h3 id="stdJobPickerTitle">Select Standard Job</h3>
+      <button id="closeStdJobPickerBtn" class="bulk-close-btn" title="Close">Close</button>
+    </div>
+    <div class="bulk-body">
+      <div class="equip-picker-search">
+        <div class="equip-picker-search-row">
+          <input type="text" id="stdJobPickerSearch" placeholder="Search by standard job number, description, or UoM..." autocomplete="off" />
+          <button id="stdJobPickerClearBtn" class="equip-picker-clear-btn" title="Clear search">Clear</button>
+        </div>
+        <div class="equip-picker-stats" id="stdJobPickerStats"></div>
+      </div>
+      <div class="bulk-table-wrapper equip-picker-table-wrapper" id="stdJobPickerTableWrapper">
+        <table class="bulk-table equip-picker-table">
+          <thead>
+            <tr>
+              <th style="width:18%;">Standard Job Number</th>
+              <th style="width:62%;">Description</th>
+              <th style="width:20%;">UoM</th>
+            </tr>
+          </thead>
+          <tbody id="stdJobPickerBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="bulk-footer">
+      <div class="equip-picker-manual-row">
+        <input
+          type="text"
+          id="stdJobPickerManualInput"
+          placeholder="Standard job not listed? Type it here..."
+          autocomplete="off"
+        />
+        <button id="stdJobPickerManualApplyBtn" class="bulk-secondary-btn" type="button">Use typed number</button>
+      </div>
+      <button id="stdJobPickerCancelBtn" class="bulk-secondary-btn">Cancel</button>
     </div>
   </div>
 </div>
