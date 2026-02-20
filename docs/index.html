@@ -260,20 +260,9 @@
     }
     .instance-jump-toolbar {
       display: flex;
-      flex-direction: column;
-      gap: 4px;
+      align-items: center;
       padding: 0 10px;
       border-left: 1px solid #e2e8f0;
-      border-right: 1px solid #e2e8f0;
-    }
-    .instance-jump-buttons {
-      display: flex;
-      gap: 6px;
-    }
-    .instance-jump-buttons .primary-action-btn {
-      margin: 0;
-      padding: 8px 12px;
-      white-space: nowrap;
     }
     .instance-jump-position {
       text-align: center;
@@ -900,18 +889,14 @@
         <button id="openResourceBtn" class="primary-action-btn">Planned Hours Graph</button>
         <button id="newMSTBtn" class="primary-action-btn">+ New MST</button>
       </div>
-      <div id="mstInstanceNav" class="instance-jump-toolbar" aria-label="MST instance navigation">
-        <div class="instance-jump-buttons">
-          <button id="prevMstInstanceBtn" class="primary-action-btn" type="button" disabled>◀ Previous Instance</button>
-          <button id="nextMstInstanceBtn" class="primary-action-btn" type="button" disabled>Next Instance ▶</button>
-        </div>
-        <span id="mstInstancePosition" class="instance-jump-position">Select an MST to jump instances</span>
-      </div>
       <div class="action-meta">
         <div class="action-status">
           <span id="newMstCount"></span>
           <span id="changeCount"></span>
           <div id="loading">Loading MSTs...</div>
+        </div>
+        <div id="mstInstanceNav" class="instance-jump-toolbar" aria-label="MST instance navigation">
+          <span id="mstInstancePosition" class="instance-jump-position">Select an MST to jump instances</span>
         </div>
         <div id="collapsedHeaderControls" class="collapsed-controls">
           <div class="compact-batch-row">
