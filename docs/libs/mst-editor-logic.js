@@ -381,9 +381,11 @@ const getDomElements = () => ({
   newDesc2Counter: document.getElementById("newDesc2Counter"),
   newDesc2Input: document.getElementById("newDesc2"),
   nextDateCalc: document.getElementById("nextDateCalc"),
+  nextMstInstanceBtn: document.getElementById("nextMstInstanceBtn"),
   openFilterBtn: document.getElementById("openFilterBtn"),
   protMethodInput: document.getElementById("protMethodInput"),
   protTypeInput: document.getElementById("protTypeInput"),
+  prevMstInstanceBtn: document.getElementById("prevMstInstanceBtn"),
   removeTvBtn: document.getElementById("removeTvBtn"),
   resetAllBtn: document.getElementById("resetAllBtn"),
   resetFiltersBtn: document.getElementById("resetFiltersBtn"),
@@ -393,6 +395,7 @@ const getDomElements = () => ({
   sidebar: document.getElementById("sidebar"),
   stdJobDisplay: document.getElementById("stdJobDisplay"),
   taskDisplay: document.getElementById("taskDisplay"),
+  mstInstancePosition: document.getElementById("mstInstancePosition"),
   tvActions: document.getElementById("tvActions"),
   tvAppliedLabel: document.getElementById("tvAppliedLabel"),
   tvExpiryInput: document.getElementById("tvExpiryInput"),
@@ -435,6 +438,9 @@ const exposeDomElements = (elements) => {
     sidebar,
     stdJobDisplay,
     taskDisplay,
+    nextMstInstanceBtn,
+    prevMstInstanceBtn,
+    mstInstancePosition,
     tvActions,
     tvAppliedLabel,
     tvExpiryInput,
@@ -477,6 +483,9 @@ const exposeDomElements = (elements) => {
   window.sidebarEl = sidebar;
   window.stdJobDisplay = stdJobDisplay;
   window.taskDisplay = taskDisplay;
+  window.nextMstInstanceBtn = nextMstInstanceBtn;
+  window.prevMstInstanceBtn = prevMstInstanceBtn;
+  window.mstInstancePosition = mstInstancePosition;
   window.tvActions = tvActions;
   window.tvAppliedLabel = tvAppliedLabel;
   window.tvExpiryInput = tvExpiryInput;
@@ -544,6 +553,96 @@ const bindTvButtons = (elements) => {
     }
     MST.Editor.removeTvFromMst(mstId);
   });
+};
+
+const getMstInstanceDates = (mstId) => {
+  if (!mstId) return [];
+
+  const baseEvent = window.calendar?.getEventById(`${mstId}_0`);
+  const futureInstances = window.virtualInstanceStore?.[mstId] || [];
+  const dates = [];
+
+  if (baseEvent?.start) dates.push(new Date(baseEvent.start.getTime()));
+
+  futureInstances.forEach((inst) => {
+    if (inst?.start) dates.push(new Date(inst.start));
+  });
+
+  const uniqueDates = [];
+  const seenDays = new Set();
+  dates
+    .filter((date) => date instanceof Date && !Number.isNaN(date.getTime()))
+    .sort((a, b) => a - b)
+    .forEach((date) => {
+      const dayKey = U.dateToInputYYYYMMDD(date);
+      if (!dayKey || seenDays.has(dayKey)) return;
+      seenDays.add(dayKey);
+      uniqueDates.push(date);
+    });
+
+  return uniqueDates;
+};
+
+const updateMstInstanceNav = (mstId) => {
+  const prevBtn = window.prevMstInstanceBtn;
+  const nextBtn = window.nextMstInstanceBtn;
+  const positionLabel = window.mstInstancePosition;
+
+  if (!prevBtn || !nextBtn || !positionLabel) return;
+
+  if (!mstId) {
+    window.currentMstInstanceIndex = 0;
+    positionLabel.textContent = "Select an MST to jump instances";
+    prevBtn.disabled = true;
+    nextBtn.disabled = true;
+    return;
+  }
+
+  const dates = getMstInstanceDates(mstId);
+  const total = dates.length || 1;
+  const rawIndex = Number.parseInt(window.currentMstInstanceIndex || 0, 10);
+  const boundedIndex = Math.min(Math.max(Number.isFinite(rawIndex) ? rawIndex : 0, 0), total - 1);
+
+  window.currentMstInstanceIndex = boundedIndex;
+  positionLabel.textContent = `Jump target ${boundedIndex + 1} of ${total}`;
+
+  const disableAll = total <= 1;
+  prevBtn.disabled = disableAll || boundedIndex <= 0;
+  nextBtn.disabled = disableAll || boundedIndex >= total - 1;
+};
+
+const jumpToMstInstance = (direction) => {
+  const mstId = window.currentMstId || window.mstIdDisplay?.value;
+  if (!mstId) {
+    updateMstInstanceNav("");
+    return;
+  }
+
+  const dates = getMstInstanceDates(mstId);
+  if (!dates.length) {
+    updateMstInstanceNav(mstId);
+    return;
+  }
+
+  const rawIndex = Number.parseInt(window.currentMstInstanceIndex || 0, 10);
+  const currentIndex = Number.isFinite(rawIndex) ? rawIndex : 0;
+  const nextIndex = Math.min(Math.max(currentIndex + direction, 0), dates.length - 1);
+
+  if (nextIndex === currentIndex) {
+    updateMstInstanceNav(mstId);
+    return;
+  }
+
+  window.currentMstInstanceIndex = nextIndex;
+  window.calendar?.gotoDate(dates[nextIndex]);
+  updateMstInstanceNav(mstId);
+};
+
+const bindMstInstanceNavButtons = (elements) => {
+  const { prevMstInstanceBtn, nextMstInstanceBtn } = elements;
+
+  prevMstInstanceBtn?.addEventListener("click", () => jumpToMstInstance(-1));
+  nextMstInstanceBtn?.addEventListener("click", () => jumpToMstInstance(1));
 };
 
 // Calculate and display the next scheduled date from Last Scheduled Date + Frequency
@@ -1065,6 +1164,8 @@ window.MST.Editor.applyBulkCreateMSTs = function() {
     resetAllBtn?.addEventListener("click", MST.Editor.resetAllChanges);
 
     bindTvButtons(dom);
+    bindMstInstanceNavButtons(dom);
+    updateMstInstanceNav("");
 
     // ----------------------
     // INITIALIZE FULLCALENDAR
@@ -1145,6 +1246,8 @@ eventContent: function(arg) {
     eventClick(info) {
       const ev = info.event;
       const mstId = ev.extendedProps.mstId;
+      const clickedInstance = Number.parseInt(ev.extendedProps.instance || 0, 10);
+      window.pendingMstInstanceIndex = Number.isFinite(clickedInstance) ? clickedInstance : 0;
 
       // Always edit the base (green) MST instance so edits apply to the correct row
       let targetEvent = ev;
@@ -1607,6 +1710,7 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
      OPEN MST EDITOR PANEL
      ---------------------------------------- */
   MST.Editor.openEditorForMST = function(mstId, baseEvent) {
+    const previousMstId = window.currentMstId;
     const isNew = !!baseEvent.extendedProps.isNew;
     const orig = isNew
       ? baseEvent.extendedProps
@@ -1639,6 +1743,16 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     baseEvent.setExtendedProp("tvExpiryDate", tvExpiryDate);
     baseEvent.setExtendedProp("hasTvReference", hasTvReference);
     window.currentMstId = mstId;
+    const openedFromSameMst = previousMstId === mstId;
+    const pendingIndexRaw = Number.parseInt(window.pendingMstInstanceIndex, 10);
+    const hasPendingIndex = Number.isFinite(pendingIndexRaw) && pendingIndexRaw >= 0;
+    const existingIndexRaw = Number.parseInt(window.currentMstInstanceIndex, 10);
+    if (hasPendingIndex) {
+      window.currentMstInstanceIndex = pendingIndexRaw;
+    } else if (!openedFromSameMst || !Number.isFinite(existingIndexRaw)) {
+      window.currentMstInstanceIndex = 0;
+    }
+    window.pendingMstInstanceIndex = null;
     setTvControlsVisible(true);
 
     const stdJobUom = resolveStdJobUom(stdJobNo, baseEvent, orig);
@@ -1823,6 +1937,8 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     if (typeof MST?.Editor?.refreshNextScheduledDisplay === "function") {
       MST.Editor.refreshNextScheduledDisplay();
     }
+
+    updateMstInstanceNav(mstId);
 
     /* Buttons */
     window.saveBtn.onclick = () => MST.Editor.saveMSTEdits(mstId);
