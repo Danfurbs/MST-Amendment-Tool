@@ -786,6 +786,7 @@ ${preview}${suffix}`
       const initialFilterModal = document.getElementById("initialFilterModal");
       const initialWorkGroupDropdown = document.getElementById("initialWorkGroupDropdown");
       const initialDesc1Dropdown = document.getElementById("initialDesc1Dropdown");
+      const initialDesc1Search = document.getElementById("initialDesc1Search");
       const initialFilterConfirm = document.getElementById("initialFilterConfirm");
       const initialFilterBack = document.getElementById("initialFilterBack");
       const initialFilterCount = document.getElementById("initialFilterCount");
@@ -899,12 +900,14 @@ ${preview}${suffix}`
           .map(([desc1, count]) => {
             const stdJobs = desc1StdJobs.get(desc1);
             const stdJobLabel = stdJobs && stdJobs.size
-              ? ` — ${[...stdJobs].sort((a, b) => a.localeCompare(b)).join(", ")}`
+              ? `${[...stdJobs].sort((a, b) => a.localeCompare(b)).join(", ")} - `
               : "";
 
             return {
               value: desc1,
-              label: `${desc1}${stdJobLabel} (${count})`
+              label: `${stdJobLabel}${desc1} (${count})`,
+              desc1,
+              stdJobs: stdJobs ? [...stdJobs] : []
             };
           });
       };
@@ -965,20 +968,42 @@ ${preview}${suffix}`
 
         initialFilterModal.style.display = "flex";
 
+        let activeDesc1Query = "";
+
+        const renderDesc1Options = (options, preserveSelection = true) => {
+          const previousSelection = preserveSelection
+            ? new Set([...initialDesc1Dropdown.selectedOptions].map(o => o.value))
+            : new Set();
+
+          initialDesc1Dropdown.innerHTML = "";
+          options.forEach(({ value, label }) => {
+            const opt = document.createElement("option");
+            opt.value = value;
+            opt.textContent = label;
+            if (previousSelection.has(value)) {
+              opt.selected = true;
+            }
+            initialDesc1Dropdown.appendChild(opt);
+          });
+        };
+
+        const matchesDesc1Query = (option, query) => {
+          if (!query) return true;
+          const normalizedQuery = query.toLowerCase();
+          const descMatch = option.desc1.toLowerCase().includes(normalizedQuery);
+          const stdJobMatch = option.stdJobs.some(job => job.toLowerCase().includes(normalizedQuery));
+          return descMatch || stdJobMatch;
+        };
+
         const updateDesc1Options = () => {
           const selectedWorkGroups = [...initialWorkGroupDropdown.selectedOptions].map(o => o.value);
           const baseRows = selectedWorkGroups.length
             ? rows.filter(r => selectedWorkGroups.includes(safeTrim(r["Work Group Code"])))
             : rows;
-          const desc1Options = buildDesc1Options(baseRows);
+          const desc1Options = buildDesc1Options(baseRows)
+            .filter(option => matchesDesc1Query(option, activeDesc1Query));
 
-          initialDesc1Dropdown.innerHTML = "";
-          desc1Options.forEach(({ value, label }) => {
-            const opt = document.createElement("option");
-            opt.value = value;
-            opt.textContent = label;
-            initialDesc1Dropdown.appendChild(opt);
-          });
+          renderDesc1Options(desc1Options);
         };
 
         const updateFilteredCount = () => {
@@ -1007,6 +1032,15 @@ ${preview}${suffix}`
           updateFilteredCount();
         };
         initialDesc1Dropdown.onchange = updateFilteredCount;
+
+        if (initialDesc1Search) {
+          initialDesc1Search.value = "";
+          initialDesc1Search.oninput = () => {
+            activeDesc1Query = safeTrim(initialDesc1Search.value);
+            updateDesc1Options();
+            updateFilteredCount();
+          };
+        }
 
         updateDesc1Options();
         updateFilteredCount();
