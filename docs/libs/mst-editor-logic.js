@@ -16,6 +16,12 @@ const updateCharCounter = (inputEl, counterEl, max = MAX_DESC2_LENGTH) => {
 const normalizeAllowMultipleFlag = (value) =>
   String(value || "").trim().toUpperCase() === "YES" ? "YES" : "";
 
+const normalizeProtectionCode = (value) => {
+  const code = (value ?? "").toString().trim();
+  if (!code) return "";
+  return code.padStart(2, "0");
+};
+
 window.MST = window.MST || {};
 window.MST.Editor = window.MST.Editor || {};
 window.MST.Resources = window.MST.Resources || {};
@@ -704,6 +710,8 @@ if (!window.originalProps[mstId]) {
   }
 
   clone["MST Description 2"] = String(clone["MST Description 2"] ?? "").trimEnd();
+  clone["Protection Type Code"] = normalizeProtectionCode(clone["Protection Type Code"]);
+  clone["Protection Method Code"] = normalizeProtectionCode(clone["Protection Method Code"]);
   window.originalProps[mstId] = clone;
 }
 
@@ -2173,8 +2181,8 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
             unitsRequired: safeText(r["Units Required"]),
             segFrom: safeText(r["MST Segment Mileage From"]),
             segTo: safeText(r["MST Segment Mileage To"]),
-            protType: safeText(r["Protection Type Code"]),
-            protMethod: safeText(r["Protection Method Code"]),
+            protType: normalizeProtectionCode(safeText(r["Protection Type Code"])),
+            protMethod: normalizeProtectionCode(safeText(r["Protection Method Code"])),
             allowMultiple: normalizeAllowMultipleFlag(r["Allow Multiple workorders"]),
             resourceHours: parseFloat(r["Resource Hours"] || 0),
             tvReference,
@@ -2265,8 +2273,8 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     const formattedSegFrom = formatMileageValue(pickValue(updates.segFrom, props.segFrom));
     const formattedSegTo = formatMileageValue(pickValue(updates.segTo, props.segTo));
 
-    const protType = (pickValue(updates.protType, props.protType) ?? "").toString().trim();
-    const protMethod = (pickValue(updates.protMethod, props.protMethod) ?? "").toString().trim();
+    const protType = normalizeProtectionCode(pickValue(updates.protType, props.protType));
+    const protMethod = normalizeProtectionCode(pickValue(updates.protMethod, props.protMethod));
 
     const allowMultipleRaw = updates.allowMultiple === undefined
       ? props.allowMultiple
@@ -3016,8 +3024,8 @@ MST.Editor.buildNewMstPayload = function(input, options = {}) {
   const freq = parseInt(String(input.freq || "").trim(), 10);
   const lastDateStr = String(input.lastDateStr || "").trim();
   const unitsReq = String(input.unitsReq || "").trim();
-  const protType = String(input.protType || "").trim();
-  const protMethod = String(input.protMethod || "").trim();
+  const protType = normalizeProtectionCode(input.protType);
+  const protMethod = normalizeProtectionCode(input.protMethod);
   const wgCode = String(input.wgCode || "").trim();
   const segFrom = String(input.segFrom || "").trim();
   const segTo = String(input.segTo || "").trim();
@@ -3243,8 +3251,8 @@ MST.Editor.addNewMST = function () {
       units: baseEvent.extendedProps.unitsRequired,
       segFrom: baseEvent.extendedProps.segFrom,
       segTo: baseEvent.extendedProps.segTo,
-      pt: baseEvent.extendedProps.protType,
-      pm: baseEvent.extendedProps.protMethod,
+      pt: normalizeProtectionCode(baseEvent.extendedProps.protType),
+      pm: normalizeProtectionCode(baseEvent.extendedProps.protMethod),
       allowMultiple: normalizeAllowMultipleFlag(baseEvent.extendedProps.allowMultiple),
       tvReference: baseEvent.extendedProps.tvReference,
       tvExpiry: normalizeTvExpiry(baseEvent.extendedProps.tvExpiryDate),
@@ -3303,10 +3311,10 @@ MST.Editor.addNewMST = function () {
       Old_Segment_To: normalizedSegToOld,
       New_Segment_To: normalizedSegToNew,
 
-      Old_Protection_Type_Code: orig["Protection Type Code"] || "",
+      Old_Protection_Type_Code: normalizeProtectionCode(orig["Protection Type Code"]),
       New_Protection_Type_Code: cur.pt,
 
-      Old_Protection_Method_Code: orig["Protection Method Code"] || "",
+      Old_Protection_Method_Code: normalizeProtectionCode(orig["Protection Method Code"]),
       New_Protection_Method_Code: cur.pm,
 
       Old_Allow_Multiple_Workorders: origAllowMultiple,
