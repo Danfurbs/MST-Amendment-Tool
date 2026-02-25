@@ -321,6 +321,12 @@ const bindExportButton = (btn) => {
   }
 };
 
+const bindExportReviewButton = (btn) => {
+  if (btn && MST?.Export?.openReviewAndExport) {
+    btn.addEventListener("click", MST.Export.openReviewAndExport);
+  }
+};
+
 const showMstLoadingOverlay = (title, message, step) => {
   const loadingOverlay = document.getElementById("loadingOverlay");
   const loadingTitle = document.getElementById("loadingTitle");
@@ -365,7 +371,9 @@ const getDomElements = () => ({
   equipDesc1Display: document.getElementById("equipDesc1Display"),
   equipDesc2Display: document.getElementById("equipDesc2Display"),
   exportBtn: document.getElementById("exportBtn"),
+  exportBtnReview: document.getElementById("exportBtnReview"),
   exportBtnCompact: document.getElementById("exportBtnCompact"),
+  exportBtnReviewCompact: document.getElementById("exportBtnReviewCompact"),
   filterDesc1: document.getElementById("filterDesc1"),
   filterDesc2: document.getElementById("filterDesc2"),
   filterElr: document.getElementById("filterElr"),
@@ -1153,7 +1161,9 @@ window.MST.Editor.applyBulkCreateMSTs = function() {
     const {
       calEl,
       exportBtn,
+      exportBtnReview,
       exportBtnCompact,
+      exportBtnReviewCompact,
       batchNumber,
       batchNumberCompact,
       resetAllBtn,
@@ -1185,6 +1195,8 @@ window.MST.Editor.applyBulkCreateMSTs = function() {
     bindBatchMirroring(batchNumber, batchNumberCompact);
     bindExportButton(exportBtn);
     bindExportButton(exportBtnCompact);
+    bindExportReviewButton(exportBtnReview);
+    bindExportReviewButton(exportBtnReviewCompact);
 
     resetAllBtn?.addEventListener("click", MST.Editor.resetAllChanges);
 
