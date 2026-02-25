@@ -115,6 +115,126 @@ const formatPeriodVolumes = (periodVolumes = {}) => {
 
     MST.Export = MST.Export || {};
 
+    const REVIEW_FIELDS = [
+      ["MST Description 2", "Old_Desc2", "New_Desc2"],
+      ["Work Group Code", "Old_Work_Group_Code", "New_Work_Group_Code"],
+      ["Job Description Code", "Old_Job_Desc_Code", "New_Job_Desc_Code"],
+      ["Frequency", "Old_Frequency", "New_Frequency"],
+      ["Last Scheduled Date", "Old_Last_Scheduled_Date", "New_Last_Scheduled_Date"],
+      ["Protection Type Code", "Old_Protection_Type_Code", "New_Protection_Type_Code"],
+      ["Protection Method Code", "Old_Protection_Method_Code", "New_Protection_Method_Code"],
+      ["Units Required", "Old_Units_Required", "New_Units_Required"],
+      ["Allow Multiple workorders", "Old_Allow_Multiple_Workorders", "New_Allow_Multiple_Workorders"],
+      ["Segment Mileage From", "Old_Segment_From", "New_Segment_From"],
+      ["Segment Mileage To", "Old_Segment_To", "New_Segment_To"],
+      ["TV Reference", "Old_TV_Reference", "New_TV_Reference"],
+      ["TV Expiry Date", "Old_TV_Expiry_Date", "New_TV_Expiry_Date"]
+    ];
+
+    const formatReviewCell = (value, fieldLabel) => {
+      if (value == null || value === "") return "";
+      if (fieldLabel === "Last Scheduled Date" || fieldLabel === "TV Expiry Date") {
+        return formatDateDMY(value);
+      }
+      return String(value);
+    };
+
+    const buildReviewRows = () => {
+      const rows = [];
+      const changeData = Object.values(window.changes || {});
+      changeData.forEach((row) => {
+        const orig = window.originalProps?.[row.MST_ID] || {};
+        const equipmentNo = orig["Equipment Number"] || row.Equipment || "";
+        const taskNo = orig["MST Task Number"] || row["Task No"] || "";
+        const mstDesc1 = row.MST_Description_1 || orig["MST Description 1"] || row["MST Desc 1"] || "";
+
+        REVIEW_FIELDS.forEach(([label, oldKey, newKey]) => {
+          const oldValue = row[oldKey];
+          const newValue = row[newKey];
+          if (oldValue === newValue) return;
+          rows.push({
+            equipmentNo,
+            taskNo,
+            mstDesc1,
+            field: label,
+            from: formatReviewCell(oldValue, label),
+            to: formatReviewCell(newValue, label)
+          });
+        });
+      });
+      return rows;
+    };
+
+    const closeReviewModal = () => {
+      const modal = document.getElementById("exportReviewModal");
+      if (modal) modal.style.display = "none";
+    };
+
+    MST.Export.openReviewAndExport = function () {
+      const changeKeys = Object.keys(window.changes || {});
+      const newKeys = Object.keys(window.createdMSTs || {});
+      const batchNumber = document.getElementById("batchNumber")?.value.trim();
+
+      const hasAnyExportData = changeKeys.length > 0 || newKeys.length > 0;
+      const hasBatchNumber = Boolean(batchNumber);
+
+      const summary = document.getElementById("exportReviewSummary");
+      const body = document.getElementById("exportReviewBody");
+      const modal = document.getElementById("exportReviewModal");
+      const proceed = document.getElementById("proceedExportReviewBtn");
+      const close = document.getElementById("closeExportReviewBtn");
+
+      if (!summary || !body || !modal || !proceed || !close) {
+        MST.Export.exportChanges();
+        return;
+      }
+
+      const reviewRows = buildReviewRows();
+      const maxRows = 150;
+      const renderedRows = reviewRows.slice(0, maxRows);
+
+      const validationNotes = [];
+      if (!hasAnyExportData) validationNotes.push("No amended or new MSTs are currently queued for export.");
+      if (!hasBatchNumber) validationNotes.push("Batch Number is required before you can proceed.");
+
+      const introSummary =
+        `You are preparing to export ${changeKeys.length} amended MST(s) and ${newKeys.length} new MST(s). ` +
+        `Showing ${renderedRows.length} of ${reviewRows.length} field-level changes.`;
+
+      summary.innerHTML = validationNotes.length
+        ? `${introSummary}<br><strong>Before exporting:</strong> ${validationNotes.join(" ")}`
+        : introSummary;
+
+      body.innerHTML = "";
+      renderedRows.forEach((row) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${row.equipmentNo || ""}</td><td>${row.taskNo || ""}</td><td>${row.mstDesc1 || ""}</td><td>${row.field}</td><td>${row.from}</td><td>${row.to}</td>`;
+        body.appendChild(tr);
+      });
+
+      if (!renderedRows.length) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td colspan="6">No field-level edits detected. New MST creation changes will still be exported.</td>`;
+        body.appendChild(tr);
+      }
+
+      close.onclick = closeReviewModal;
+      modal.onclick = (event) => {
+        if (event.target === modal) closeReviewModal();
+      };
+      proceed.disabled = !(hasAnyExportData && hasBatchNumber);
+      proceed.title = proceed.disabled
+        ? "Add a batch number and at least one amendment/new MST to enable export."
+        : "";
+      proceed.onclick = async () => {
+        if (proceed.disabled) return;
+        closeReviewModal();
+        await MST.Export.exportChanges();
+      };
+
+      modal.style.display = "flex";
+    };
+
     MST.Export.exportChanges = async function () {
 
         const changeKeys = Object.keys(window.changes || {});
