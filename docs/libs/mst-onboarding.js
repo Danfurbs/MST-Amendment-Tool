@@ -20,12 +20,39 @@
     tourSkipBtn: document.getElementById("tourSkipBtn")
   };
 
+  const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  async function ensureEditorFormVisible() {
+    const editForm = document.getElementById("editForm");
+    if (editForm && editForm.style.display !== "none") return;
+
+    const firstEvent = document.querySelector("#calendarEl .fc-event");
+    if (firstEvent) {
+      firstEvent.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+      await delay(220);
+    }
+  }
+
   const tourSteps = [
     { selector: ".upload-card", title: "Upload your MST file", body: "Start by choosing your latest MST extract (.xlsx/.xls/.csv)." },
     { selector: "#batchNumber", title: "Enter batch number", body: "Provide the batch (e.g. LANDC...) so exported updates match your run." },
     { selector: "#openFilterBtn", title: "Use filters", body: "Open filters to narrow by work group, plant, discipline and more." },
     { selector: "#openGotoBtn", title: "Go directly to an MST", body: "Use Go to MST when planners need to jump to a known MST quickly." },
     { selector: "#newMSTBtn", title: "Create or bulk update", body: "Use + New MST for one item, or Bulk Update for multi-MST changes." },
+    { selector: "#sidebar", title: "MST details panel", body: "This left panel is where planners edit MST details once an MST is selected." },
+    {
+      selectors: ["#saveBtn", "#detailsIntro"],
+      title: "Update MST details",
+      body: "Select a green MST, then update fields and click Save Changes.",
+      beforeShow: ensureEditorFormVisible
+    },
+    {
+      selectors: ["#deactivateBtn", "#detailsIntro"],
+      title: "Deactivate MST",
+      body: "Use Deactivate MST when the MST should no longer generate future work.",
+      beforeShow: ensureEditorFormVisible
+    },
+    { selector: "#applyTvBtn", title: "Apply a TV", body: "Use Apply TV to attach a Temporary Variation reference and expiry to the selected MST." },
     { selector: "#openResourceBtn", title: "Check planned hours", body: "Use Planned Hours Graph before finalising schedule moves." },
     { selector: "#exportBtnReview", title: "Export safely", body: "Use Export with Review to inspect changes before generating the spreadsheet." }
   ];
@@ -74,16 +101,36 @@
     if (markSeen) localStorage.setItem(STORAGE_KEYS.onboardingSeen, ONBOARDING_VERSION);
   }
 
-  function showStep(idx) {
+  function resolveTarget(step) {
+    if (!step) return null;
+    if (step.selector) return document.querySelector(step.selector);
+    if (Array.isArray(step.selectors)) {
+      for (const selector of step.selectors) {
+        const el = document.querySelector(selector);
+        if (el) return el;
+      }
+    }
+    return null;
+  }
+
+  async function showStep(idx) {
     const step = tourSteps[idx];
     if (!step) {
       closeTour(true);
       return;
     }
 
-    const target = document.querySelector(step.selector);
+    if (typeof step.beforeShow === "function") {
+      try {
+        await step.beforeShow();
+      } catch (err) {
+        console.warn("Tour pre-step hook failed:", err);
+      }
+    }
+
+    const target = resolveTarget(step);
     if (!target) {
-      showStep(idx + 1);
+      await showStep(idx + 1);
       return;
     }
 
@@ -168,9 +215,9 @@
     selectors.bannerPrimary?.addEventListener("click", startTour);
     selectors.bannerSecondary?.addEventListener("click", hideBanner);
 
-    selectors.tourNextBtn?.addEventListener("click", () => {
+    selectors.tourNextBtn?.addEventListener("click", async () => {
       stepIndex += 1;
-      showStep(stepIndex);
+      await showStep(stepIndex);
     });
     selectors.tourSkipBtn?.addEventListener("click", () => closeTour(true));
     selectors.tourOverlay?.addEventListener("click", () => closeTour(false));

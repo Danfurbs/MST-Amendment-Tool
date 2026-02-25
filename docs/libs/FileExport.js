@@ -168,15 +168,8 @@ const formatPeriodVolumes = (periodVolumes = {}) => {
       const newKeys = Object.keys(window.createdMSTs || {});
       const batchNumber = document.getElementById("batchNumber")?.value.trim();
 
-      if (!changeKeys.length && !newKeys.length) {
-        alert("No changes or new MSTs to export.");
-        return;
-      }
-
-      if (!batchNumber) {
-        alert("Please enter a Batch Number before exporting.");
-        return;
-      }
+      const hasAnyExportData = changeKeys.length > 0 || newKeys.length > 0;
+      const hasBatchNumber = Boolean(batchNumber);
 
       const summary = document.getElementById("exportReviewSummary");
       const body = document.getElementById("exportReviewBody");
@@ -193,9 +186,17 @@ const formatPeriodVolumes = (periodVolumes = {}) => {
       const maxRows = 150;
       const renderedRows = reviewRows.slice(0, maxRows);
 
-      summary.textContent =
-        `You are about to export ${changeKeys.length} amended MST(s) and ${newKeys.length} new MST(s). ` +
+      const validationNotes = [];
+      if (!hasAnyExportData) validationNotes.push("No amended or new MSTs are currently queued for export.");
+      if (!hasBatchNumber) validationNotes.push("Batch Number is required before you can proceed.");
+
+      const introSummary =
+        `You are preparing to export ${changeKeys.length} amended MST(s) and ${newKeys.length} new MST(s). ` +
         `Showing ${renderedRows.length} of ${reviewRows.length} field-level changes.`;
+
+      summary.innerHTML = validationNotes.length
+        ? `${introSummary}<br><strong>Before exporting:</strong> ${validationNotes.join(" ")}`
+        : introSummary;
 
       body.innerHTML = "";
       renderedRows.forEach((row) => {
@@ -214,7 +215,12 @@ const formatPeriodVolumes = (periodVolumes = {}) => {
       modal.onclick = (event) => {
         if (event.target === modal) closeReviewModal();
       };
+      proceed.disabled = !(hasAnyExportData && hasBatchNumber);
+      proceed.title = proceed.disabled
+        ? "Add a batch number and at least one amendment/new MST to enable export."
+        : "";
       proceed.onclick = async () => {
+        if (proceed.disabled) return;
         closeReviewModal();
         await MST.Export.exportChanges();
       };
