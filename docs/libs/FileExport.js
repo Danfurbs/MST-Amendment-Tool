@@ -143,12 +143,19 @@ const formatPeriodVolumes = (periodVolumes = {}) => {
       const rows = [];
       const changeData = Object.values(window.changes || {});
       changeData.forEach((row) => {
+        const orig = window.originalProps?.[row.MST_ID] || {};
+        const equipmentNo = orig["Equipment Number"] || row.Equipment || "";
+        const taskNo = orig["MST Task Number"] || row["Task No"] || "";
+        const mstDesc1 = row.MST_Description_1 || orig["MST Description 1"] || row["MST Desc 1"] || "";
+
         REVIEW_FIELDS.forEach(([label, oldKey, newKey]) => {
           const oldValue = row[oldKey];
           const newValue = row[newKey];
           if (oldValue === newValue) return;
           rows.push({
-            mstId: row.MST_ID,
+            equipmentNo,
+            taskNo,
+            mstDesc1,
             field: label,
             from: formatReviewCell(oldValue, label),
             to: formatReviewCell(newValue, label)
@@ -201,13 +208,13 @@ const formatPeriodVolumes = (periodVolumes = {}) => {
       body.innerHTML = "";
       renderedRows.forEach((row) => {
         const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${row.mstId || ""}</td><td>${row.field}</td><td>${row.from}</td><td>${row.to}</td>`;
+        tr.innerHTML = `<td>${row.equipmentNo || ""}</td><td>${row.taskNo || ""}</td><td>${row.mstDesc1 || ""}</td><td>${row.field}</td><td>${row.from}</td><td>${row.to}</td>`;
         body.appendChild(tr);
       });
 
       if (!renderedRows.length) {
         const tr = document.createElement("tr");
-        tr.innerHTML = `<td colspan="4">No field-level edits detected. New MST creation changes will still be exported.</td>`;
+        tr.innerHTML = `<td colspan="6">No field-level edits detected. New MST creation changes will still be exported.</td>`;
         body.appendChild(tr);
       }
 
