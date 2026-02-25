@@ -25,6 +25,7 @@
   let spoofEditorSnapshot = null;
 
   const readDisplay = (el) => (el ? el.style.display : "");
+  const isVisible = (el) => !!el && getComputedStyle(el).display !== "none";
 
   function restoreSpoofEditor() {
     if (!spoofEditorActive || !spoofEditorSnapshot) return;
@@ -87,12 +88,15 @@
     if (equipDesc1) equipDesc1.textContent = "Demo Equipment Description 1";
     if (equipDesc2) equipDesc2.textContent = "Demo Equipment Description 2";
 
+    editForm.scrollTop = 0;
+    editForm.scrollIntoView({ block: "nearest", inline: "nearest" });
+
     spoofEditorActive = true;
   }
 
   async function ensureEditorFormVisible() {
     const editForm = document.getElementById("editForm");
-    if (editForm && editForm.style.display !== "none") return;
+    if (isVisible(editForm)) return;
 
     const firstEvent = document.querySelector("#calendarEl .fc-event");
     if (firstEvent) {
@@ -100,8 +104,7 @@
       await delay(220);
     }
 
-    const isVisible = editForm && editForm.style.display !== "none";
-    if (!isVisible) {
+    if (!isVisible(editForm)) {
       activateSpoofEditor();
       await delay(50);
     }
@@ -115,13 +118,13 @@
     { selector: "#newMSTBtn", title: "Create or bulk update", body: "Use + New MST for one item, or Bulk Update for multi-MST changes." },
     { selector: "#sidebar", title: "MST details panel", body: "This left panel is where planners edit MST details once an MST is selected." },
     {
-      selectors: ["#saveBtn", "#detailsIntro"],
+      selectors: ["#saveBtn", "#editForm", "#detailsIntro"],
       title: "Update MST details",
       body: "Select a green MST, then update fields and click Save Changes.",
       beforeShow: ensureEditorFormVisible
     },
     {
-      selectors: ["#deactivateBtn", "#detailsIntro"],
+      selectors: ["#deactivateBtn", "#editForm", "#detailsIntro"],
       title: "Deactivate MST",
       body: "Use Deactivate MST when the MST should no longer generate future work.",
       beforeShow: ensureEditorFormVisible
@@ -165,10 +168,26 @@
   function placeTourCard(target) {
     const card = selectors.tourCard;
     if (!card || !target) return;
+
+    target.scrollIntoView({ block: "nearest", inline: "nearest" });
+
     const rect = target.getBoundingClientRect();
     const cardRect = card.getBoundingClientRect();
-    const top = Math.min(window.innerHeight - cardRect.height - 8, rect.bottom + 8);
-    const left = Math.max(8, Math.min(window.innerWidth - cardRect.width - 8, rect.left));
+    const isSidebarTarget = !!target.closest?.("#sidebar");
+
+    let top = Math.min(window.innerHeight - cardRect.height - 8, rect.bottom + 8);
+    let left = Math.max(8, Math.min(window.innerWidth - cardRect.width - 8, rect.left));
+
+    if (isSidebarTarget) {
+      const preferredRight = rect.right + 12;
+      if (preferredRight + cardRect.width <= window.innerWidth - 8) {
+        left = preferredRight;
+        top = Math.max(8, Math.min(window.innerHeight - cardRect.height - 8, rect.top));
+      } else {
+        left = Math.max(8, Math.min(window.innerWidth - cardRect.width - 8, rect.left + 10));
+      }
+    }
+
     card.style.top = `${Math.max(8, top)}px`;
     card.style.left = `${left}px`;
   }
