@@ -464,6 +464,8 @@
     const listBody = getEl('bulkListBody');
     const selectedCount = getEl('bulkSelectedCount');
     const openEditorBtn = getEl('bulkOpenEditorBtn');
+    const bulkChangeStdJobBtn = getEl('bulkChangeStdJobBtn');
+    const bulkChangeEquipBtn = getEl('bulkChangeEquipBtn');
 
     const editOverlay = getEl('bulkEditOverlay');
     const editPanel = getEl('bulkEditPanel');
@@ -970,6 +972,57 @@
     });
 
     openEditorBtn?.addEventListener('click', openEditor);
+    bulkChangeStdJobBtn?.addEventListener('click', () => {
+      if (!selected.size) {
+        alert('Select at least one MST to change Standard Job Number.');
+        return;
+      }
+
+      const firstMstId = Array.from(selected)[0];
+      const firstEvent = window.calendar?.getEventById(`${firstMstId}_0`);
+      const currentStdJob = firstEvent?.extendedProps?.stdJobNo || '';
+
+      window.MST.Views.openStandardJobPicker?.({
+        title: `Bulk Change Standard Job (${selected.size} MST${selected.size === 1 ? '' : 's'})`,
+        initialValue: currentStdJob,
+        onSelect: (item) => {
+          const newStdJobNo = (item?.number || '').toString().trim();
+          if (!newStdJobNo) return;
+
+          const outcome = window.MST?.Editor?.bulkReplaceMstIdentity?.(Array.from(selected), { stdJobNo: newStdJobNo }) || {};
+          const updated = outcome.updated || 0;
+          const skipped = outcome.skipped || 0;
+          const failed = outcome.failed || 0;
+
+          alert(`Bulk Standard Job change complete.\n\nUpdated: ${updated}\nSkipped (unchanged): ${skipped}\nFailed: ${failed}`);
+          openOverlay({ resetSelection: true, resetFilter: true });
+        }
+      });
+    });
+
+    bulkChangeEquipBtn?.addEventListener('click', () => {
+      if (!selected.size) {
+        alert('Select at least one MST to change equipment.');
+        return;
+      }
+
+      window.MST = window.MST || {};
+      window.MST.Views = window.MST.Views || {};
+      window.MST.Views._equipPickerCallback = (item) => {
+        const newEquipNo = (item?.number || '').toString().trim();
+        if (!newEquipNo) return;
+
+        const outcome = window.MST?.Editor?.bulkReplaceMstIdentity?.(Array.from(selected), { equipmentNo: newEquipNo }) || {};
+        const updated = outcome.updated || 0;
+        const skipped = outcome.skipped || 0;
+        const failed = outcome.failed || 0;
+
+        alert(`Bulk equipment change complete.\n\nUpdated: ${updated}\nSkipped (unchanged): ${skipped}\nFailed: ${failed}`);
+        openOverlay({ resetSelection: true, resetFilter: true });
+      };
+
+      window.MST.Views.openEquipmentPicker?.();
+    });
     closeEditBtn?.addEventListener('click', closeEditor);
     backBtn?.addEventListener('click', () => {
       closeEditor();

@@ -2600,6 +2600,134 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
    new MST on the selected equipment with the
    same details.  Counts as 1x change + 1x new.
    ---------------------------------------- */
+
+
+const normalizeJobDescCode = (value) => (value ?? "").toString().trim().toUpperCase();
+
+MST.Editor.replaceMstIdentity = function (mstId, identityUpdates = {}) {
+  const baseEvent = window.calendar?.getEventById(`${mstId}_0`);
+  if (!baseEvent) return { updated: false, reason: "missing" };
+
+  const props = baseEvent.extendedProps || {};
+  if (props.workGroup === "DNXXXXX" || props.schedIndicator === "9") {
+    return { updated: false, reason: "deactivated" };
+  }
+
+  const orig = props.isNew ? props : window.originalProps[mstId];
+  const currentEquip = (props.equipmentNo || (orig && (orig["Equipment Number"] || orig.equipmentNo)) || "").toString().trim();
+  const currentStdJob = (props.stdJobNo || (orig && (orig["Std Job No"] || orig["Standard Job Number"])) || "").toString().trim();
+
+  const nextEquip = (identityUpdates.equipmentNo ?? currentEquip).toString().trim();
+  const nextStdJob = (identityUpdates.stdJobNo ?? currentStdJob).toString().trim();
+
+  if (!nextEquip || !nextStdJob) return { updated: false, reason: "invalid" };
+  if (nextEquip === currentEquip && nextStdJob === currentStdJob) return { updated: false, reason: "unchanged" };
+
+  const stdJobEntry = window.STANDARD_JOBS?.[nextStdJob];
+  const newDesc1 = stdJobEntry?.desc1 || props.desc1 || (orig && orig["MST Description 1"]) || "";
+  const stdJobUom =
+    stdJobEntry?.uom ||
+    resolveStdJobUom(nextStdJob, baseEvent, orig) ||
+    props.stdJobUom ||
+    props.unitMeasure ||
+    (orig && orig["Unit of Measure"]) ||
+    "";
+
+  const preDeactivateWorkGroup = props.workGroup || (orig && orig["Work Group Code"]) || "";
+
+  props.workGroup = "DNXXXXX";
+  props.schedIndicator = "9";
+  baseEvent.setProp("backgroundColor", "#000");
+  baseEvent.setProp("borderColor", "#000");
+  baseEvent.setProp("textColor", "#fff");
+  baseEvent.setProp("classNames", ["deactivated-mst"]);
+
+  if (!window.changes[mstId]) {
+    window.changes[mstId] = {
+      MST_ID: mstId,
+      Equipment: (orig && (orig["Equipment Number"] || orig.equipmentNo)) || props.equipmentNo || "",
+      "Task No": (orig && (orig["MST Task Number"] || orig.taskNo)) || props.taskNo || "",
+      "MST Desc 1": (orig && (orig["MST Description 1"] || orig.desc1)) || props.desc1 || "",
+      "MST Desc 2": (orig && (orig["MST Description 2"] || orig.desc2)) || props.desc2 || "",
+      Old_Work_Group_Code: (orig && orig["Work Group Code"]) || "",
+      New_Work_Group_Code: "DNXXXXX",
+      Old_Scheduling_Indicator_Code: (orig && orig["Scheduling Indicator Code"]) || "",
+      New_Scheduling_Indicator_Code: "9"
+    };
+  }
+
+  const lastDate = new Date(baseEvent.start);
+  lastDate.setHours(9, 0, 0, 0);
+  const lastDateStr = U.dateToInputYYYYMMDD(lastDate) || "";
+
+  const desc2 = clampDesc2(props.desc2 ?? (orig && orig["MST Description 2"]) ?? "");
+  const freq = parseInt(props.frequency || (orig && orig["MST Frequency"]) || 0, 10);
+  const jobDescCode = props.jobDescCode || (orig && orig["Job Description Code"]) || "";
+  const unitsReq = props.unitsRequired || (orig && orig["Units Required"]) || "";
+  const segFrom = props.segFrom ?? (orig && orig["MST Segment Mileage From"]) ?? "";
+  const segTo = props.segTo ?? (orig && orig["MST Segment Mileage To"]) ?? "";
+  const protType = props.protType || (orig && orig["Protection Type Code"]) || "";
+  const protMethod = props.protMethod || (orig && orig["Protection Method Code"]) || "";
+  const allowMultiple = normalizeAllowMultipleFlag(
+    props.allowMultiple || (orig && orig["Allow Multiple workorders"]) || ""
+  );
+
+  let newMstId = `${nextEquip}_${nextStdJob}`;
+  let duplicateCounter = 1;
+  while (window.calendar.getEventById(`${newMstId}_0`)) {
+    newMstId = `${nextEquip}_${nextStdJob}__${duplicateCounter++}`;
+  }
+
+  const equipMeta = window.equipmentDescriptions?.get?.(nextEquip) || {};
+  const equipDesc = equipMeta.desc1 || props.equipmentDesc1 || (orig && (orig["Equipment Description 1"] || orig.equipmentDesc1)) || "";
+
+  const newBaseEvent = window.calendar.addEvent({
+    id: `${newMstId}_0`,
+    title: `${nextEquip} — ${newDesc1}`,
+    start: lastDate,
+    backgroundColor: MST.Utils.BASE_COLOR,
+    borderColor: MST.Utils.BASE_COLOR,
+    extendedProps: {
+      mstId: newMstId, equipmentNo: nextEquip, equipmentDesc1: equipDesc, taskNo: "", stdJobNo: nextStdJob,
+      desc1: newDesc1, desc2, frequency: freq, workGroup: preDeactivateWorkGroup, jobDescCode, unitsRequired: unitsReq,
+      stdJobUom, segFrom, segTo, protType, protMethod, allowMultiple, unitMeasure: stdJobUom, instance: 0, isNew: true,
+      tvReference: "", tvExpiryDate: "", hasTvReference: false
+    }
+  });
+
+  if (typeof E.rebuildFutureInstances === "function") E.rebuildFutureInstances(newMstId, lastDate, freq, newDesc1, desc2);
+
+  if (!window.createdMSTs) window.createdMSTs = {};
+  window.createdMSTs[newMstId] = {
+    "Equipment": nextEquip, "Task No": "", "Comp Code": "", "Mod Code": "", "Job Desc Code": jobDescCode,
+    "MST Type": "", "StatutoryMST": "", "Allow Multiple workorders": allowMultiple, "MST Desc 1": newDesc1,
+    "MST Desc 2": desc2, "Freq": freq, "Unit Required": unitsReq, "Unit of Work": stdJobUom, "Sched Ind": "1",
+    "Work Group": preDeactivateWorkGroup, "Std Job No": nextStdJob, "LPD": "", "LSD": lastDateStr, "NSD": "",
+    "Segment From": segFrom, "Segment To": segTo, "Segment UOM": "", "Assign To": "", "ProtectionType": protType,
+    "ProtectionMethod": protMethod, "TV Reference": "", "TV Expiry Date": ""
+  };
+
+  if (typeof E.updateNewMstCount === "function") E.updateNewMstCount();
+  if (typeof window.MST?.ErrorUI?.recheckSingleMst === "function") {
+    window.MST.ErrorUI.recheckSingleMst(mstId);
+    window.MST.ErrorUI.recheckSingleMst(newMstId);
+  }
+
+  window.changeCount.innerText = `Changes: ${Object.keys(window.changes).length}`;
+  return { updated: true, newMstId, baseEvent: newBaseEvent };
+};
+
+MST.Editor.bulkReplaceMstIdentity = function (mstIds = [], identityUpdates = {}) {
+  const outcome = { updated: 0, skipped: 0, failed: 0 };
+  mstIds.forEach((mstId) => {
+    const result = MST.Editor.replaceMstIdentity(mstId, identityUpdates);
+    if (result?.updated) outcome.updated += 1;
+    else if (result?.reason === "unchanged") outcome.skipped += 1;
+    else outcome.failed += 1;
+  });
+  return outcome;
+};
+
 MST.Editor.changeEquipment = function () {
   const mstId = window.selectedMstId || window.currentMstId;
   if (!mstId) {
@@ -3259,7 +3387,7 @@ MST.Editor.addNewMST = function () {
       desc2: baseEvent.extendedProps.desc2,
       lastSched: U.dateToInputYYYYMMDD(baseEvent.start),
       wg: baseEvent.extendedProps.workGroup,
-      job: baseEvent.extendedProps.jobDescCode,
+      job: normalizeJobDescCode(baseEvent.extendedProps.jobDescCode),
       units: baseEvent.extendedProps.unitsRequired,
       segFrom: baseEvent.extendedProps.segFrom,
       segTo: baseEvent.extendedProps.segTo,
@@ -3311,7 +3439,7 @@ MST.Editor.addNewMST = function () {
       Old_Work_Group_Code: orig["Work Group Code"] || "",
       New_Work_Group_Code: cur.wg,
 
-      Old_Job_Desc_Code: orig["Job Description Code"] || "",
+      Old_Job_Desc_Code: normalizeJobDescCode(orig["Job Description Code"] || ""),
       New_Job_Desc_Code: cur.job,
 
       Old_Units_Required: normalizedUnitsOld,
