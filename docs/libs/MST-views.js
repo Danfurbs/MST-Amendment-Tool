@@ -479,6 +479,40 @@
 
     const selected = new Set();
 
+    const showBulkProgress = (title, message, step) => {
+      const loadingOverlay = document.getElementById("loadingOverlay");
+      const loadingTitle = document.getElementById("loadingTitle");
+      const loadingMessage = document.getElementById("loadingMessage");
+      const loadingStep = document.getElementById("loadingStep");
+      const loadingProgressBar = document.getElementById("loadingProgressBar");
+
+      if (loadingOverlay) {
+        loadingOverlay.classList.add("active");
+        loadingOverlay.setAttribute("aria-hidden", "false");
+      }
+      if (loadingTitle) loadingTitle.textContent = title;
+      if (loadingMessage) loadingMessage.textContent = message;
+      if (loadingStep) loadingStep.textContent = step;
+      if (loadingProgressBar) loadingProgressBar.style.width = "0%";
+    };
+
+    const updateBulkProgress = ({ processed = 0, total = 0 }) => {
+      const loadingStep = document.getElementById("loadingStep");
+      const loadingProgressBar = document.getElementById("loadingProgressBar");
+      const percent = total > 0 ? Math.round((processed / total) * 100) : 100;
+
+      if (loadingProgressBar) loadingProgressBar.style.width = `${percent}%`;
+      if (loadingStep) loadingStep.textContent = `Processed ${processed} of ${total} MSTs...`;
+    };
+
+    const hideBulkProgress = () => {
+      const loadingOverlay = document.getElementById("loadingOverlay");
+      if (loadingOverlay) {
+        loadingOverlay.classList.remove("active");
+        loadingOverlay.setAttribute("aria-hidden", "true");
+      }
+    };
+
     const getVisibleBaseEvents = () => {
       const calendar = window.calendar;
       if (!calendar) return [];
@@ -972,30 +1006,40 @@
     });
 
     openEditorBtn?.addEventListener('click', openEditor);
-    bulkChangeStdJobBtn?.addEventListener('click', () => {
+    bulkChangeStdJobBtn?.addEventListener('click', async () => {
       if (!selected.size) {
         alert('Select at least one MST to change Standard Job Number.');
         return;
       }
 
-      const firstMstId = Array.from(selected)[0];
+      const mstIds = Array.from(selected);
+      const firstMstId = mstIds[0];
       const firstEvent = window.calendar?.getEventById(`${firstMstId}_0`);
       const currentStdJob = firstEvent?.extendedProps?.stdJobNo || '';
 
       window.MST.Views.openStandardJobPicker?.({
         title: `Bulk Change Standard Job (${selected.size} MST${selected.size === 1 ? '' : 's'})`,
         initialValue: currentStdJob,
-        onSelect: (item) => {
+        onSelect: async (item) => {
           const newStdJobNo = (item?.number || '').toString().trim();
           if (!newStdJobNo) return;
 
-          const outcome = window.MST?.Editor?.bulkReplaceMstIdentity?.(Array.from(selected), { stdJobNo: newStdJobNo }) || {};
-          const updated = outcome.updated || 0;
-          const skipped = outcome.skipped || 0;
-          const failed = outcome.failed || 0;
+          try {
+            showBulkProgress('Applying Bulk Standard Job Change', `Updating ${mstIds.length} MSTs`, 'Starting...');
+            const outcome = await (window.MST?.Editor?.bulkReplaceMstIdentity?.(mstIds, {
+              stdJobNo: newStdJobNo,
+              onProgress: updateBulkProgress
+            }) || Promise.resolve({ updated: 0, skipped: 0, failed: mstIds.length }));
 
-          alert(`Bulk Standard Job change complete.\n\nUpdated: ${updated}\nSkipped (unchanged): ${skipped}\nFailed: ${failed}`);
-          openOverlay({ resetSelection: true, resetFilter: true });
+            alert(`Bulk Standard Job change complete.
+
+Updated: ${outcome.updated || 0}
+Skipped (unchanged): ${outcome.skipped || 0}
+Failed: ${outcome.failed || 0}`);
+            closeOverlay();
+          } finally {
+            hideBulkProgress();
+          }
         }
       });
     });
@@ -1006,19 +1050,29 @@
         return;
       }
 
+      const mstIds = Array.from(selected);
       window.MST = window.MST || {};
       window.MST.Views = window.MST.Views || {};
-      window.MST.Views._equipPickerCallback = (item) => {
+      window.MST.Views._equipPickerCallback = async (item) => {
         const newEquipNo = (item?.number || '').toString().trim();
         if (!newEquipNo) return;
 
-        const outcome = window.MST?.Editor?.bulkReplaceMstIdentity?.(Array.from(selected), { equipmentNo: newEquipNo }) || {};
-        const updated = outcome.updated || 0;
-        const skipped = outcome.skipped || 0;
-        const failed = outcome.failed || 0;
+        try {
+          showBulkProgress('Applying Bulk Equipment Change', `Updating ${mstIds.length} MSTs`, 'Starting...');
+          const outcome = await (window.MST?.Editor?.bulkReplaceMstIdentity?.(mstIds, {
+            equipmentNo: newEquipNo,
+            onProgress: updateBulkProgress
+          }) || Promise.resolve({ updated: 0, skipped: 0, failed: mstIds.length }));
 
-        alert(`Bulk equipment change complete.\n\nUpdated: ${updated}\nSkipped (unchanged): ${skipped}\nFailed: ${failed}`);
-        openOverlay({ resetSelection: true, resetFilter: true });
+          alert(`Bulk equipment change complete.
+
+Updated: ${outcome.updated || 0}
+Skipped (unchanged): ${outcome.skipped || 0}
+Failed: ${outcome.failed || 0}`);
+          closeOverlay();
+        } finally {
+          hideBulkProgress();
+        }
       };
 
       window.MST.Views.openEquipmentPicker?.();
