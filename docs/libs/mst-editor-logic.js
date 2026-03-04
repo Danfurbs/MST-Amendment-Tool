@@ -2442,6 +2442,46 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     });
   };
 
+  const parseInputDateAtBusinessHour = (value) => {
+    const normalized = U.normalizeDateInput(value || "");
+    if (!normalized) return null;
+
+    const [y, m, d] = normalized.split("-").map(Number);
+    const parsed = new Date(y, m - 1, d);
+    parsed.setHours(9, 0, 0, 0);
+    return parsed;
+  };
+
+  const requiresOverdueSchedulingConfirmation = ({ lastScheduledDate, lastPerformedDate, frequency }) => {
+    const freqDays = Number.parseInt(frequency || "0", 10);
+    if (freqDays <= 0) return true;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const scheduledBase = parseInputDateAtBusinessHour(lastScheduledDate);
+    if (scheduledBase) {
+      const scheduledDue = U.addDays(scheduledBase, freqDays);
+      scheduledDue.setHours(0, 0, 0, 0);
+      if (scheduledDue < today) {
+        const shouldContinue = confirm("Once this MST is loaded, it will fall straight into backlog. Do you wish to continue?");
+        if (!shouldContinue) return false;
+      }
+    }
+
+    const performedBase = parseInputDateAtBusinessHour(lastPerformedDate);
+    if (performedBase) {
+      const performedDue = U.addDays(performedBase, freqDays);
+      performedDue.setHours(0, 0, 0, 0);
+      if (performedDue < today) {
+        const shouldContinue = confirm("Once this MST is loaded, if this is measured by compliance there may be a compliance issue (Last Performed Date + Frequency). Do you wish to continue?");
+        if (!shouldContinue) return false;
+      }
+    }
+
+    return true;
+  };
+
   MST.Editor.saveMSTEdits = function(mstId) {
     const segFromInput = window.mileageFromInput;
     const segToInput = window.mileageToInput;
@@ -2452,6 +2492,13 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     };
     const segFromValue = readMileageValue(segFromInput);
     const segToValue = readMileageValue(segToInput);
+
+    const shouldSave = requiresOverdueSchedulingConfirmation({
+      lastScheduledDate: window.lastDateInput?.value,
+      lastPerformedDate: window.lastDatePerf?.value,
+      frequency: window.freqInput?.value
+    });
+    if (!shouldSave) return;
 
     const result = applyMstUpdates(mstId, {
       lastDate: window.lastDateInput.value,
