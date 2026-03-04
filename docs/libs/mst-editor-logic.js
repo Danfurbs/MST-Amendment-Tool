@@ -273,6 +273,17 @@ const normalizeMileageForComparison = (val) => {
   return num.toString();
 };
 
+const normalizeMileageForTransfer = (val) => {
+  if (val === null || val === undefined) return "";
+  const str = val.toString().trim();
+  if (!str) return "";
+
+  // During identity swaps, preserve blank mileage fields instead of injecting zeros.
+  if ((typeof val === "number" && val === 0) || str === "0.0000") return "";
+
+  return formatMileageValue(str);
+};
+
 const bindDesc2Limiter = (inputEl, counterEl) => {
   if (!inputEl) return;
 
@@ -332,6 +343,7 @@ const showMstLoadingOverlay = (title, message, step) => {
   const loadingTitle = document.getElementById("loadingTitle");
   const loadingMessage = document.getElementById("loadingMessage");
   const loadingStep = document.getElementById("loadingStep");
+  const loadingProgressBar = document.getElementById("loadingProgressBar");
 
   if (loadingOverlay) {
     loadingOverlay.classList.add("active");
@@ -340,6 +352,20 @@ const showMstLoadingOverlay = (title, message, step) => {
   if (loadingTitle) loadingTitle.textContent = title || "Loading MST information...";
   if (loadingMessage) loadingMessage.textContent = message || "Preparing MST editor...";
   if (loadingStep) loadingStep.textContent = step || "";
+  if (loadingProgressBar) loadingProgressBar.style.width = "0%";
+};
+
+const updateMstLoadingOverlay = ({ percent, message, step } = {}) => {
+  const loadingMessage = document.getElementById("loadingMessage");
+  const loadingStep = document.getElementById("loadingStep");
+  const loadingProgressBar = document.getElementById("loadingProgressBar");
+
+  if (typeof percent === "number" && loadingProgressBar) {
+    const clamped = Math.max(0, Math.min(100, percent));
+    loadingProgressBar.style.width = `${clamped}%`;
+  }
+  if (typeof message === "string" && loadingMessage) loadingMessage.textContent = message;
+  if (typeof step === "string" && loadingStep) loadingStep.textContent = step;
 };
 
 const hideMstLoadingOverlay = () => {
@@ -2664,8 +2690,8 @@ MST.Editor.replaceMstIdentity = function (mstId, identityUpdates = {}) {
   const freq = parseInt(props.frequency || (orig && orig["MST Frequency"]) || 0, 10);
   const jobDescCode = props.jobDescCode || (orig && orig["Job Description Code"]) || "";
   const unitsReq = props.unitsRequired || (orig && orig["Units Required"]) || "";
-  const segFrom = props.segFrom ?? (orig && orig["MST Segment Mileage From"]) ?? "";
-  const segTo = props.segTo ?? (orig && orig["MST Segment Mileage To"]) ?? "";
+  const segFrom = normalizeMileageForTransfer(props.segFrom ?? (orig && orig["MST Segment Mileage From"]) ?? "");
+  const segTo = normalizeMileageForTransfer(props.segTo ?? (orig && orig["MST Segment Mileage To"]) ?? "");
   const protType = props.protType || (orig && orig["Protection Type Code"]) || "";
   const protMethod = props.protMethod || (orig && orig["Protection Method Code"]) || "";
   const allowMultiple = normalizeAllowMultipleFlag(
@@ -2718,14 +2744,42 @@ MST.Editor.replaceMstIdentity = function (mstId, identityUpdates = {}) {
 };
 
 MST.Editor.bulkReplaceMstIdentity = function (mstIds = [], identityUpdates = {}) {
-  const outcome = { updated: 0, skipped: 0, failed: 0 };
-  mstIds.forEach((mstId) => {
+  const total = Array.isArray(mstIds) ? mstIds.length : 0;
+  const outcome = { total, processed: 0, updated: 0, skipped: 0, failed: 0 };
+
+  const processOne = (mstId) => {
     const result = MST.Editor.replaceMstIdentity(mstId, identityUpdates);
+    outcome.processed += 1;
     if (result?.updated) outcome.updated += 1;
     else if (result?.reason === "unchanged") outcome.skipped += 1;
     else outcome.failed += 1;
+  };
+
+  if (typeof identityUpdates?.onProgress !== "function") {
+    mstIds.forEach(processOne);
+    return outcome;
+  }
+
+  // Async mode for UI progress feedback when handling large selections.
+  return new Promise((resolve) => {
+    const chunkSize = 15;
+
+    const runChunk = () => {
+      const start = outcome.processed;
+      const end = Math.min(start + chunkSize, total);
+      for (let i = start; i < end; i += 1) processOne(mstIds[i]);
+
+      identityUpdates.onProgress({ ...outcome });
+
+      if (outcome.processed < total) {
+        setTimeout(runChunk, 0);
+      } else {
+        resolve(outcome);
+      }
+    };
+
+    runChunk();
   });
-  return outcome;
 };
 
 MST.Editor.changeEquipment = function () {
@@ -2806,8 +2860,8 @@ MST.Editor.changeEquipment = function () {
     const jobDescCode = props.jobDescCode || (orig && orig["Job Description Code"]) || "";
     const unitsReq   = props.unitsRequired || (orig && orig["Units Required"]) || "";
     const stdJobUom  = props.stdJobUom || props.unitMeasure || (orig && orig["Unit of Measure"]) || "";
-    const segFrom    = props.segFrom ?? (orig && orig["MST Segment Mileage From"]) ?? "";
-    const segTo      = props.segTo ?? (orig && orig["MST Segment Mileage To"]) ?? "";
+    const segFrom    = normalizeMileageForTransfer(props.segFrom ?? (orig && orig["MST Segment Mileage From"]) ?? "");
+    const segTo      = normalizeMileageForTransfer(props.segTo ?? (orig && orig["MST Segment Mileage To"]) ?? "");
     const protType   = props.protType || (orig && orig["Protection Type Code"]) || "";
     const protMethod = props.protMethod || (orig && orig["Protection Method Code"]) || "";
     const allowMultiple = normalizeAllowMultipleFlag(
@@ -3011,8 +3065,8 @@ MST.Editor.changeStandardJob = async function () {
     props.unitMeasure ||
     (orig && orig["Unit of Measure"]) ||
     "";
-  const segFrom = props.segFrom ?? (orig && orig["MST Segment Mileage From"]) ?? "";
-  const segTo = props.segTo ?? (orig && orig["MST Segment Mileage To"]) ?? "";
+  const segFrom = normalizeMileageForTransfer(props.segFrom ?? (orig && orig["MST Segment Mileage From"]) ?? "");
+  const segTo = normalizeMileageForTransfer(props.segTo ?? (orig && orig["MST Segment Mileage To"]) ?? "");
   const protType = props.protType || (orig && orig["Protection Type Code"]) || "";
   const protMethod = props.protMethod || (orig && orig["Protection Method Code"]) || "";
   const allowMultiple = normalizeAllowMultipleFlag(
