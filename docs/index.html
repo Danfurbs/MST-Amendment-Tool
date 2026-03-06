@@ -695,6 +695,162 @@
       line-height: 1.4;
       white-space: pre;
     }
+
+    .possession-callout {
+      margin-top: 16px;
+      background: #f8fafc;
+      border: 1px solid #dbeafe;
+      border-radius: 10px;
+      padding: 12px 14px;
+      box-shadow: 0 3px 12px rgba(2, 6, 23, 0.05);
+    }
+    .possession-layout {
+      display: grid;
+      grid-template-columns: 230px 1fr 1fr;
+      gap: 12px;
+      margin-top: 10px;
+    }
+    .possession-pane {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 10px;
+      min-height: 230px;
+    }
+    .possession-pane h4 {
+      margin: 0 0 8px;
+      font-size: 13px;
+      color: #0f172a;
+    }
+    .possession-toolbar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .possession-toolbar button,
+    .possession-actions-row button {
+      border: 1px solid #cbd5e1;
+      background: #eff6ff;
+      border-radius: 8px;
+      padding: 6px 9px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .possession-actions-row .danger {
+      background: #fee2e2;
+      border-color: #fca5a5;
+      color: #991b1b;
+    }
+    .possession-item {
+      width: 100%;
+      text-align: left;
+      border: 1px solid #cbd5e1;
+      background: #fff;
+      border-radius: 8px;
+      padding: 8px;
+      margin-bottom: 6px;
+      cursor: pointer;
+    }
+    .possession-item.active {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+      background: #eff6ff;
+    }
+    .possession-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .possession-grid label {
+      display: flex;
+      flex-direction: column;
+      font-size: 12px;
+      font-weight: 700;
+      color: #334155;
+      gap: 4px;
+    }
+    .possession-grid input,
+    .possession-grid select,
+    #possessionMstSearch {
+      width: 100%;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 6px;
+      box-sizing: border-box;
+      font-size: 12px;
+    }
+    .possession-actions-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+    .possession-drop-zone {
+      border: 2px dashed #93c5fd;
+      border-radius: 10px;
+      text-align: center;
+      padding: 14px;
+      color: #1e3a8a;
+      font-weight: 700;
+      background: #eff6ff;
+      margin-bottom: 8px;
+    }
+    .possession-drop-zone.is-over {
+      background: #dbeafe;
+    }
+    .possession-mst-chip,
+    .possession-group-chip {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 7px;
+      margin-bottom: 6px;
+      background: #fff;
+      font-size: 12px;
+    }
+    .possession-mst-chip {
+      cursor: grab;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .possession-mst-chip.muted {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .possession-mst-list,
+    #unassignedMstList,
+    #possessionList {
+      max-height: 300px;
+      overflow: auto;
+    }
+    .possession-group-chip button {
+      border: 1px solid #fecaca;
+      background: #fff1f2;
+      color: #9f1239;
+      border-radius: 6px;
+      padding: 4px 8px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .possession-helper-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      gap: 8px;
+      font-size: 12px;
+      color: #475569;
+    }
+    @media (max-width: 1200px) {
+      .possession-layout {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body>
@@ -1252,6 +1408,35 @@ WHERE
 
     /* Active MST filter */
     AND MSTs.sched_ind_700 = 1</code></pre>
+      </details>
+    </div>
+
+    <div class="possession-callout" id="possessionAlignment">
+      <details>
+        <summary>Possession alignment (hidden beta): group MSTs into cyclical possessions</summary>
+        <p>Use this to define recurring possessions (weekend/midweek/custom), drag MSTs into a possession, and apply anchor date + frequency updates in one action.</p>
+        <div class="possession-layout">
+          <div class="possession-pane">
+            <h4>Possessions</h4>
+            <div class="possession-toolbar">
+              <button id="addPossessionBtn" type="button">+ Add</button>
+              <button id="refreshPossessionBtn" type="button">↻ Refresh</button>
+            </div>
+            <div id="possessionList"></div>
+          </div>
+          <div class="possession-pane">
+            <h4>Selected possession</h4>
+            <div id="possessionEditor"></div>
+          </div>
+          <div class="possession-pane">
+            <h4>Ungrouped MSTs (drag onto possession)</h4>
+            <div class="possession-helper-row">
+              <input id="possessionMstSearch" type="text" placeholder="Filter MSTs" />
+              <span id="unassignedMstCount">0 unassigned MSTs</span>
+            </div>
+            <div id="unassignedMstList"></div>
+          </div>
+        </div>
       </details>
     </div>
   </div>
@@ -1975,6 +2160,7 @@ Hold <strong>Ctrl</strong> (or <strong>Cmd</strong> on Mac) to select multiple
   <script src="libs/Resources.js"></script>
   <script src="libs/MST-views.js"></script>
   <script src="libs/mst-onboarding.js"></script>
+  <script src="libs/mst-possession.js"></script>
   <script>
     /******************************************************************
      * STATE
