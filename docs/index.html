@@ -696,6 +696,20 @@
       white-space: pre;
     }
 
+    .possession-entry {
+      margin-top: 16px;
+      display: flex;
+      justify-content: flex-end;
+    }
+    .possession-entry button {
+      border: 1px solid #93c5fd;
+      background: #eff6ff;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-weight: 700;
+      color: #1d4ed8;
+      cursor: pointer;
+    }
     .possession-callout {
       margin-top: 16px;
       background: #f8fafc;
@@ -704,9 +718,12 @@
       padding: 12px 14px;
       box-shadow: 0 3px 12px rgba(2, 6, 23, 0.05);
     }
+    .possession-callout[hidden] {
+      display: none;
+    }
     .possession-layout {
       display: grid;
-      grid-template-columns: 230px 1fr 1fr;
+      grid-template-columns: 230px 1fr 1.1fr 1fr;
       gap: 12px;
       margin-top: 10px;
     }
@@ -726,6 +743,7 @@
       display: flex;
       gap: 8px;
       margin-bottom: 8px;
+      flex-wrap: wrap;
     }
     .possession-toolbar button,
     .possession-actions-row button {
@@ -785,6 +803,51 @@
       gap: 8px;
       margin-bottom: 8px;
       flex-wrap: wrap;
+    }
+    .possession-calendar {
+      border: 1px solid #dbeafe;
+      border-radius: 10px;
+      background: #fff;
+      padding: 8px;
+      min-height: 320px;
+    }
+    .possession-calendar .fc .fc-toolbar-title {
+      font-size: 14px;
+    }
+    .possession-calendar-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .possession-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 2500;
+      padding: 16px;
+    }
+    .possession-modal-overlay.active {
+      display: flex;
+    }
+    .possession-modal {
+      width: min(560px, 100%);
+      background: #fff;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 12px 30px rgba(2, 6, 23, 0.28);
+    }
+    .possession-modal h3 {
+      margin: 0 0 10px;
+    }
+    .possession-modal-actions {
+      margin-top: 10px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
     }
     .possession-drop-zone {
       border: 2px dashed #93c5fd;
@@ -1411,33 +1474,65 @@ WHERE
       </details>
     </div>
 
-    <div class="possession-callout" id="possessionAlignment">
-      <details>
-        <summary>Possession alignment (hidden beta): group MSTs into cyclical possessions</summary>
-        <p>Use this to define recurring possessions (weekend/midweek/custom), drag MSTs into a possession, and apply anchor date + frequency updates in one action.</p>
-        <div class="possession-layout">
-          <div class="possession-pane">
-            <h4>Possessions</h4>
-            <div class="possession-toolbar">
-              <button id="addPossessionBtn" type="button">+ Add</button>
-              <button id="refreshPossessionBtn" type="button">↻ Refresh</button>
-            </div>
-            <div id="possessionList"></div>
+    <div class="possession-entry">
+      <button id="openPossessionPageBtn" type="button">Open possession page</button>
+    </div>
+
+    <div class="possession-callout" id="possessionAlignment" hidden>
+      <h3>Possession page</h3>
+      <p>Manage possessions separately from SQL, assign MSTs, and review each possession on its own calendar.</p>
+      <div class="possession-layout">
+        <div class="possession-pane">
+          <h4>Possessions</h4>
+          <div class="possession-toolbar">
+            <button id="addPossessionBtn" type="button">+ Create possession</button>
+            <button id="refreshPossessionBtn" type="button">↻ Refresh</button>
+            <button id="closePossessionPageBtn" type="button">Close page</button>
           </div>
-          <div class="possession-pane">
-            <h4>Selected possession</h4>
-            <div id="possessionEditor"></div>
-          </div>
-          <div class="possession-pane">
-            <h4>Ungrouped MSTs (drag onto possession)</h4>
-            <div class="possession-helper-row">
-              <input id="possessionMstSearch" type="text" placeholder="Filter MSTs" />
-              <span id="unassignedMstCount">0 unassigned MSTs</span>
-            </div>
-            <div id="unassignedMstList"></div>
-          </div>
+          <div id="possessionList"></div>
         </div>
-      </details>
+        <div class="possession-pane">
+          <h4>Selected possession</h4>
+          <div id="possessionEditor"></div>
+        </div>
+        <div class="possession-pane">
+          <h4>Possession calendar</h4>
+          <div class="possession-calendar-controls">
+            <label for="possessionCalendarSelect">Choose possession</label>
+            <select id="possessionCalendarSelect"></select>
+          </div>
+          <div id="possessionCalendar" class="possession-calendar"></div>
+        </div>
+        <div class="possession-pane">
+          <h4>Ungrouped MSTs (drag onto possession)</h4>
+          <div class="possession-helper-row">
+            <input id="possessionMstSearch" type="text" placeholder="Filter MSTs" />
+            <span id="unassignedMstCount">0 unassigned MSTs</span>
+          </div>
+          <div id="unassignedMstList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="possessionModalOverlay" class="possession-modal-overlay" role="dialog" aria-modal="true" aria-label="Create possession">
+    <div class="possession-modal">
+      <h3>Create possession</h3>
+      <div class="possession-grid">
+        <label>Possession ID<input id="newPossessionIdInput" type="text" placeholder="e.g. POS-001" /></label>
+        <label>Possession description<input id="newPossessionDescriptionInput" type="text" placeholder="e.g. Weekend North Section" /></label>
+        <label>Type
+          <select id="newPossessionTypeInput">
+            <option value="weekend">Weekend (Saturday night)</option>
+            <option value="midweek">Midweek (4 nights)</option>
+            <option value="custom">Custom</option>
+          </select>
+        </label>
+      </div>
+      <div class="possession-modal-actions">
+        <button id="cancelCreatePossessionBtn" type="button">Cancel</button>
+        <button id="confirmCreatePossessionBtn" type="button">Create</button>
+      </div>
     </div>
   </div>
 

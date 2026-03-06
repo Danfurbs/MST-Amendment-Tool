@@ -1,5 +1,5 @@
 (function possessionModule() {
-  const STORAGE_KEY = "mst-possession-groups-v1";
+  const STORAGE_KEY = "mst-possession-groups-v2";
   const TYPE_DEFAULTS = {
     weekend: { label: "Weekend", nights: 1, weekday: 6 },
     midweek: { label: "Midweek", nights: 4, weekday: 1 },
@@ -12,7 +12,9 @@
     mstFilter: ""
   };
 
-  const ui = {};
+  const ui = {
+    possessionCalendar: null
+  };
 
   const uid = () => `pos-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -35,11 +37,15 @@
           desc2: props.desc2 || "",
           equipNo: props.equipmentNo || "",
           workGroup: props.workGroup || "",
-          frequency: Number.parseInt(props.frequency || "0", 10) || 0
+          frequency: Number.parseInt(props.frequency || "0", 10) || 0,
+          start: event.start,
+          end: event.end
         };
       })
       .filter((item) => Boolean(item.mstId));
   };
+
+  const possessionLabel = (p) => `${p.possessionId || "No ID"} — ${p.description || p.name || "Untitled"}`;
 
   const load = () => {
     try {
@@ -49,11 +55,13 @@
       if (Array.isArray(parsed)) {
         state.possessions = parsed.map((p) => ({
           id: p.id || uid(),
-          name: p.name || "New possession",
+          possessionId: p.possessionId || "",
+          description: p.description || p.name || "New possession",
+          name: p.name || p.description || "New possession",
           type: p.type || "custom",
           anchorDate: safeDate(p.anchorDate),
-          frequencyDays: Number.parseInt(p.frequencyDays || "7", 10) || 7,
-          nights: Number.parseInt(p.nights || "1", 10) || 1,
+          frequencyDays: Math.max(1, Number.parseInt(p.frequencyDays || "7", 10) || 7),
+          nights: Math.max(1, Number.parseInt(p.nights || "1", 10) || 1),
           mstIds: Array.isArray(p.mstIds) ? p.mstIds : []
         }));
       }
@@ -109,9 +117,14 @@
     }
   };
 
-  const updatePossession = (id, patch) => {
+  const updatePossession = (id, patch, options = {}) => {
     state.possessions = state.possessions.map((p) => (p.id === id ? { ...p, ...patch } : p));
     save();
+    if (options.skipRender) {
+      renderPossessionList();
+      renderPossessionCalendar();
+      return;
+    }
     render();
   };
 
@@ -119,23 +132,6 @@
     state.possessions = state.possessions.filter((p) => p.id !== id);
     save();
     ensureSelected();
-    render();
-  };
-
-  const addPossession = () => {
-    const preset = TYPE_DEFAULTS.weekend;
-    const possession = {
-      id: uid(),
-      name: `${preset.label} possession`,
-      type: "weekend",
-      anchorDate: "",
-      frequencyDays: 7,
-      nights: preset.nights,
-      mstIds: []
-    };
-    state.possessions.unshift(possession);
-    state.selectedId = possession.id;
-    save();
     render();
   };
 
@@ -209,18 +205,70 @@
   };
 
   const renderPossessionList = () => {
+    if (!ui.possessionList) return;
     ui.possessionList.innerHTML = "";
     state.possessions.forEach((possession) => {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = `possession-item ${possession.id === state.selectedId ? "active" : ""}`;
-      btn.textContent = `${possession.name || "Untitled"} (${possession.mstIds.length})`;
+      btn.textContent = `${possessionLabel(possession)} (${possession.mstIds.length})`;
       btn.addEventListener("click", () => {
         state.selectedId = possession.id;
         render();
       });
       ui.possessionList.appendChild(btn);
     });
+  };
+
+  const renderPossessionCalendar = () => {
+    if (!ui.calendarSelect) return;
+
+    ui.calendarSelect.innerHTML = "";
+    state.possessions.forEach((possession) => {
+      const option = document.createElement("option");
+      option.value = possession.id;
+      option.textContent = possessionLabel(possession);
+      option.selected = possession.id === state.selectedId;
+      ui.calendarSelect.appendChild(option);
+    });
+
+    if (!ui.possessionCalendar) return;
+
+    const possession = selectedPossession();
+    const mstLookup = new Map(getBaseMstEvents().map((mst) => [mst.mstId, mst]));
+    const events = [];
+
+    if (possession?.anchorDate) {
+      const start = possession.anchorDate;
+      const endDate = new Date(`${start}T00:00:00`);
+      endDate.setDate(endDate.getDate() + Math.max(1, possession.nights));
+      const end = safeDate(endDate);
+      events.push({
+        id: `${possession.id}-window`,
+        title: `${possession.possessionId || "Possession"} area`,
+        start,
+        end,
+        display: "background",
+        backgroundColor: "rgba(59,130,246,0.22)",
+        borderColor: "rgba(59,130,246,0.22)"
+      });
+    }
+
+    (possession?.mstIds || []).forEach((mstId) => {
+      const mst = mstLookup.get(mstId);
+      if (!mst || !mst.start) return;
+      events.push({
+        id: `mst-${mstId}`,
+        title: `${mst.equipNo || "?"} / ${mst.mstId}`,
+        start: mst.start,
+        end: mst.end || undefined,
+        backgroundColor: "#2563eb",
+        borderColor: "#1d4ed8"
+      });
+    });
+
+    ui.possessionCalendar.removeAllEvents();
+    events.forEach((eventDef) => ui.possessionCalendar.addEvent(eventDef));
   };
 
   const renderSelectedPossession = () => {
@@ -232,7 +280,8 @@
 
     ui.possessionEditor.innerHTML = `
       <div class="possession-grid">
-        <label>Name<input id="possessionNameInput" value="${possession.name.replace(/"/g, "&quot;")}" /></label>
+        <label>Possession ID<input id="possessionIdInput" value="${(possession.possessionId || "").replace(/"/g, "&quot;")}" /></label>
+        <label>Possession description<input id="possessionDescriptionInput" value="${(possession.description || "").replace(/"/g, "&quot;")}" /></label>
         <label>Type
           <select id="possessionTypeInput">
             <option value="weekend" ${possession.type === "weekend" ? "selected" : ""}>Weekend (Saturday night)</option>
@@ -254,13 +303,15 @@
       <div id="possessionMstList" class="possession-mst-list"></div>
     `;
 
-    const nameInput = document.getElementById("possessionNameInput");
+    const idInput = document.getElementById("possessionIdInput");
+    const descriptionInput = document.getElementById("possessionDescriptionInput");
     const typeInput = document.getElementById("possessionTypeInput");
     const anchorInput = document.getElementById("possessionAnchorInput");
     const freqInput = document.getElementById("possessionFreqInput");
     const nightsInput = document.getElementById("possessionNightsInput");
 
-    nameInput?.addEventListener("input", () => updatePossession(possession.id, { name: nameInput.value }));
+    idInput?.addEventListener("input", () => updatePossession(possession.id, { possessionId: idInput.value.trim() }, { skipRender: true }));
+    descriptionInput?.addEventListener("input", () => updatePossession(possession.id, { description: descriptionInput.value, name: descriptionInput.value || possession.name }, { skipRender: true }));
     typeInput?.addEventListener("change", () => handleTypeChange(possession, typeInput.value));
     anchorInput?.addEventListener("change", () => updatePossession(possession.id, { anchorDate: anchorInput.value }));
     freqInput?.addEventListener("change", () => {
@@ -300,11 +351,72 @@
     });
   };
 
+  const openPossessionModal = () => {
+    ui.modalOverlay?.classList.add("active");
+    ui.newIdInput && (ui.newIdInput.value = "");
+    ui.newDescriptionInput && (ui.newDescriptionInput.value = "");
+    ui.newTypeInput && (ui.newTypeInput.value = "weekend");
+    ui.newIdInput?.focus();
+  };
+
+  const closePossessionModal = () => {
+    ui.modalOverlay?.classList.remove("active");
+  };
+
+  const createPossessionFromModal = () => {
+    const type = ui.newTypeInput?.value || "weekend";
+    const preset = TYPE_DEFAULTS[type] || TYPE_DEFAULTS.custom;
+    const possessionId = ui.newIdInput?.value.trim() || `P-${String(state.possessions.length + 1).padStart(3, "0")}`;
+    const description = ui.newDescriptionInput?.value.trim() || `${preset.label} possession`;
+
+    const possession = {
+      id: uid(),
+      possessionId,
+      description,
+      name: description,
+      type,
+      anchorDate: "",
+      frequencyDays: 7,
+      nights: preset.nights,
+      mstIds: []
+    };
+    state.possessions.unshift(possession);
+    state.selectedId = possession.id;
+    save();
+    closePossessionModal();
+    render();
+  };
+
+  const openPossessionPage = () => {
+    ui.root?.removeAttribute("hidden");
+    ui.root?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const closePossessionPage = () => {
+    ui.root?.setAttribute("hidden", "hidden");
+  };
+
   const render = () => {
     ensureSelected();
     renderPossessionList();
     renderSelectedPossession();
     renderUnassigned();
+    renderPossessionCalendar();
+  };
+
+  const initCalendar = () => {
+    const calEl = document.getElementById("possessionCalendar");
+    if (!calEl || typeof window.FullCalendar?.Calendar !== "function") return;
+    ui.possessionCalendar = new window.FullCalendar.Calendar(calEl, {
+      initialView: "dayGridMonth",
+      height: 360,
+      headerToolbar: {
+        left: "prev,next today",
+        center: "title",
+        right: "dayGridMonth,timeGridWeek"
+      }
+    });
+    ui.possessionCalendar.render();
   };
 
   const init = () => {
@@ -316,22 +428,44 @@
     ui.unassignedList = document.getElementById("unassignedMstList");
     ui.unassignedCount = document.getElementById("unassignedMstCount");
     ui.searchInput = document.getElementById("possessionMstSearch");
+    ui.calendarSelect = document.getElementById("possessionCalendarSelect");
 
-    document.getElementById("addPossessionBtn")?.addEventListener("click", addPossession);
+    ui.modalOverlay = document.getElementById("possessionModalOverlay");
+    ui.newIdInput = document.getElementById("newPossessionIdInput");
+    ui.newDescriptionInput = document.getElementById("newPossessionDescriptionInput");
+    ui.newTypeInput = document.getElementById("newPossessionTypeInput");
+
+    document.getElementById("addPossessionBtn")?.addEventListener("click", openPossessionModal);
     document.getElementById("refreshPossessionBtn")?.addEventListener("click", render);
+    document.getElementById("confirmCreatePossessionBtn")?.addEventListener("click", createPossessionFromModal);
+    document.getElementById("cancelCreatePossessionBtn")?.addEventListener("click", closePossessionModal);
+    document.getElementById("openPossessionPageBtn")?.addEventListener("click", openPossessionPage);
+    document.getElementById("closePossessionPageBtn")?.addEventListener("click", closePossessionPage);
+
+    ui.modalOverlay?.addEventListener("click", (evt) => {
+      if (evt.target === ui.modalOverlay) closePossessionModal();
+    });
+
     ui.searchInput?.addEventListener("input", () => {
       state.mstFilter = ui.searchInput.value || "";
       renderUnassigned();
     });
 
+    ui.calendarSelect?.addEventListener("change", () => {
+      state.selectedId = ui.calendarSelect.value;
+      render();
+    });
+
     load();
+    initCalendar();
     render();
 
     window.MST = window.MST || {};
     window.MST.Possession = {
       render,
       addMstToPossession,
-      applyAlignment
+      applyAlignment,
+      openPossessionPage
     };
   };
 
