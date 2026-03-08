@@ -342,6 +342,10 @@ input, button {
   font-size: 12.5px;
 }
 
+.bulk-update-table-wrapper .bulk-table {
+  min-width: 1400px;
+}
+
 .bulk-table thead th {
   position: sticky;
   top: 0;
