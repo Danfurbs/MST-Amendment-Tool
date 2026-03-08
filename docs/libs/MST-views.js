@@ -589,9 +589,12 @@
         tr.innerHTML = `
           <td></td>
           <td>${props.equipmentNo || ''}</td>
+          <td>${props.equipmentDesc1 || ''}</td>
+          <td>${props.equipmentDesc2 || ''}</td>
           <td>${props.taskNo || ''}</td>
           <td>${props.desc1 || ''}</td>
-          <td>${props.workGroup || ''}</td>
+          <td>${props.desc2 || ''}</td>
+          <td>${props.frequency ?? ''}</td>
           <td>${dateValue || ''}</td>
         `;
         tr.querySelector('td')?.appendChild(checkbox);
