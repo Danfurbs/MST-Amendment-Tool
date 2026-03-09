@@ -1176,6 +1176,10 @@ input, button {
   gap: 16px;
 }
 
+.drag-next-change {
+  margin-top: 12px;
+}
+
 .drag-date-box {
   display: flex;
   flex-direction: column;
