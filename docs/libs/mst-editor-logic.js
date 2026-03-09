@@ -1367,6 +1367,8 @@ eventContent: function(arg) {
       const mstInfo = document.getElementById("dragConfirmMst");
       const oldDateEl = document.getElementById("dragOldDate");
       const newDateEl = document.getElementById("dragNewDate");
+      const oldNextDateEl = document.getElementById("dragOldNextDate");
+      const newNextDateEl = document.getElementById("dragNewNextDate");
       const confirmBtn = document.getElementById("dragConfirmOk");
       const cancelBtn = document.getElementById("dragConfirmCancel");
 
@@ -1388,6 +1390,21 @@ eventContent: function(arg) {
       mstInfo.textContent = `${equipDesc} — ${desc1}`;
       oldDateEl.textContent = formatDate(info.oldEvent.start);
       newDateEl.textContent = formatDate(ev.start);
+
+      const frequencyDays = Number(ev.extendedProps.frequency);
+      if (Number.isFinite(frequencyDays) && frequencyDays > 0 && oldNextDateEl && newNextDateEl) {
+        const oldNext = new Date(info.oldEvent.start);
+        oldNext.setDate(oldNext.getDate() + frequencyDays);
+
+        const newNext = new Date(ev.start);
+        newNext.setDate(newNext.getDate() + frequencyDays);
+
+        oldNextDateEl.textContent = formatDate(oldNext);
+        newNextDateEl.textContent = formatDate(newNext);
+      } else if (oldNextDateEl && newNextDateEl) {
+        oldNextDateEl.textContent = "Not scheduled";
+        newNextDateEl.textContent = "Not scheduled";
+      }
 
       modal.classList.add("active");
       modal.setAttribute("aria-hidden", "false");
