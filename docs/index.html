@@ -1802,9 +1802,10 @@ WHERE
   <!-- Row 4 -->
    <label>
   <span class="label-title">
-    Last Scheduled Date <span class="required-star">*</span>
+    Next Scheduled Date <span class="required-star">*</span>
   </span>
-    <input id="newLastDate" type="date" required />
+    <input id="newNextDate" type="date" required />
+    <div class="muted-helper">Last Scheduled Date will be calculated automatically as Next Scheduled Date minus Frequency.</div>
   </label>
 
   <label>
@@ -1887,7 +1888,7 @@ WHERE
               <th>Work Group *</th>
               <th>Job Code *</th>
               <th>Freq *</th>
-              <th>Last Date *</th>
+              <th>Next Date *</th>
               <th>Units *</th>
               <th>UoM</th>
               <th>Mileage From</th>

@@ -703,6 +703,20 @@ const jumpToMstInstance = (direction) => {
 };
 
 // Calculate and display the next scheduled date from Last Scheduled Date + Frequency
+const calculateLastScheduledFromNext = (nextDateStr, frequencyValue) => {
+  const nextDate = U.normalizeDateInput(nextDateStr || "");
+  const freq = parseInt(String(frequencyValue || "0"), 10);
+  if (!nextDate || !freq) return "";
+
+  const [y, m, d] = nextDate.split("-");
+  const next = new Date(+y, +m - 1, +d);
+  next.setHours(9, 0, 0, 0);
+
+  const last = U.addDays(next, -freq);
+  last.setHours(9, 0, 0, 0);
+  return U.dateToInputYYYYMMDD(last);
+};
+
 window.MST.Editor.refreshNextScheduledDisplay = function() {
   if (!window.lastDateInput || !window.freqInput || !window.nextDateCalc) return;
 
@@ -1022,7 +1036,7 @@ window.MST.Editor.buildBulkCreateRow = function(rowIndex) {
     <td><input data-col="wgCode" /></td>
     <td><select data-col="jobDescCode"></select></td>
     <td><input data-col="freq" type="number" min="1" /></td>
-    <td><input data-col="lastDateStr" type="date" /></td>
+    <td><input data-col="nextDateStr" type="date" /></td>
     <td><input data-col="unitsReq" type="number" /></td>
     <td><input data-col="stdJobUom" readonly tabindex="-1" /></td>
     <td><input data-col="segFrom" /></td>
@@ -1355,10 +1369,11 @@ eventContent: function(arg) {
 
     eventDrop(info) {
       const ev = info.event;
-      if (ev.extendedProps.instance !== 0) {
-        // Future instance - cannot be dragged directly
+      const instanceIndex = Number(ev.extendedProps.instance);
+      if (![0, 1].includes(instanceIndex)) {
+        // Only the base instance or next immediate instance can be dragged directly
         info.revert();
-        alert("To amend this date, drag the 1st (green) instance instead.\n\nAll future instances will automatically update when you move the green instance.");
+        alert("To amend this date, drag the 1st (green) instance or the next immediate instance only.\n\nAll future instances will automatically update when you move one of those dates.");
         return;
       }
 
@@ -1394,10 +1409,12 @@ eventContent: function(arg) {
       const frequencyDays = Number(ev.extendedProps.frequency);
       if (Number.isFinite(frequencyDays) && frequencyDays > 0 && oldNextDateEl && newNextDateEl) {
         const oldNext = new Date(info.oldEvent.start);
-        oldNext.setDate(oldNext.getDate() + frequencyDays);
-
         const newNext = new Date(ev.start);
-        newNext.setDate(newNext.getDate() + frequencyDays);
+
+        if (instanceIndex === 0) {
+          oldNext.setDate(oldNext.getDate() + frequencyDays);
+          newNext.setDate(newNext.getDate() + frequencyDays);
+        }
 
         oldNextDateEl.textContent = formatDate(oldNext);
         newNextDateEl.textContent = formatDate(newNext);
@@ -1440,11 +1457,20 @@ eventContent: function(arg) {
   function applyEventDrop(info) {
     const ev = info.event;
     const mstId = ev.extendedProps.mstId;
-
+    const instanceIndex = Number(ev.extendedProps.instance || 0);
     const deltaDays = Math.round((ev.start - info.oldEvent.start) / (1000 * 60 * 60 * 24));
     const futArr = window.futureEventsMap[mstId] || [];
+    const baseEvent = window.calendar?.getEventById(`${mstId}_0`);
+
+    if (instanceIndex === 1 && baseEvent) {
+      const newBaseDate = new Date(baseEvent.start);
+      newBaseDate.setDate(newBaseDate.getDate() + deltaDays);
+      newBaseDate.setHours(9, 0, 0, 0);
+      baseEvent.setDates(newBaseDate);
+    }
 
     futArr.forEach(futureEv => {
+      if (instanceIndex === 1 && futureEv.id === ev.id) return;
       const d = new Date(futureEv.start);
       d.setDate(d.getDate() + deltaDays);
       d.setHours(9,0,0,0);
@@ -1455,10 +1481,12 @@ eventContent: function(arg) {
       MST.Editor.markMSTAsChanged(mstId);
     }
 
+    const effectiveBaseDate = instanceIndex === 1 && baseEvent ? baseEvent.start : ev.start;
+
     // If editor panel is currently showing the same MST
     if (window.mstIdDisplay && window.mstIdDisplay.value === mstId) {
       if (window.lastDateInput && typeof MST?.Utils?.dateToInputYYYYMMDD === "function") {
-        window.lastDateInput.value = MST.Utils.dateToInputYYYYMMDD(ev.start);
+        window.lastDateInput.value = MST.Utils.dateToInputYYYYMMDD(effectiveBaseDate);
       }
 
       if (typeof MST?.Editor?.refreshNextScheduledDisplay === "function") {
@@ -3244,7 +3272,7 @@ MST.Editor.changeStandardJob = async function () {
     "Std Job No": newStdJobNo,
     "LPD": "",
     "LSD": lastDateStr,
-    "NSD": "",
+    "NSD": freq ? U.dateToInputYYYYMMDD(U.addDays(lastDate, freq)) : "",
     "Segment From": segFrom,
     "Segment To": segTo,
     "Segment UOM": "",
@@ -3280,7 +3308,8 @@ MST.Editor.buildNewMstPayload = function(input, options = {}) {
   const desc2 = clampDesc2(String(input.desc2 || "").trim());
   const jobDescCode = String(input.jobDescCode || "").trim();
   const freq = parseInt(String(input.freq || "").trim(), 10);
-  const lastDateStr = String(input.lastDateStr || "").trim();
+  const nextDateStr = String(input.nextDateStr || input.lastDateStr || "").trim();
+  const lastDateStr = calculateLastScheduledFromNext(nextDateStr, freq);
   const unitsReq = String(input.unitsReq || "").trim();
   const protType = normalizeProtectionCode(input.protType);
   const protMethod = normalizeProtectionCode(input.protMethod);
@@ -3295,7 +3324,7 @@ MST.Editor.buildNewMstPayload = function(input, options = {}) {
     ""
   ).toString().trim();
 
-  if (!equipNo || !stdJobNo || !desc1 || !jobDescCode || !freq || !lastDateStr || !unitsReq || !protType || !wgCode) {
+  if (!equipNo || !stdJobNo || !desc1 || !jobDescCode || !freq || !nextDateStr || !lastDateStr || !unitsReq || !protType || !wgCode) {
     return { ok: false, error: `${rowLabel}: Please complete all mandatory fields marked with *.` };
   }
 
@@ -3325,6 +3354,7 @@ MST.Editor.buildNewMstPayload = function(input, options = {}) {
       jobDescCode,
       freq,
       lastDate,
+      nextDateStr,
       lastDateStr,
       unitsReq,
       protType,
@@ -3348,6 +3378,7 @@ MST.Editor.createMstFromPayload = function(payload) {
     jobDescCode,
     freq,
     lastDate,
+    nextDateStr,
     lastDateStr,
     unitsReq,
     protType,
@@ -3414,7 +3445,7 @@ MST.Editor.createMstFromPayload = function(payload) {
     "Std Job No": stdJobNo,
     "LPD": "",
     "LSD": lastDateStr,
-    "NSD": "",
+    "NSD": nextDateStr || (freq ? U.dateToInputYYYYMMDD(U.addDays(lastDate, freq)) : ""),
     "Segment From": segFrom,
     "Segment To": segTo,
     "Segment UOM": "",
@@ -3444,7 +3475,7 @@ MST.Editor.addNewMST = function () {
     desc2: document.getElementById("newDesc2")?.value,
     jobDescCode: document.getElementById("newJobCode")?.value,
     freq: document.getElementById("newFreq")?.value,
-    lastDateStr: document.getElementById("newLastDate")?.value,
+    nextDateStr: document.getElementById("newNextDate")?.value,
     unitsReq: document.getElementById("newUnits")?.value,
     protType: document.getElementById("newProtType")?.value,
     protMethod: document.getElementById("newProtMethod")?.value,
