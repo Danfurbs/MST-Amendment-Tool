@@ -914,6 +914,21 @@
         grid-template-columns: 1fr;
       }
     }
+    .obsolete-record-indicator {
+      display: none;
+      margin: 10px 0 2px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid #fca5a5;
+      background: #fef2f2;
+      color: #991b1b;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+    .obsolete-record-indicator.visible {
+      display: block;
+    }
   </style>
 </head>
 <body>
@@ -951,6 +966,7 @@
     </div>
 
     <div id="editForm" style="display:none;">
+      <div id="obsoleteRecordIndicator" class="obsolete-record-indicator" role="status" aria-live="polite"></div>
 
       <div class="section-title">Identification</div>
 
@@ -1800,7 +1816,7 @@ WHERE
     </label>
 
   <!-- Row 4 -->
-   <label>
+  <label>
   <span class="label-title">
     Next Scheduled Date <span class="required-star">*</span>
   </span>

@@ -499,6 +499,10 @@ const formatPeriodVolumes = (periodVolumes = {}) => {
                           (h === "TV Expiry Date" && (row.New_TV_Expiry_Date || row.Old_TV_Expiry_Date || orig["TV Expiry Date"] || "")) ||
                           orig[h] || "";
 
+                    if (h === "NSD") {
+                        val = "";
+                    }
+
                     if (["LSD", "NSD", "LPD", "TV Expiry Date"].includes(h)) {
                         val = formatDateDMY(val);
                     }
@@ -529,6 +533,10 @@ const formatPeriodVolumes = (periodVolumes = {}) => {
 
                 mstHeaders.forEach(h => {
                     let val = row[h] ?? "";
+
+                    if (h === "NSD") {
+                        val = "";
+                    }
 
                     if (["LSD", "NSD", "LPD", "TV Expiry Date"].includes(h)) {
                         val = formatDateDMY(val);
