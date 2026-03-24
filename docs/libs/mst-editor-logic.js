@@ -421,6 +421,7 @@ const getDomElements = () => ({
   newDesc2Counter: document.getElementById("newDesc2Counter"),
   newDesc2Input: document.getElementById("newDesc2"),
   nextDateCalc: document.getElementById("nextDateCalc"),
+  obsoleteRecordIndicator: document.getElementById("obsoleteRecordIndicator"),
   nextMstInstanceBtn: document.getElementById("nextMstInstanceBtn"),
   openFilterBtn: document.getElementById("openFilterBtn"),
   protMethodInput: document.getElementById("protMethodInput"),
@@ -490,6 +491,7 @@ const exposeDomElements = (elements) => {
     unitsRequiredLabel,
     wgInput,
     nextDateCalc,
+    obsoleteRecordIndicator,
     loading,
   } = elements;
 
@@ -535,6 +537,7 @@ const exposeDomElements = (elements) => {
   window.unitsRequiredLabel = unitsRequiredLabel;
   window.wgInput = wgInput;
   window.nextDateCalc = nextDateCalc;
+  window.obsoleteRecordIndicator = obsoleteRecordIndicator;
   window.loading = loading;
 
   toggleTvButtons(false);
@@ -717,6 +720,19 @@ const calculateLastScheduledFromNext = (nextDateStr, frequencyValue) => {
   return U.dateToInputYYYYMMDD(last);
 };
 
+const isPastDate = (dateStr) => {
+  const normalized = U.normalizeDateInput(dateStr || "");
+  if (!normalized) return false;
+
+  const [y, m, d] = normalized.split("-").map(Number);
+  const targetDate = new Date(y, m - 1, d);
+  targetDate.setHours(0, 0, 0, 0);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return targetDate < today;
+};
+
 window.MST.Editor.refreshNextScheduledDisplay = function() {
   if (!window.lastDateInput || !window.freqInput || !window.nextDateCalc) return;
 
@@ -820,6 +836,8 @@ window.MST.Editor.openNewMSTModal = function () {
   const protTypeSel   = document.getElementById("newProtType");
   const protMethodSel = document.getElementById("newProtMethod");
   const allowMultipleToggle = document.getElementById("newAllowMultiple");
+  const newNextDateInput = document.getElementById("newNextDate");
+  const todayIso = U.dateToInputYYYYMMDD(new Date());
 
   // Rebuild dropdowns each time modal opens
   if (jobSel) {
@@ -854,6 +872,10 @@ window.MST.Editor.openNewMSTModal = function () {
 
   if (allowMultipleToggle) {
     allowMultipleToggle.checked = false;
+  }
+
+  if (newNextDateInput) {
+    newNextDateInput.min = todayIso;
   }
 
   // ---- Standard Job → Desc1 + UOM auto-fill ----
@@ -1026,6 +1048,7 @@ window.MST.Editor.populateBulkCreateStdJobFields = function(rowEl) {
 };
 
 window.MST.Editor.buildBulkCreateRow = function(rowIndex) {
+  const todayIso = U.dateToInputYYYYMMDD(new Date());
   const tr = document.createElement("tr");
   tr.innerHTML = `
     <td>${rowIndex}</td>
@@ -1036,7 +1059,7 @@ window.MST.Editor.buildBulkCreateRow = function(rowIndex) {
     <td><input data-col="wgCode" /></td>
     <td><select data-col="jobDescCode"></select></td>
     <td><input data-col="freq" type="number" min="1" /></td>
-    <td><input data-col="nextDateStr" type="date" /></td>
+    <td><input data-col="nextDateStr" type="date" min="${todayIso}" /></td>
     <td><input data-col="unitsReq" type="number" /></td>
     <td><input data-col="stdJobUom" readonly tabindex="-1" /></td>
     <td><input data-col="segFrom" /></td>
@@ -1934,6 +1957,19 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
 
     if (window.equipDesc1Display) window.equipDesc1Display.textContent = equipmentDesc1;
     if (window.equipDesc2Display) window.equipDesc2Display.textContent = equipmentDesc2;
+    if (window.obsoleteRecordIndicator) {
+      const nextSchIndicator = String(
+        baseEvent.extendedProps.nextScheduledIndicator ??
+        orig["Next Scheduled Date Indicator"] ??
+        ""
+      ).trim().toUpperCase();
+      const isObsoleteRecord = nextSchIndicator === "OR";
+
+      window.obsoleteRecordIndicator.textContent = isObsoleteRecord
+        ? "⚠️ Obsolete Record (OR): This MST is flagged as an obsolete record."
+        : "";
+      window.obsoleteRecordIndicator.classList.toggle("visible", isObsoleteRecord);
+    }
 
     window.stdJobDisplay.value = stdJobNo;
     window.taskDisplay.value  = isNew ? (orig.taskNo       || "") : (orig["MST Task Number"]  || "");
@@ -2268,6 +2304,7 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
             protMethod: normalizeProtectionCode(safeText(r["Protection Method Code"])),
             allowMultiple: normalizeAllowMultipleFlag(r["Allow Multiple workorders"]),
             resourceHours: parseFloat(r["Resource Hours"] || 0),
+            nextScheduledIndicator: safeText(r["Next Scheduled Date Indicator"]),
             tvReference,
             tvExpiryDate,
             hasTvReference
@@ -3326,6 +3363,10 @@ MST.Editor.buildNewMstPayload = function(input, options = {}) {
 
   if (!equipNo || !stdJobNo || !desc1 || !jobDescCode || !freq || !nextDateStr || !lastDateStr || !unitsReq || !protType || !wgCode) {
     return { ok: false, error: `${rowLabel}: Please complete all mandatory fields marked with *.` };
+  }
+
+  if (isPastDate(nextDateStr)) {
+    return { ok: false, error: `${rowLabel}: Next Scheduled Date cannot be in the past.` };
   }
 
   const lastDate = new Date(lastDateStr);
