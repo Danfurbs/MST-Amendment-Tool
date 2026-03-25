@@ -1672,6 +1672,9 @@ eventContent: function(arg) {
 E.storeVirtualInstances = function(mstId, baseDate, freqDays, desc1, desc2, extraProps = {}) {
   const maxInstances = window.MST_VARIABLES?.maxInstances || 5;
   const instances = [];
+  const baseExtendedProps = (extraProps && typeof extraProps.baseExtendedProps === "object")
+    ? { ...extraProps.baseExtendedProps }
+    : {};
 
   for (let i = 1; i <= maxInstances; i++) {
     const dt = U.addDays(baseDate, freqDays * i);
@@ -1686,6 +1689,7 @@ E.storeVirtualInstances = function(mstId, baseDate, freqDays, desc1, desc2, extr
       frequency: freqDays,
       desc1,
       desc2,
+      baseExtendedProps,
       ...extraProps
     });
   }
@@ -1736,6 +1740,7 @@ E.renderVisibleInstances = function(visibleStart, visibleEnd) {
             borderColor: FUTURE_COLOR,
             classNames,
             extendedProps: {
+              ...(inst.baseExtendedProps || {}),
               mstId: inst.mstId,
               instance: inst.instance,
               isNew: inst.isNew || false,
@@ -1812,12 +1817,14 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
   const resourceHours = baseEvent?.extendedProps?.resourceHours || 0;
   const isNew = !!baseEvent?.extendedProps?.isNew;
   const equipmentDesc1 = baseEvent?.extendedProps?.equipmentDesc1 || "";
+  const baseExtendedProps = { ...(baseEvent?.extendedProps || {}) };
 
   // Store all instances in virtual store (memory only)
   E.storeVirtualInstances(mstId, baseDate, freqDays, desc1, desc2, {
     resourceHours,
     isNew,
-    equipmentDesc1
+    equipmentDesc1,
+    baseExtendedProps
   });
 
   // Render only visible instances based on current calendar view
