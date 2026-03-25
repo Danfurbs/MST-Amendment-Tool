@@ -747,7 +747,13 @@ const bindEventRowConfigSelectors = (elements) => {
 
     window.mstEventRowLayout = { top: nextTop, bottom: nextBottom };
     persistEventRowLayout();
-    if (window.calendar) window.calendar.rerenderEvents();
+    if (window.calendar) {
+      if (typeof window.calendar.rerenderEvents === "function") {
+        window.calendar.rerenderEvents();
+      } else if (typeof window.calendar.render === "function") {
+        window.calendar.render();
+      }
+    }
   };
 
   eventTopRowSelect.addEventListener("change", handleLayoutChange);
@@ -1500,10 +1506,36 @@ eventContent: function(arg) {
     eventDrop(info) {
       const ev = info.event;
       const instanceIndex = Number(ev.extendedProps.instance);
+
+      const formatDate = (d) => d.toLocaleDateString("en-GB", {
+        weekday: "short", day: "numeric", month: "short", year: "numeric"
+      });
+
       if (![0, 1].includes(instanceIndex)) {
         // Only the base instance or next immediate instance can be dragged directly
+        const mstId = ev.extendedProps.mstId;
+        const baseEvent = window.calendar?.getEventById(`${mstId}_0`);
+        const deltaDays = Math.round((ev.start - info.oldEvent.start) / (1000 * 60 * 60 * 24));
+
         info.revert();
-        alert("To amend this date, drag the 1st (green) instance or the next immediate instance only.\n\nAll future instances will automatically update when you move one of those dates.");
+
+        const attemptedFrom = formatDate(info.oldEvent.start);
+        const attemptedTo = formatDate(ev.start);
+        const lastScheduledFrom = baseEvent?.start ? formatDate(baseEvent.start) : "Unknown";
+
+        let lastScheduledTo = "Unknown";
+        if (baseEvent?.start && Number.isFinite(deltaDays)) {
+          const previewLastScheduledTo = new Date(baseEvent.start);
+          previewLastScheduledTo.setDate(previewLastScheduledTo.getDate() + deltaDays);
+          lastScheduledTo = formatDate(previewLastScheduledTo);
+        }
+
+        alert(
+          "To amend this date, drag the 1st (green) instance or the next immediate instance only.\n\n"
+          + `Attempted move: ${attemptedFrom} → ${attemptedTo}\n`
+          + `Last Scheduled Date (if applied): ${lastScheduledFrom} → ${lastScheduledTo}\n\n`
+          + "All future instances will automatically update when you move one of those eligible dates."
+        );
         return;
       }
 
@@ -1526,11 +1558,6 @@ eventContent: function(arg) {
       const mstId = ev.extendedProps.mstId;
       const desc1 = ev.extendedProps.desc1 || "";
       const equipDesc = ev.extendedProps.equipmentDesc1 || "";
-
-      // Format dates
-      const formatDate = (d) => d.toLocaleDateString("en-GB", {
-        weekday: "short", day: "numeric", month: "short", year: "numeric"
-      });
 
       mstInfo.textContent = `${equipDesc} — ${desc1}`;
       oldDateEl.textContent = formatDate(info.oldEvent.start);
