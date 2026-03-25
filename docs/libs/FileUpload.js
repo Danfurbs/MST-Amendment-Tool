@@ -268,6 +268,64 @@ document.addEventListener("DOMContentLoaded", function () {
     return annotatedRows;
   }
 
+  function exportFlaggedMsts(details) {
+    const rules = Array.isArray(window.MST?.ErrorFlags?.rules)
+      ? window.MST.ErrorFlags.rules
+      : [];
+
+    const ruleById = new Map(rules.map(rule => [rule.id, rule]));
+    const flaggedRows = Array.isArray(window.originalRows)
+      ? window.originalRows.filter(row => Array.isArray(row?._errorFlags) && row._errorFlags.length)
+      : [];
+
+    if (!flaggedRows.length) {
+      alert("There are no flagged MSTs to export.");
+      return;
+    }
+
+    if (!window.XLSX) {
+      alert("Excel export is unavailable because XLSX is not loaded.");
+      return;
+    }
+
+    const exportRows = [];
+    flaggedRows.forEach(row => {
+      const ruleIds = Array.isArray(row._errorFlags) ? row._errorFlags : [];
+      ruleIds.forEach(ruleId => {
+        const rule = ruleById.get(ruleId);
+        exportRows.push({
+          "Rule ID": ruleId,
+          "Rule Description": rule?.description || ruleId,
+          "MST ID": row._mstId || deriveMstId(row),
+          "Equipment Number": row["Equipment Number"] ?? "",
+          "MST Task Number": row["MST Task Number"] ?? "",
+          "MST Description 1": row["MST Description 1"] ?? "",
+          "MST Description 2": row["MST Description 2"] ?? "",
+          "Last Scheduled Date": row["Last Scheduled Date"] ?? "",
+          "Frequency": row["Frequency"] ?? "",
+          "Units Required": row["Units Required"] ?? "",
+          "Work Group Code": row["Work Group Code"] ?? "",
+          "Job Description Code": row["Job Description Code"] ?? "",
+          "Protection Type Code": row["Protection Type Code"] ?? "",
+          "TV Reference": row["Temp Var Reference Number"] ?? row["TV Reference"] ?? "",
+          "TV Expiry Date": row["TV Expiry Date"] ?? row["Temp Var Expiry Date"] ?? ""
+        });
+      });
+    });
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(exportRows);
+    XLSX.utils.book_append_sheet(wb, ws, "Flagged MSTs");
+
+    const now = new Date();
+    const stamp = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, "0"),
+      String(now.getDate()).padStart(2, "0")
+    ].join("");
+    XLSX.writeFile(wb, `MST_Flagged_Errors_${stamp}.xlsx`);
+  }
+
   function recheckSingleMst(mstId) {
     if (!mstId) return;
 
@@ -311,7 +369,25 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
-    errorSummaryEl.innerHTML = "<div><strong>MST error checks:</strong></div>";
+    errorSummaryEl.innerHTML = "";
+
+    const headerRow = document.createElement("div");
+    const headerLabel = document.createElement("strong");
+    headerLabel.textContent = "MST error checks:";
+    headerRow.appendChild(headerLabel);
+
+    const hasFlagged = Object.values(summary).some(count => Number(count) > 0);
+    if (hasFlagged) {
+      const exportBtn = document.createElement("button");
+      exportBtn.type = "button";
+      exportBtn.className = "link-btn";
+      exportBtn.textContent = "Export flagged MSTs";
+      exportBtn.style.marginLeft = "10px";
+      exportBtn.addEventListener("click", () => exportFlaggedMsts(details));
+      headerRow.appendChild(exportBtn);
+    }
+
+    errorSummaryEl.appendChild(headerRow);
 
     const list = document.createElement("ul");
 
