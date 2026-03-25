@@ -519,17 +519,31 @@ input, button {
 
 /* Deactivated MST events */
 .fc-event.deactivated-mst {
+  background-color: #111827 !important;
   background-image: repeating-linear-gradient(
     45deg,
-    rgba(0, 0, 0, 0.85),
-    rgba(0, 0, 0, 0.85) 8px,
-    rgba(255, 255, 255, 0.1) 8px,
-    rgba(255, 255, 255, 0.1) 16px
+    #111827,
+    #111827 8px,
+    #374151 8px,
+    #374151 16px
   ) !important;
   color: white !important;
-  border: 2px solid black !important;
+  border: 2px solid #030712 !important;
   font-weight: bold !important;
-  opacity: 0.9;
+  opacity: 1;
+}
+
+/* Keep text and list-view markers consistent for deactivated MSTs */
+.fc-event.deactivated-mst .fc-event-title,
+.fc-event.deactivated-mst .event-equip,
+.fc-event.deactivated-mst .event-desc,
+.fc-list-event.deactivated-mst .fc-list-event-title,
+.fc-list-event.deactivated-mst .fc-list-event-time {
+  color: #ffffff !important;
+}
+
+.fc-list-event.deactivated-mst .fc-list-event-dot {
+  border-color: #111827 !important;
 }
 
 /* Highlight events updated by user */
