@@ -747,7 +747,13 @@ const bindEventRowConfigSelectors = (elements) => {
 
     window.mstEventRowLayout = { top: nextTop, bottom: nextBottom };
     persistEventRowLayout();
-    if (window.calendar) window.calendar.rerenderEvents();
+    if (window.calendar) {
+      if (typeof window.calendar.rerenderEvents === "function") {
+        window.calendar.rerenderEvents();
+      } else if (typeof window.calendar.render === "function") {
+        window.calendar.render();
+      }
+    }
   };
 
   eventTopRowSelect.addEventListener("change", handleLayoutChange);
