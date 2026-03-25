@@ -289,6 +289,29 @@
       gap: 10px;
       flex-wrap: wrap;
     }
+    .event-row-config {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 4px 8px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      background: #f8fafc;
+    }
+    .event-row-config label {
+      font-size: 12px;
+      font-weight: 700;
+      color: #334155;
+    }
+    .event-row-config select {
+      font-size: 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 4px 6px;
+      min-width: 170px;
+      background: #fff;
+    }
     .collapsed-controls {
       display: none;
       align-items: center;
@@ -1260,6 +1283,12 @@
         <button id="newMSTBtn" class="primary-action-btn">+ New MST</button>
       </div>
       <div class="action-meta">
+        <div class="event-row-config">
+          <label for="eventTopRowSelect">Top row</label>
+          <select id="eventTopRowSelect"></select>
+          <label for="eventBottomRowSelect">Bottom row</label>
+          <select id="eventBottomRowSelect"></select>
+        </div>
         <div class="action-status">
           <span id="newMstCount"></span>
           <span id="changeCount"></span>

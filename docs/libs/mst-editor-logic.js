@@ -6,6 +6,73 @@ const U = MST.Utils;
 
 const MAX_DESC2_LENGTH = 45;
 const clampDesc2 = (value = "") => value.toString().slice(0, MAX_DESC2_LENGTH);
+const EVENT_ROW_LAYOUT_STORAGE_KEY = "mstEventRowLayout";
+const EVENT_ROW_OPTIONS = [
+  {
+    value: "equipment_desc1",
+    label: "Equipment Desc 1",
+    render: (props = {}) => props.equipmentDesc1 || ""
+  },
+  {
+    value: "mst_desc1_desc2",
+    label: "MST Desc 1 + Desc 2",
+    render: (props = {}) => [props.desc1 || "", props.desc2 || ""].filter(Boolean).join(" — ")
+  },
+  {
+    value: "equipment_no_desc1",
+    label: "Asset No + Asset Desc 1",
+    render: (props = {}) => [props.equipmentNo || "", props.equipmentDesc1 || ""].filter(Boolean).join(" — ")
+  },
+  {
+    value: "equipment_desc1_desc2",
+    label: "Asset Desc 1 + Desc 2",
+    render: (props = {}) => [props.equipmentDesc1 || "", props.equipmentDesc2 || ""].filter(Boolean).join(" — ")
+  },
+  {
+    value: "equipment_no",
+    label: "Asset Number",
+    render: (props = {}) => props.equipmentNo || ""
+  },
+  {
+    value: "mst_task_no",
+    label: "MST Task Number",
+    render: (props = {}) => props.taskNo || ""
+  }
+];
+const EVENT_ROW_OPTION_SET = new Set(EVENT_ROW_OPTIONS.map((option) => option.value));
+const DEFAULT_EVENT_ROW_LAYOUT = {
+  top: "equipment_desc1",
+  bottom: "mst_desc1_desc2"
+};
+
+const safeReadEventLayout = () => {
+  try {
+    const raw = window.localStorage?.getItem(EVENT_ROW_LAYOUT_STORAGE_KEY);
+    if (!raw) return { ...DEFAULT_EVENT_ROW_LAYOUT };
+    const parsed = JSON.parse(raw);
+    const top = EVENT_ROW_OPTION_SET.has(parsed?.top) ? parsed.top : DEFAULT_EVENT_ROW_LAYOUT.top;
+    const bottom = EVENT_ROW_OPTION_SET.has(parsed?.bottom) ? parsed.bottom : DEFAULT_EVENT_ROW_LAYOUT.bottom;
+    return { top, bottom };
+  } catch (_error) {
+    return { ...DEFAULT_EVENT_ROW_LAYOUT };
+  }
+};
+
+window.mstEventRowLayout = window.mstEventRowLayout || safeReadEventLayout();
+
+const resolveEventRowText = (key, props = {}) => {
+  const option = EVENT_ROW_OPTIONS.find((item) => item.value === key);
+  if (!option) return "";
+  return (option.render(props) || "").toString().trim();
+};
+
+const persistEventRowLayout = () => {
+  try {
+    window.localStorage?.setItem(EVENT_ROW_LAYOUT_STORAGE_KEY, JSON.stringify(window.mstEventRowLayout || DEFAULT_EVENT_ROW_LAYOUT));
+  } catch (_error) {
+    // localStorage may be unavailable in restricted environments.
+  }
+};
 const updateCharCounter = (inputEl, counterEl, max = MAX_DESC2_LENGTH) => {
   if (!inputEl || !counterEl) return;
 
@@ -393,6 +460,8 @@ const getDomElements = () => ({
   detailsIntro: document.getElementById("detailsIntro"),
   editForm: document.getElementById("editForm"),
   editTvBtn: document.getElementById("editTvBtn"),
+  eventBottomRowSelect: document.getElementById("eventBottomRowSelect"),
+  eventTopRowSelect: document.getElementById("eventTopRowSelect"),
   equipDisplay: document.getElementById("equipDisplay"),
   equipDesc1Display: document.getElementById("equipDesc1Display"),
   equipDesc2Display: document.getElementById("equipDesc2Display"),
@@ -647,6 +716,42 @@ const bindMstInstanceNavButtons = (elements) => {
 
   prevMstInstanceBtn?.addEventListener('click', () => jumpToMstInstance(-1));
   nextMstInstanceBtn?.addEventListener('click', () => jumpToMstInstance(1));
+};
+
+const bindEventRowConfigSelectors = (elements) => {
+  const { eventTopRowSelect, eventBottomRowSelect } = elements;
+  if (!eventTopRowSelect || !eventBottomRowSelect) return;
+
+  eventTopRowSelect.innerHTML = "";
+  eventBottomRowSelect.innerHTML = "";
+
+  EVENT_ROW_OPTIONS.forEach((opt) => {
+    const topOption = document.createElement("option");
+    topOption.value = opt.value;
+    topOption.textContent = opt.label;
+    eventTopRowSelect.appendChild(topOption);
+
+    const bottomOption = document.createElement("option");
+    bottomOption.value = opt.value;
+    bottomOption.textContent = opt.label;
+    eventBottomRowSelect.appendChild(bottomOption);
+  });
+
+  const currentLayout = window.mstEventRowLayout || DEFAULT_EVENT_ROW_LAYOUT;
+  eventTopRowSelect.value = EVENT_ROW_OPTION_SET.has(currentLayout.top) ? currentLayout.top : DEFAULT_EVENT_ROW_LAYOUT.top;
+  eventBottomRowSelect.value = EVENT_ROW_OPTION_SET.has(currentLayout.bottom) ? currentLayout.bottom : DEFAULT_EVENT_ROW_LAYOUT.bottom;
+
+  const handleLayoutChange = () => {
+    const nextTop = EVENT_ROW_OPTION_SET.has(eventTopRowSelect.value) ? eventTopRowSelect.value : DEFAULT_EVENT_ROW_LAYOUT.top;
+    const nextBottom = EVENT_ROW_OPTION_SET.has(eventBottomRowSelect.value) ? eventBottomRowSelect.value : DEFAULT_EVENT_ROW_LAYOUT.bottom;
+
+    window.mstEventRowLayout = { top: nextTop, bottom: nextBottom };
+    persistEventRowLayout();
+    if (window.calendar) window.calendar.rerenderEvents();
+  };
+
+  eventTopRowSelect.addEventListener("change", handleLayoutChange);
+  eventBottomRowSelect.addEventListener("change", handleLayoutChange);
 };
 
 const updateMstInstanceNav = (mstId) => {
@@ -1238,6 +1343,8 @@ window.MST.Editor.applyBulkCreateMSTs = function() {
       newDesc2Counter,
       mileageFromInput,
       mileageToInput,
+      eventTopRowSelect,
+      eventBottomRowSelect,
     } = dom;
 
     if (!calEl) {
@@ -1265,6 +1372,7 @@ window.MST.Editor.applyBulkCreateMSTs = function() {
 
     bindTvButtons(dom);
     bindMstInstanceNavButtons(dom);
+    bindEventRowConfigSelectors({ eventTopRowSelect, eventBottomRowSelect });
     updateMstInstanceNav("");
 
     // ----------------------
@@ -1306,10 +1414,9 @@ window.MST.Editor.applyBulkCreateMSTs = function() {
 eventContent: function(arg) {
   const ev = arg.event;
   const props = ev.extendedProps;
-
-  const equipDesc = props.equipmentDesc1 || "";
-  const desc1 = props.desc1 || "";
-  const desc2 = props.desc2 || "";
+  const layout = window.mstEventRowLayout || DEFAULT_EVENT_ROW_LAYOUT;
+  const topRowText = resolveEventRowText(layout.top, props);
+  const bottomRowText = resolveEventRowText(layout.bottom, props);
 
   const mstId = props.mstId;
   let statusIcon = "";
@@ -1326,8 +1433,8 @@ eventContent: function(arg) {
   return {
     html: `
       <div class="event-icon ${statusClass}">${statusIcon}</div>
-      ${equipDesc ? `<div class="event-equip">${equipDesc}</div>` : ""}
-      <div class="event-desc">${desc1}${desc2 ? " — " + desc2 : ""}</div>
+      ${topRowText ? `<div class="event-equip">${topRowText}</div>` : ""}
+      ${bottomRowText ? `<div class="event-desc">${bottomRowText}</div>` : ""}
     `
   };
 },
