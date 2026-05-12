@@ -1752,6 +1752,11 @@ E.renderVisibleInstances = function(visibleStart, visibleEnd) {
             }
           });
 
+          const filteredDisplay = window.MST?.Views?.getFilterDisplayForEvent?.(ev);
+          if (filteredDisplay && ev.display !== filteredDisplay) {
+            ev.setProp("display", filteredDisplay);
+          }
+
           window.renderedInstanceIds.add(instId);
 
           // Store reference in futureEventsMap for compatibility
