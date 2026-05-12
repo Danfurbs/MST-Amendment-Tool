@@ -23,20 +23,58 @@
 
     if (!filterOverlay || !openFilterBtn || !closeFilterBtn) return;
 
-    const getActiveFilterCount = () => {
-      const values = [
-        filterWorkGroup?.value,
-        filterJobDesc?.value,
-        filterDesc1?.value,
-        filterDesc2?.value,
-        filterProtType?.value,
-        filterProtMethod?.value,
-        filterEquipDesc1?.value,
-        filterElr?.value,
-        filterTrackId?.value
-      ];
+    const readActiveFilters = () => ({
+      wg: (filterWorkGroup?.value || '').trim(),
+      jd: (filterJobDesc?.value || '').trim().split(' — ')[0],
+      d1: (filterDesc1?.value || '').trim(),
+      d2: (filterDesc2?.value || '').trim(),
+      pt: (filterProtType?.value || '').trim().split(' — ')[0],
+      pm: (filterProtMethod?.value || '').trim().split(' — ')[0],
+      ad1: (filterEquipDesc1?.value || '').trim(),
+      elr: (filterElr?.value || '').trim(),
+      trk: (filterTrackId?.value || '').trim()
+    });
 
-      return values.filter((v) => (v || '').toString().trim()).length;
+    const hasActiveFilters = (filters = readActiveFilters()) => {
+      return Object.values(filters).some((v) => (v || '').toString().trim());
+    };
+
+    const getActiveFilterCount = () => Object.values(readActiveFilters())
+      .filter((v) => (v || '').toString().trim()).length;
+
+    const propsMatchFilters = (p = {}, filters = readActiveFilters()) => (
+      (!filters.wg  || (p.workGroup      || '').trim() === filters.wg) &&
+      (!filters.jd  || (p.jobDescCode    || '').trim() === filters.jd) &&
+      (!filters.d1  || (p.desc1          || '').trim() === filters.d1) &&
+      (!filters.d2  || (p.desc2          || '').trim() === filters.d2) &&
+      (!filters.pt  || (p.protType       || '').trim() === filters.pt) &&
+      (!filters.pm  || (p.protMethod     || '').trim() === filters.pm) &&
+      (!filters.ad1 || (p.equipmentDesc1 || '').trim() === filters.ad1) &&
+      (!filters.elr || (p.elr            || '').trim() === filters.elr) &&
+      (!filters.trk || (p.trackId        || '').trim() === filters.trk)
+    );
+
+    const buildVisibilityByMstId = (events, filters = readActiveFilters()) => {
+      const visibilityByMstId = new Map();
+      events
+        .filter((e) => (e.extendedProps || {}).instance === 0)
+        .forEach((base) => {
+          const p = base.extendedProps || {};
+          if (p.mstId) visibilityByMstId.set(p.mstId, propsMatchFilters(p, filters));
+        });
+      return visibilityByMstId;
+    };
+
+    const eventMatchesActiveFilters = (ev, filters = readActiveFilters(), visibilityByMstId = null) => {
+      if (!hasActiveFilters(filters)) return true;
+
+      const p = ev?.extendedProps || {};
+      const mid = p.mstId;
+      if (visibilityByMstId && mid && visibilityByMstId.has(mid)) {
+        return visibilityByMstId.get(mid) === true;
+      }
+
+      return propsMatchFilters(p, filters);
     };
 
     const updateFilterButtonState = () => {
@@ -52,20 +90,10 @@
 
       const visibleDisplay = calendar.getOption('eventDisplay') || 'block';
 
-      const wg  = (filterWorkGroup?.value || '').trim();
-      const jd  = (filterJobDesc?.value || '').trim().split(' — ')[0];
-      const d1  = (filterDesc1?.value || '').trim();
-      const d2  = (filterDesc2?.value || '').trim();
-      const pt  = (filterProtType?.value || '').trim().split(' — ')[0];
-      const pm  = (filterProtMethod?.value || '').trim().split(' — ')[0];
-      const ad1 = (filterEquipDesc1?.value || '').trim();
-      const elr = (filterElr?.value || '').trim();
-      const trk = (filterTrackId?.value || '').trim();
-
-      const noActive = !wg && !jd && !d1 && !d2 && !pt && !pm && !ad1 && !elr && !trk;
+      const filters = readActiveFilters();
+      const noActive = !hasActiveFilters(filters);
 
       const events = calendar.getEvents();
-      const bases  = events.filter((e) => (e.extendedProps || {}).instance === 0);
 
       calendar.batchRendering(() => {
         if (noActive) {
@@ -75,27 +103,10 @@
           return;
         }
 
-        const visibilityByMstId = new Map();
-
-        bases.forEach((base) => {
-          const p = base.extendedProps || {};
-          const match =
-            (!wg  || (p.workGroup      || '').trim() === wg) &&
-            (!jd  || (p.jobDescCode    || '').trim() === jd) &&
-            (!d1  || (p.desc1          || '').trim() === d1) &&
-            (!d2  || (p.desc2          || '').trim() === d2) &&
-            (!pt  || (p.protType       || '').trim() === pt) &&
-            (!pm  || (p.protMethod     || '').trim() === pm) &&
-            (!ad1 || (p.equipmentDesc1 || '').trim() === ad1) &&
-            (!elr || (p.elr            || '').trim() === elr) &&
-            (!trk || (p.trackId        || '').trim() === trk);
-
-          visibilityByMstId.set(p.mstId, match);
-        });
+        const visibilityByMstId = buildVisibilityByMstId(events, filters);
 
         events.forEach((ev) => {
-          const mid = (ev.extendedProps || {}).mstId;
-          const show = visibilityByMstId.get(mid) === true;
+          const show = eventMatchesActiveFilters(ev, filters, visibilityByMstId);
           const desired = show ? visibleDisplay : 'none';
           if (ev.display !== desired) ev.setProp('display', desired);
         });
@@ -161,6 +172,18 @@
     window.MST.Views = window.MST.Views || {};
     window.MST.Views.applyFilters = applyFilters;
     window.MST.Views.resetFilters = resetFilters;
+    window.MST.Views.hasActiveFilters = () => hasActiveFilters();
+    window.MST.Views.getFilterDisplayForEvent = (ev) => {
+      const calendar = window.calendar;
+      const visibleDisplay = calendar?.getOption('eventDisplay') || 'block';
+      const filters = readActiveFilters();
+
+      if (!hasActiveFilters(filters)) return visibleDisplay;
+
+      const events = calendar?.getEvents?.() || [];
+      const visibilityByMstId = buildVisibilityByMstId(events, filters);
+      return eventMatchesActiveFilters(ev, filters, visibilityByMstId) ? visibleDisplay : 'none';
+    };
   }
 
   function deriveMstId(row) {
