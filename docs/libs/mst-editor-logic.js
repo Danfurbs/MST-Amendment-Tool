@@ -1320,7 +1320,7 @@ window.MST.Editor.applyBulkCreateMSTs = function() {
     baseEvent?.setExtendedProp?.("abpCommentary", bulkAbpCommentary);
   });
 
-  alert(`Created ${payloads.length} MST(s).`);
+  window.MST.Utils.showToast(`Created ${payloads.length} MST(s).`);
   MST.Editor.closeBulkCreateMSTModal();
 };
 
@@ -2747,7 +2747,7 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     window.mileageFromInput.value = result.formattedSegFrom;
     window.mileageToInput.value = result.formattedSegTo;
 
-    alert("Saved MST: " + mstId);
+    window.MST.Utils.showToast(`Saved ${window.MST.Utils.formatMstToastSubject(result.baseEvent)}.`);
   };
 
 
@@ -2790,6 +2790,9 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
         mstId,
         instance: 0,
         frequency: freq,
+        equipmentNo: orig["Equipment Number"] || "",
+        equipmentDesc1: orig["Equipment Description 1"] || "",
+        equipmentDesc2: orig["Equipment Description 2"] || "",
         desc1: orig["MST Description 1"] || "",
         desc2: orig["MST Description 2"] || "",
         workGroup: orig["Work Group Code"] || "",
@@ -2819,7 +2822,7 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
 
     E.openEditorForMST(mstId, baseEvent);
 
-    alert("Reverted MST: " + mstId);
+    window.MST.Utils.showToast(`Reverted ${window.MST.Utils.formatMstToastSubject(baseEvent)}.`);
   };
 
   /* ----------------------------------------
@@ -2892,7 +2895,7 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
 
     window.changeCount.innerText = `Changes: ${Object.keys(window.changes).length}`;
 
-    alert("MST deactivated.");
+    window.MST.Utils.showToast(`Deactivated ${window.MST.Utils.formatMstToastSubject(baseEvent)}.`);
   };
 
 /* ----------------------------------------
@@ -3472,9 +3475,11 @@ MST.Editor.changeStandardJob = async function () {
 
   MST.Editor.openEditorForMST(newMstId, newBaseEvent);
 
-  alert(
-    `New MST created on asset ${equipNo} with Standard Job Number ${newStdJobNo}.\n\n` +
-    `Previous MST on ${equipNo} has been deactivated.\n` +
+  const toastSubject = window.MST.Utils.formatMstToastSubject(newBaseEvent);
+  const assetLabel = equipDesc || "the selected asset";
+  window.MST.Utils.showToast(
+    `New MST created: ${toastSubject}.\n\n` +
+    `Previous MST on ${assetLabel} has been deactivated.\n` +
     `(1x deactivation + 1x new MST)`
   );
 };

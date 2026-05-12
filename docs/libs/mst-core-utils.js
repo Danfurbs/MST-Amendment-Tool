@@ -183,4 +183,92 @@ window.MST.Utils = {
         });
     };
 
+    U.formatMstToastSubject = function(source = {}) {
+        const props = source?.extendedProps || source || {};
+        const desc1 = (
+            props.desc1 ||
+            props["MST Description 1"] ||
+            props["MST Desc 1"] ||
+            ""
+        ).toString().trim();
+        const desc2 = (
+            props.desc2 ||
+            props["MST Description 2"] ||
+            props["MST Desc 2"] ||
+            ""
+        ).toString().trim();
+        const equipmentNo = (
+            props.equipmentNo ||
+            props["Equipment Number"] ||
+            props.Equipment ||
+            ""
+        ).toString().trim();
+        const equipmentMeta = equipmentNo && window.equipmentDescriptions instanceof Map
+            ? window.equipmentDescriptions.get(equipmentNo)
+            : null;
+        const assetDesc1 = (
+            props.equipmentDesc1 ||
+            props["Equipment Description 1"] ||
+            equipmentMeta?.desc1 ||
+            ""
+        ).toString().trim();
+
+        const mstDescription = [desc1, desc2].filter(Boolean).join(", ");
+        if (mstDescription && assetDesc1) return `${mstDescription} on ${assetDesc1}`;
+        if (mstDescription) return mstDescription;
+        if (assetDesc1) return `MST on ${assetDesc1}`;
+        return "MST";
+    };
+
+    U.showToast = function(message, options = {}) {
+        const text = (message ?? "").toString().trim();
+        if (!text) return null;
+
+        const duration = Number.isFinite(options.duration) ? options.duration : 2000;
+        const type = ["success", "info", "warning", "error"].includes(options.type)
+            ? options.type
+            : "success";
+
+        let region = document.getElementById("mstToastRegion");
+        if (!region) {
+            region = document.createElement("div");
+            region.id = "mstToastRegion";
+            region.className = "mst-toast-region";
+            region.setAttribute("aria-live", type === "error" ? "assertive" : "polite");
+            region.setAttribute("aria-atomic", "false");
+            document.body.appendChild(region);
+        }
+
+        const toast = document.createElement("div");
+        toast.className = `mst-toast mst-toast--${type}`;
+        toast.setAttribute("role", type === "error" ? "alert" : "status");
+
+        const icon = document.createElement("span");
+        icon.className = "mst-toast__icon";
+        icon.setAttribute("aria-hidden", "true");
+        icon.textContent = {
+            success: "✓",
+            info: "i",
+            warning: "!",
+            error: "!"
+        }[type];
+
+        const body = document.createElement("div");
+        body.className = "mst-toast__body";
+        body.textContent = text;
+
+        toast.append(icon, body);
+        region.appendChild(toast);
+
+        requestAnimationFrame(() => toast.classList.add("is-visible"));
+
+        window.setTimeout(() => {
+            toast.classList.remove("is-visible");
+            toast.addEventListener("transitionend", () => toast.remove(), { once: true });
+            window.setTimeout(() => toast.remove(), 350);
+        }, duration);
+
+        return toast;
+    };
+
 })();

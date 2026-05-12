@@ -113,7 +113,7 @@
     });
 
     if (updated > 0) {
-      alert(`Applied possession alignment to ${updated} MST(s).`);
+      window.MST.Utils.showToast(`Applied possession alignment to ${updated} MST(s).`);
     }
   };
 
