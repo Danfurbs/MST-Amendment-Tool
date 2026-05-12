@@ -183,4 +183,55 @@ window.MST.Utils = {
         });
     };
 
+    U.showToast = function(message, options = {}) {
+        const text = (message ?? "").toString().trim();
+        if (!text) return null;
+
+        const duration = Number.isFinite(options.duration) ? options.duration : 2000;
+        const type = ["success", "info", "warning", "error"].includes(options.type)
+            ? options.type
+            : "success";
+
+        let region = document.getElementById("mstToastRegion");
+        if (!region) {
+            region = document.createElement("div");
+            region.id = "mstToastRegion";
+            region.className = "mst-toast-region";
+            region.setAttribute("aria-live", type === "error" ? "assertive" : "polite");
+            region.setAttribute("aria-atomic", "false");
+            document.body.appendChild(region);
+        }
+
+        const toast = document.createElement("div");
+        toast.className = `mst-toast mst-toast--${type}`;
+        toast.setAttribute("role", type === "error" ? "alert" : "status");
+
+        const icon = document.createElement("span");
+        icon.className = "mst-toast__icon";
+        icon.setAttribute("aria-hidden", "true");
+        icon.textContent = {
+            success: "✓",
+            info: "i",
+            warning: "!",
+            error: "!"
+        }[type];
+
+        const body = document.createElement("div");
+        body.className = "mst-toast__body";
+        body.textContent = text;
+
+        toast.append(icon, body);
+        region.appendChild(toast);
+
+        requestAnimationFrame(() => toast.classList.add("is-visible"));
+
+        window.setTimeout(() => {
+            toast.classList.remove("is-visible");
+            toast.addEventListener("transitionend", () => toast.remove(), { once: true });
+            window.setTimeout(() => toast.remove(), 350);
+        }, duration);
+
+        return toast;
+    };
+
 })();

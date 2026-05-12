@@ -763,7 +763,7 @@ ${preview}${suffix}`
       return;
     }
 
-    alert("Previous batch data has been imported and re-applied.");
+    window.MST.Utils.showToast("Previous batch data has been imported and re-applied.");
   }
 
   function handleSessionWorkbook(data) {

@@ -1320,7 +1320,7 @@ window.MST.Editor.applyBulkCreateMSTs = function() {
     baseEvent?.setExtendedProp?.("abpCommentary", bulkAbpCommentary);
   });
 
-  alert(`Created ${payloads.length} MST(s).`);
+  window.MST.Utils.showToast(`Created ${payloads.length} MST(s).`);
   MST.Editor.closeBulkCreateMSTModal();
 };
 
@@ -2747,7 +2747,7 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     window.mileageFromInput.value = result.formattedSegFrom;
     window.mileageToInput.value = result.formattedSegTo;
 
-    alert("Saved MST: " + mstId);
+    window.MST.Utils.showToast("Saved MST: " + mstId);
   };
 
 
@@ -2819,7 +2819,7 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
 
     E.openEditorForMST(mstId, baseEvent);
 
-    alert("Reverted MST: " + mstId);
+    window.MST.Utils.showToast("Reverted MST: " + mstId);
   };
 
   /* ----------------------------------------
@@ -2892,7 +2892,7 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
 
     window.changeCount.innerText = `Changes: ${Object.keys(window.changes).length}`;
 
-    alert("MST deactivated.");
+    window.MST.Utils.showToast("MST deactivated.");
   };
 
 /* ----------------------------------------
@@ -3472,7 +3472,7 @@ MST.Editor.changeStandardJob = async function () {
 
   MST.Editor.openEditorForMST(newMstId, newBaseEvent);
 
-  alert(
+  window.MST.Utils.showToast(
     `New MST created on asset ${equipNo} with Standard Job Number ${newStdJobNo}.\n\n` +
     `Previous MST on ${equipNo} has been deactivated.\n` +
     `(1x deactivation + 1x new MST)`

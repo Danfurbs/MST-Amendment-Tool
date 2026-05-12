@@ -991,7 +991,7 @@
 
       closePreview();
       closeEditor();
-      alert(`Successfully updated ${updated} MST${updated === 1 ? '' : 's'}.`);
+      window.MST.Utils.showToast(`Successfully updated ${updated} MST${updated === 1 ? '' : 's'}.`);
       openOverlay({ resetSelection: true, resetFilter: true });
     };
 
@@ -1057,7 +1057,7 @@
               onProgress: updateBulkProgress
             }) || Promise.resolve({ updated: 0, skipped: 0, failed: mstIds.length }));
 
-            alert(`Bulk Standard Job change complete.
+            window.MST.Utils.showToast(`Bulk Standard Job change complete.
 
 Updated: ${outcome.updated || 0}
 Skipped (unchanged): ${outcome.skipped || 0}
@@ -1090,7 +1090,7 @@ Failed: ${outcome.failed || 0}`);
             onProgress: updateBulkProgress
           }) || Promise.resolve({ updated: 0, skipped: 0, failed: mstIds.length }));
 
-          alert(`Bulk equipment change complete.
+          window.MST.Utils.showToast(`Bulk equipment change complete.
 
 Updated: ${outcome.updated || 0}
 Skipped (unchanged): ${outcome.skipped || 0}
