@@ -77,11 +77,35 @@
       return propsMatchFilters(p, filters);
     };
 
+    const filterSelects = [
+      filterWorkGroup,
+      filterJobDesc,
+      filterDesc1,
+      filterDesc2,
+      filterProtType,
+      filterProtMethod,
+      filterEquipDesc1,
+      filterElr,
+      filterTrackId
+    ];
+
+    const updateFilterFieldIndicators = () => {
+      filterSelects.forEach((selectEl) => {
+        const field = selectEl?.closest?.('.filter-field');
+        if (!field) return;
+        const isActive = Boolean((selectEl.value || '').trim());
+        field.classList.toggle('filter-active', isActive);
+        field.setAttribute('data-filter-active', isActive ? 'true' : 'false');
+      });
+    };
+
     const updateFilterButtonState = () => {
-      if (!openFilterBtn) return;
       const active = getActiveFilterCount();
-      openFilterBtn.textContent = active ? `⚙️ Filters (${active})` : '⚙️ Filters';
-      openFilterBtn.classList.toggle('has-active-filters', active > 0);
+      if (openFilterBtn) {
+        openFilterBtn.textContent = active ? `⚙️ Filters (${active})` : '⚙️ Filters';
+        openFilterBtn.classList.toggle('has-active-filters', active > 0);
+      }
+      updateFilterFieldIndicators();
     };
 
     function applyFilters() {
@@ -154,17 +178,7 @@
       filterOverlay.classList.remove('active');
     });
 
-    [
-      filterWorkGroup,
-      filterJobDesc,
-      filterDesc1,
-      filterDesc2,
-      filterProtType,
-      filterProtMethod,
-      filterEquipDesc1,
-      filterElr,
-      filterTrackId
-    ].forEach((selectEl) => selectEl?.addEventListener('change', updateFilterButtonState));
+    filterSelects.forEach((selectEl) => selectEl?.addEventListener('change', updateFilterButtonState));
 
     updateFilterButtonState();
 

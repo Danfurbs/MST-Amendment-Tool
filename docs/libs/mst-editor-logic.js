@@ -405,12 +405,61 @@ const bindExportReviewButton = (btn) => {
   }
 };
 
+const loadingProgressState = {
+  current: 0,
+  target: 0,
+  rafId: null
+};
+
+const setLoadingProgressImmediate = (percent = 0) => {
+  const loadingProgressBar = document.getElementById("loadingProgressBar");
+  const clamped = Math.max(0, Math.min(100, percent));
+
+  loadingProgressState.current = clamped;
+  loadingProgressState.target = clamped;
+
+  if (loadingProgressState.rafId) {
+    cancelAnimationFrame(loadingProgressState.rafId);
+    loadingProgressState.rafId = null;
+  }
+
+  if (loadingProgressBar) loadingProgressBar.style.width = `${clamped}%`;
+};
+
+const animateLoadingProgress = () => {
+  const loadingProgressBar = document.getElementById("loadingProgressBar");
+  if (!loadingProgressBar) {
+    loadingProgressState.rafId = null;
+    return;
+  }
+
+  const delta = loadingProgressState.target - loadingProgressState.current;
+  if (Math.abs(delta) < 0.15) {
+    loadingProgressState.current = loadingProgressState.target;
+    loadingProgressBar.style.width = `${loadingProgressState.current}%`;
+    loadingProgressState.rafId = null;
+    return;
+  }
+
+  loadingProgressState.current += delta * 0.16;
+  loadingProgressBar.style.width = `${loadingProgressState.current}%`;
+  loadingProgressState.rafId = requestAnimationFrame(animateLoadingProgress);
+};
+
+const smoothLoadingProgressTo = (percent) => {
+  const clamped = Math.max(0, Math.min(100, percent));
+  loadingProgressState.target = clamped;
+
+  if (!loadingProgressState.rafId) {
+    loadingProgressState.rafId = requestAnimationFrame(animateLoadingProgress);
+  }
+};
+
 const showMstLoadingOverlay = (title, message, step) => {
   const loadingOverlay = document.getElementById("loadingOverlay");
   const loadingTitle = document.getElementById("loadingTitle");
   const loadingMessage = document.getElementById("loadingMessage");
   const loadingStep = document.getElementById("loadingStep");
-  const loadingProgressBar = document.getElementById("loadingProgressBar");
 
   if (loadingOverlay) {
     loadingOverlay.classList.add("active");
@@ -419,18 +468,14 @@ const showMstLoadingOverlay = (title, message, step) => {
   if (loadingTitle) loadingTitle.textContent = title || "Loading MST information...";
   if (loadingMessage) loadingMessage.textContent = message || "Preparing MST editor...";
   if (loadingStep) loadingStep.textContent = step || "";
-  if (loadingProgressBar) loadingProgressBar.style.width = "0%";
+  setLoadingProgressImmediate(0);
 };
 
 const updateMstLoadingOverlay = ({ percent, message, step } = {}) => {
   const loadingMessage = document.getElementById("loadingMessage");
   const loadingStep = document.getElementById("loadingStep");
-  const loadingProgressBar = document.getElementById("loadingProgressBar");
 
-  if (typeof percent === "number" && loadingProgressBar) {
-    const clamped = Math.max(0, Math.min(100, percent));
-    loadingProgressBar.style.width = `${clamped}%`;
-  }
+  if (typeof percent === "number") smoothLoadingProgressTo(percent);
   if (typeof message === "string" && loadingMessage) loadingMessage.textContent = message;
   if (typeof step === "string" && loadingStep) loadingStep.textContent = step;
 };
@@ -442,6 +487,136 @@ const hideMstLoadingOverlay = () => {
     loadingOverlay.setAttribute("aria-hidden", "true");
   }
 };
+
+const formatMstDateShort = (date) => {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "Not scheduled";
+  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+};
+
+const moveFloatingLabel = (el, x = 0, y = 0) => {
+  if (!el) return;
+  const margin = 14;
+  const rect = el.getBoundingClientRect();
+  const maxLeft = Math.max(margin, window.innerWidth - rect.width - margin);
+  const maxTop = Math.max(margin, window.innerHeight - rect.height - margin);
+  el.style.left = `${Math.min(Math.max(x + 16, margin), maxLeft)}px`;
+  el.style.top = `${Math.min(Math.max(y + 16, margin), maxTop)}px`;
+};
+
+const getOrCreateFloatingLabel = (id, className) => {
+  let el = document.getElementById(id);
+  if (!el) {
+    el = document.createElement("div");
+    el.id = id;
+    el.className = className;
+    el.setAttribute("role", "status");
+    el.setAttribute("aria-live", "polite");
+    document.body.appendChild(el);
+  }
+  return el;
+};
+
+const removeFloatingLabel = (id) => {
+  const el = document.getElementById(id);
+  if (el) el.remove();
+};
+
+const escapeHtml = (value) => (value ?? "").toString()
+  .replace(/&/g, "&amp;")
+  .replace(/</g, "&lt;")
+  .replace(/>/g, "&gt;")
+  .replace(/"/g, "&quot;")
+  .replace(/'/g, "&#39;");
+
+const getChangedFieldRows = (change = {}) => {
+  const fields = [
+    ["Last Scheduled", "Old_Last_Scheduled_Date", "New_Last_Scheduled_Date"],
+    ["Frequency", "Old_Frequency", "New_Frequency"],
+    ["Desc 2", "Old_Desc2", "New_Desc2"],
+    ["Work Group", "Old_Work_Group_Code", "New_Work_Group_Code"],
+    ["Job Desc", "Old_Job_Desc_Code", "New_Job_Desc_Code"],
+    ["Units", "Old_Units_Required", "New_Units_Required"],
+    ["Segment From", "Old_Segment_From", "New_Segment_From"],
+    ["Segment To", "Old_Segment_To", "New_Segment_To"],
+    ["Protection Type", "Old_Protection_Type_Code", "New_Protection_Type_Code"],
+    ["Protection Method", "Old_Protection_Method_Code", "New_Protection_Method_Code"],
+    ["Allow Multiple", "Old_Allow_Multiple_Workorders", "New_Allow_Multiple_Workorders"],
+    ["TV Ref", "Old_TV_Reference", "New_TV_Reference"],
+    ["TV Expiry", "Old_TV_Expiry_Date", "New_TV_Expiry_Date"]
+  ];
+
+  return fields
+    .map(([label, oldKey, newKey]) => ({
+      label,
+      oldValue: change[oldKey] ?? "",
+      newValue: change[newKey] ?? ""
+    }))
+    .filter(({ oldValue, newValue }) => `${oldValue}`.trimEnd() !== `${newValue}`.trimEnd());
+};
+
+const showChangedMstTooltip = (eventApi, jsEvent) => {
+  const mstId = eventApi?.extendedProps?.mstId;
+  const change = mstId ? window.changes?.[mstId] : null;
+  if (!change) return;
+
+  const rows = getChangedFieldRows(change).slice(0, 6);
+  const remaining = Math.max(0, getChangedFieldRows(change).length - rows.length);
+  const tooltip = getOrCreateFloatingLabel("mstChangeTooltip", "mst-change-tooltip");
+  tooltip.innerHTML = `
+    <div class="mst-change-tooltip__title">Changed MST ${escapeHtml(mstId)}</div>
+    ${rows.length ? rows.map(({ label, oldValue, newValue }) => `
+      <div class="mst-change-tooltip__row">
+        <span class="mst-change-tooltip__label">${escapeHtml(label)}</span>
+        <span>${escapeHtml(oldValue || "—")} → <strong>${escapeHtml(newValue || "—")}</strong></span>
+      </div>
+    `).join("") : '<div class="mst-change-tooltip__empty">Change details are being prepared.</div>'}
+    ${remaining ? `<div class="mst-change-tooltip__row"><span></span><span>+${remaining} more changes</span></div>` : ""}
+  `;
+  moveFloatingLabel(tooltip, jsEvent?.clientX || 0, jsEvent?.clientY || 0);
+};
+
+const updateChangedMstTooltipPosition = (jsEvent) => {
+  moveFloatingLabel(document.getElementById("mstChangeTooltip"), jsEvent?.clientX || 0, jsEvent?.clientY || 0);
+};
+
+const hideChangedMstTooltip = () => removeFloatingLabel("mstChangeTooltip");
+
+const getDragImpactDates = (eventApi, proposedStart, oldStart = null) => {
+  const instanceIndex = Number(eventApi?.extendedProps?.instance || 0);
+  const frequencyDays = Number(eventApi?.extendedProps?.frequency || 0);
+  let newLsd = proposedStart ? new Date(proposedStart) : null;
+
+  if (instanceIndex === 1) {
+    const baseEvent = window.calendar?.getEventById(`${eventApi.extendedProps.mstId}_0`);
+    if (baseEvent?.start && oldStart && proposedStart) {
+      const deltaDays = Math.round((proposedStart - oldStart) / (1000 * 60 * 60 * 24));
+      newLsd = new Date(baseEvent.start);
+      newLsd.setDate(newLsd.getDate() + deltaDays);
+    }
+  }
+
+  if (newLsd) newLsd.setHours(9, 0, 0, 0);
+
+  let nextDue = null;
+  if (newLsd && Number.isFinite(frequencyDays) && frequencyDays > 0) {
+    nextDue = new Date(newLsd);
+    nextDue.setDate(nextDue.getDate() + frequencyDays);
+  }
+
+  return { newLsd, nextDue };
+};
+
+const showDragPreview = (eventApi, proposedStart, oldStart, jsEvent) => {
+  const preview = getOrCreateFloatingLabel("mstDragPreview", "mst-drag-preview");
+  const { newLsd, nextDue } = getDragImpactDates(eventApi, proposedStart, oldStart);
+  preview.innerHTML = `
+    <div class="mst-drag-preview__title">Move preview</div>
+    <div class="mst-drag-preview__dates">New LSD: ${escapeHtml(formatMstDateShort(newLsd))} → Next due: ${escapeHtml(formatMstDateShort(nextDue))}</div>
+  `;
+  moveFloatingLabel(preview, jsEvent?.clientX || window.__mstDragPointer?.x || 0, jsEvent?.clientY || window.__mstDragPointer?.y || 0);
+};
+
+const hideDragPreview = () => removeFloatingLabel("mstDragPreview");
 
 const getDomElements = () => ({
   allowMultipleInput: document.getElementById("allowMultipleInput"),
@@ -1381,6 +1556,18 @@ window.MST.Editor.applyBulkCreateMSTs = function() {
     bindEventRowConfigSelectors({ eventTopRowSelect, eventBottomRowSelect });
     updateMstInstanceNav("");
 
+    document.addEventListener("pointermove", (evt) => {
+      if (window.__mstDragPointer) {
+        window.__mstDragPointer.x = evt.clientX;
+        window.__mstDragPointer.y = evt.clientY;
+        moveFloatingLabel(document.getElementById("mstDragPreview"), evt.clientX, evt.clientY);
+      }
+
+      if (document.getElementById("mstChangeTooltip")) {
+        updateChangedMstTooltipPosition(evt);
+      }
+    });
+
     // ----------------------
     // INITIALIZE FULLCALENDAR
     // ----------------------
@@ -1465,6 +1652,43 @@ eventContent: function(arg) {
     views: {
       listYear: { buttonText: 'year list' },
       listWeek: { buttonText: 'week list' }
+    },
+
+    eventMouseEnter(info) {
+      const mstId = info.event?.extendedProps?.mstId;
+      const isChangedEvent = (info.event?.classNames || []).includes("changed-mst");
+      if (mstId && isChangedEvent && window.changes?.[mstId]) {
+        showChangedMstTooltip(info.event, info.jsEvent);
+      }
+    },
+
+    eventMouseLeave() {
+      hideChangedMstTooltip();
+    },
+
+    eventDragStart(info) {
+      window.__mstDragPointer = {
+        x: info.jsEvent?.clientX || 0,
+        y: info.jsEvent?.clientY || 0,
+        oldStart: info.event?.start ? new Date(info.event.start) : null
+      };
+      hideChangedMstTooltip();
+      showDragPreview(info.event, info.event?.start, window.__mstDragPointer.oldStart, info.jsEvent);
+    },
+
+    eventAllow(dropInfo, draggedEvent) {
+      showDragPreview(
+        draggedEvent,
+        dropInfo?.start ? new Date(dropInfo.start) : draggedEvent?.start,
+        window.__mstDragPointer?.oldStart || draggedEvent?.start,
+        null
+      );
+      return true;
+    },
+
+    eventDragStop() {
+      hideDragPreview();
+      window.__mstDragPointer = null;
     },
 
     eventClick(info) {
