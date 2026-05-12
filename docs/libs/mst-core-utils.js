@@ -183,6 +183,43 @@ window.MST.Utils = {
         });
     };
 
+    U.formatMstToastSubject = function(source = {}) {
+        const props = source?.extendedProps || source || {};
+        const desc1 = (
+            props.desc1 ||
+            props["MST Description 1"] ||
+            props["MST Desc 1"] ||
+            ""
+        ).toString().trim();
+        const desc2 = (
+            props.desc2 ||
+            props["MST Description 2"] ||
+            props["MST Desc 2"] ||
+            ""
+        ).toString().trim();
+        const equipmentNo = (
+            props.equipmentNo ||
+            props["Equipment Number"] ||
+            props.Equipment ||
+            ""
+        ).toString().trim();
+        const equipmentMeta = equipmentNo && window.equipmentDescriptions instanceof Map
+            ? window.equipmentDescriptions.get(equipmentNo)
+            : null;
+        const assetDesc1 = (
+            props.equipmentDesc1 ||
+            props["Equipment Description 1"] ||
+            equipmentMeta?.desc1 ||
+            ""
+        ).toString().trim();
+
+        const mstDescription = [desc1, desc2].filter(Boolean).join(", ");
+        if (mstDescription && assetDesc1) return `${mstDescription} on ${assetDesc1}`;
+        if (mstDescription) return mstDescription;
+        if (assetDesc1) return `MST on ${assetDesc1}`;
+        return "MST";
+    };
+
     U.showToast = function(message, options = {}) {
         const text = (message ?? "").toString().trim();
         if (!text) return null;
