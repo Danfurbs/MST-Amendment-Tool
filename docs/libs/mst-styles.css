@@ -1566,3 +1566,102 @@ input, button {
   outline: none;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
+
+/* ========================================================================== */
+/*                         SLIDE-IN TOAST NOTIFICATIONS                       */
+/* ========================================================================== */
+
+.mst-toast-region {
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.mst-toast {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: start;
+  max-width: min(420px, calc(100vw - 36px));
+  padding: 12px 14px;
+  border-radius: 12px;
+  color: #0f172a;
+  background: #ffffff;
+  border: 1px solid #dbeafe;
+  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.18), 0 6px 14px rgba(15, 23, 42, 0.12);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
+  white-space: pre-line;
+  opacity: 0;
+  transform: translateX(calc(100% + 24px));
+  transition: transform 220ms ease, opacity 220ms ease;
+  pointer-events: auto;
+}
+
+.mst-toast.is-visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.mst-toast__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.mst-toast__body {
+  min-width: 0;
+}
+
+.mst-toast--success {
+  border-left: 5px solid #10b981;
+}
+
+.mst-toast--success .mst-toast__icon {
+  background: #10b981;
+}
+
+.mst-toast--info {
+  border-left: 5px solid #3b82f6;
+}
+
+.mst-toast--info .mst-toast__icon {
+  background: #3b82f6;
+}
+
+.mst-toast--warning {
+  border-left: 5px solid #f59e0b;
+}
+
+.mst-toast--warning .mst-toast__icon {
+  background: #f59e0b;
+}
+
+.mst-toast--error {
+  border-left: 5px solid #ef4444;
+}
+
+.mst-toast--error .mst-toast__icon {
+  background: #ef4444;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mst-toast {
+    transition: opacity 120ms ease;
+    transform: none;
+  }
+}
