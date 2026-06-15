@@ -13,7 +13,11 @@ document.addEventListener("DOMContentLoaded", function () {
   /** Utility: populate <select> with unique values */
   function populateUnique(selectEl, rows, field) {
     if (!selectEl) return;
-    const vals = [...new Set(rows.map(r => safeTrim(r[field])))].sort();
+    const fields = Array.isArray(field) ? field : [field];
+    const vals = [...new Set(rows.map(r => {
+      const matchingField = fields.find(name => safeTrim(r[name]));
+      return matchingField ? safeTrim(r[matchingField]) : "";
+    }))].sort();
 
     selectEl.innerHTML = `<option value="">(All)</option>`;
     vals.forEach(v => {
@@ -894,6 +898,7 @@ ${preview}${suffix}`
         updateLoadingProgress(75, "Building filter options...");
 
         populateUnique(document.getElementById("filterWorkGroup"),  annotatedRows, "Work Group Code");
+        populateUnique(document.getElementById("filterStdJobNo"),   annotatedRows, ["Standard Job Number", "Std Job No", "Standard Job no"]);
         populateUnique(document.getElementById("filterJobDesc"),    annotatedRows, "Job Description Code");
         populateUnique(document.getElementById("filterDesc1"),      annotatedRows, "MST Description 1");
         populateUnique(document.getElementById("filterDesc2"),      annotatedRows, "MST Description 2");

@@ -649,6 +649,7 @@ const getDomElements = () => ({
   filterElr: document.getElementById("filterElr"),
   filterEquipDesc1: document.getElementById("filterEquipDesc1"),
   filterJobDesc: document.getElementById("filterJobDesc"),
+  filterStdJobNo: document.getElementById("filterStdJobNo"),
   filterOverlay: document.getElementById("filterOverlay"),
   filterProtMethod: document.getElementById("filterProtMethod"),
   filterProtType: document.getElementById("filterProtType"),
