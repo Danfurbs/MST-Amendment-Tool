@@ -13,6 +13,9 @@
     const resetFiltersBtn = getEl('resetFiltersBtn');
     const filterWorkGroup = getEl('filterWorkGroup');
     const filterJobDesc   = getEl('filterJobDesc');
+    const filterStdJobNo  = getEl('filterStdJobNo');
+    const filterSummary   = getEl('filterSummary');
+    const filterSearch    = getEl('filterSearch');
     const filterDesc1     = getEl('filterDesc1');
     const filterDesc2     = getEl('filterDesc2');
     const filterProtType  = getEl('filterProtType');
@@ -24,8 +27,10 @@
     if (!filterOverlay || !openFilterBtn || !closeFilterBtn) return;
 
     const readActiveFilters = () => ({
+      q: (filterSearch?.value || '').trim(),
       wg: (filterWorkGroup?.value || '').trim(),
       jd: (filterJobDesc?.value || '').trim().split(' — ')[0],
+      sj: (filterStdJobNo?.value || '').trim().split(' — ')[0],
       d1: (filterDesc1?.value || '').trim(),
       d2: (filterDesc2?.value || '').trim(),
       pt: (filterProtType?.value || '').trim().split(' — ')[0],
@@ -42,16 +47,38 @@
     const getActiveFilterCount = () => Object.values(readActiveFilters())
       .filter((v) => (v || '').toString().trim()).length;
 
-    const propsMatchFilters = (p = {}, filters = readActiveFilters()) => (
-      (!filters.wg  || (p.workGroup      || '').trim() === filters.wg) &&
-      (!filters.jd  || (p.jobDescCode    || '').trim() === filters.jd) &&
-      (!filters.d1  || (p.desc1          || '').trim() === filters.d1) &&
-      (!filters.d2  || (p.desc2          || '').trim() === filters.d2) &&
-      (!filters.pt  || (p.protType       || '').trim() === filters.pt) &&
-      (!filters.pm  || (p.protMethod     || '').trim() === filters.pm) &&
-      (!filters.ad1 || (p.equipmentDesc1 || '').trim() === filters.ad1) &&
-      (!filters.elr || (p.elr            || '').trim() === filters.elr) &&
-      (!filters.trk || (p.trackId        || '').trim() === filters.trk)
+    const normalizeFilterText = (value) => (value || '').toString().toLowerCase().trim();
+
+    const getSearchableText = (p = {}) => [
+      p.mstId,
+      p.equipmentNo,
+      p.equipmentDesc1,
+      p.equipmentDesc2,
+      p.taskNo,
+      p.stdJobNo,
+      p.desc1,
+      p.desc2,
+      p.workGroup,
+      p.jobDescCode,
+      p.protType,
+      p.protMethod,
+      p.elr,
+      p.trackId,
+      p.plantNo
+    ].map(normalizeFilterText).join(' ');
+
+    const propsMatchFilters = (p = {}, filters = readActiveFilters(), skipKey = '') => (
+      (skipKey === 'q'   || !filters.q   || getSearchableText(p).includes(normalizeFilterText(filters.q))) &&
+      (skipKey === 'wg'  || !filters.wg  || (p.workGroup      || '').trim() === filters.wg) &&
+      (skipKey === 'jd'  || !filters.jd  || (p.jobDescCode    || '').trim() === filters.jd) &&
+      (skipKey === 'sj'  || !filters.sj  || (p.stdJobNo       || '').trim() === filters.sj) &&
+      (skipKey === 'd1'  || !filters.d1  || (p.desc1          || '').trim() === filters.d1) &&
+      (skipKey === 'd2'  || !filters.d2  || (p.desc2          || '').trim() === filters.d2) &&
+      (skipKey === 'pt'  || !filters.pt  || (p.protType       || '').trim() === filters.pt) &&
+      (skipKey === 'pm'  || !filters.pm  || (p.protMethod     || '').trim() === filters.pm) &&
+      (skipKey === 'ad1' || !filters.ad1 || (p.equipmentDesc1 || '').trim() === filters.ad1) &&
+      (skipKey === 'elr' || !filters.elr || (p.elr            || '').trim() === filters.elr) &&
+      (skipKey === 'trk' || !filters.trk || (p.trackId        || '').trim() === filters.trk)
     );
 
     const buildVisibilityByMstId = (events, filters = readActiveFilters()) => {
@@ -77,9 +104,24 @@
       return propsMatchFilters(p, filters);
     };
 
+    const filterFields = [
+      { el: filterSearch, key: 'q', type: 'input' },
+      { el: filterWorkGroup, key: 'wg', prop: 'workGroup' },
+      { el: filterJobDesc, key: 'jd', prop: 'jobDescCode' },
+      { el: filterStdJobNo, key: 'sj', prop: 'stdJobNo' },
+      { el: filterDesc1, key: 'd1', prop: 'desc1' },
+      { el: filterDesc2, key: 'd2', prop: 'desc2' },
+      { el: filterProtType, key: 'pt', prop: 'protType' },
+      { el: filterProtMethod, key: 'pm', prop: 'protMethod' },
+      { el: filterEquipDesc1, key: 'ad1', prop: 'equipmentDesc1' },
+      { el: filterElr, key: 'elr', prop: 'elr' },
+      { el: filterTrackId, key: 'trk', prop: 'trackId' }
+    ];
+
     const filterSelects = [
       filterWorkGroup,
       filterJobDesc,
+      filterStdJobNo,
       filterDesc1,
       filterDesc2,
       filterProtType,
@@ -90,7 +132,7 @@
     ];
 
     const updateFilterFieldIndicators = () => {
-      filterSelects.forEach((selectEl) => {
+      filterFields.forEach(({ el: selectEl }) => {
         const field = selectEl?.closest?.('.filter-field');
         if (!field) return;
         const isActive = Boolean((selectEl.value || '').trim());
@@ -99,13 +141,64 @@
       });
     };
 
+    const getBaseEvents = () => (window.calendar?.getEvents?.() || [])
+      .filter((e) => (e.extendedProps || {}).instance === 0);
+
+    const getMatchingBaseCount = (filters = readActiveFilters()) => {
+      const baseEvents = getBaseEvents();
+      if (!baseEvents.length) return 0;
+      if (!hasActiveFilters(filters)) return baseEvents.length;
+      return baseEvents.filter((ev) => propsMatchFilters(ev.extendedProps || {}, filters)).length;
+    };
+
+    const updateSmartOptions = () => {
+      const baseEvents = getBaseEvents();
+      const filters = readActiveFilters();
+      filterFields
+        .filter(({ el, type, prop }) => el && type !== 'input' && prop)
+        .forEach(({ el, key, prop }) => {
+          const counts = new Map();
+          baseEvents.forEach((ev) => {
+            const props = ev.extendedProps || {};
+            if (!propsMatchFilters(props, filters, key)) return;
+            const value = (props[prop] || '').toString().trim();
+            if (!value) return;
+            counts.set(value, (counts.get(value) || 0) + 1);
+          });
+
+          Array.from(el.options || []).forEach((option) => {
+            if (!option.value) return;
+            if (!option.dataset.baseLabel) option.dataset.baseLabel = option.textContent || option.value;
+            const count = counts.get(option.value) || 0;
+            option.textContent = `${option.dataset.baseLabel} (${count})`;
+            option.disabled = count === 0 && el.value !== option.value;
+          });
+        });
+    };
+
+    const updateFilterSummary = () => {
+      if (!filterSummary) return;
+      const filters = readActiveFilters();
+      const active = getActiveFilterCount();
+      const total = getBaseEvents().length;
+      const matches = getMatchingBaseCount(filters);
+      filterSummary.textContent = active
+        ? `${matches.toLocaleString()} of ${total.toLocaleString()} MSTs match ${active} active filter${active === 1 ? '' : 's'}.`
+        : total
+          ? `Showing all ${total.toLocaleString()} MSTs.`
+          : 'Upload an MST download to enable filters.';
+      filterSummary.classList.toggle('filter-summary-empty', active > 0 && matches === 0);
+    };
+
     const updateFilterButtonState = () => {
       const active = getActiveFilterCount();
       if (openFilterBtn) {
         openFilterBtn.textContent = active ? `⚙️ Filters (${active})` : '⚙️ Filters';
         openFilterBtn.classList.toggle('has-active-filters', active > 0);
       }
+      updateSmartOptions();
       updateFilterFieldIndicators();
+      updateFilterSummary();
     };
 
     function applyFilters() {
@@ -140,8 +233,10 @@
     }
 
     function resetFilters() {
+      if (filterSearch)    filterSearch.value    = '';
       if (filterWorkGroup) filterWorkGroup.value = '';
       if (filterJobDesc)   filterJobDesc.value   = '';
+      if (filterStdJobNo)  filterStdJobNo.value  = '';
       if (filterDesc1)     filterDesc1.value     = '';
       if (filterDesc2)     filterDesc2.value     = '';
       if (filterProtType)  filterProtType.value  = '';
@@ -164,7 +259,11 @@
       updateFilterButtonState();
     }
 
-    openFilterBtn.addEventListener('click', () => filterOverlay.classList.add('active'));
+    openFilterBtn.addEventListener('click', () => {
+      updateFilterButtonState();
+      filterOverlay.classList.add('active');
+      setTimeout(() => filterSearch?.focus(), 0);
+    });
     closeFilterBtn.addEventListener('click', () => filterOverlay.classList.remove('active'));
     filterOverlay.addEventListener('click', (e) => {
       if (e.target === filterOverlay) filterOverlay.classList.remove('active');
@@ -178,7 +277,14 @@
       filterOverlay.classList.remove('active');
     });
 
-    filterSelects.forEach((selectEl) => selectEl?.addEventListener('change', updateFilterButtonState));
+    filterSelects.forEach((selectEl) => selectEl?.addEventListener('change', () => {
+      updateFilterButtonState();
+      applyFilters();
+    }));
+    filterSearch?.addEventListener('input', () => {
+      updateFilterButtonState();
+      applyFilters();
+    });
 
     updateFilterButtonState();
 
@@ -186,6 +292,7 @@
     window.MST.Views = window.MST.Views || {};
     window.MST.Views.applyFilters = applyFilters;
     window.MST.Views.resetFilters = resetFilters;
+    window.MST.Views.refreshFilterSummary = updateFilterButtonState;
     window.MST.Views.hasActiveFilters = () => hasActiveFilters();
     window.MST.Views.getFilterDisplayForEvent = (ev) => {
       const calendar = window.calendar;
