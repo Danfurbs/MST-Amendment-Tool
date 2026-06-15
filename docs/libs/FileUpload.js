@@ -907,6 +907,7 @@ ${preview}${suffix}`
         populateUnique(document.getElementById("filterEquipDesc1"), annotatedRows, "Equipment Description 1");
         populateUnique(document.getElementById("filterElr"),        annotatedRows, "ELR");
         populateUnique(document.getElementById("filterTrackId"),    annotatedRows, "Track ID");
+        window.MST?.Views?.refreshFilterSummary?.();
 
         debugStep("Filter dropdowns populated");
         updateLoadingProgress(80, "Indexing equipment numbers...");
