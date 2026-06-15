@@ -95,6 +95,16 @@ window.MST.Utils = {
     return `${y}-${m}-${d}`;
   },
 
+  addDays(dateObj, days) {
+    const date = window.MST.Utils.parseDate(dateObj);
+    const offset = Number(days);
+    if (!date || !Number.isFinite(offset)) return null;
+
+    const result = new Date(date);
+    result.setDate(result.getDate() + offset);
+    return result;
+  },
+
   normalizeEquip(value) {
     return (value || "").toString().toUpperCase().replace(/^0+/, "");
   },
