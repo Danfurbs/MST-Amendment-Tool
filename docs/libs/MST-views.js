@@ -13,6 +13,8 @@
     const resetFiltersBtn = getEl('resetFiltersBtn');
     const filterWorkGroup = getEl('filterWorkGroup');
     const filterJobDesc   = getEl('filterJobDesc');
+    const filterStdJobNo  = getEl('filterStdJobNo');
+    const filterSummary   = getEl('filterSummary');
     const filterDesc1     = getEl('filterDesc1');
     const filterDesc2     = getEl('filterDesc2');
     const filterProtType  = getEl('filterProtType');
@@ -26,6 +28,7 @@
     const readActiveFilters = () => ({
       wg: (filterWorkGroup?.value || '').trim(),
       jd: (filterJobDesc?.value || '').trim().split(' — ')[0],
+      sj: (filterStdJobNo?.value || '').trim().split(' — ')[0],
       d1: (filterDesc1?.value || '').trim(),
       d2: (filterDesc2?.value || '').trim(),
       pt: (filterProtType?.value || '').trim().split(' — ')[0],
@@ -45,6 +48,7 @@
     const propsMatchFilters = (p = {}, filters = readActiveFilters()) => (
       (!filters.wg  || (p.workGroup      || '').trim() === filters.wg) &&
       (!filters.jd  || (p.jobDescCode    || '').trim() === filters.jd) &&
+      (!filters.sj  || (p.stdJobNo       || '').trim() === filters.sj) &&
       (!filters.d1  || (p.desc1          || '').trim() === filters.d1) &&
       (!filters.d2  || (p.desc2          || '').trim() === filters.d2) &&
       (!filters.pt  || (p.protType       || '').trim() === filters.pt) &&
@@ -80,6 +84,7 @@
     const filterSelects = [
       filterWorkGroup,
       filterJobDesc,
+      filterStdJobNo,
       filterDesc1,
       filterDesc2,
       filterProtType,
@@ -99,6 +104,30 @@
       });
     };
 
+    const getBaseEvents = () => (window.calendar?.getEvents?.() || [])
+      .filter((e) => (e.extendedProps || {}).instance === 0);
+
+    const getMatchingBaseCount = (filters = readActiveFilters()) => {
+      const baseEvents = getBaseEvents();
+      if (!baseEvents.length) return 0;
+      if (!hasActiveFilters(filters)) return baseEvents.length;
+      return baseEvents.filter((ev) => propsMatchFilters(ev.extendedProps || {}, filters)).length;
+    };
+
+    const updateFilterSummary = () => {
+      if (!filterSummary) return;
+      const filters = readActiveFilters();
+      const active = getActiveFilterCount();
+      const total = getBaseEvents().length;
+      const matches = getMatchingBaseCount(filters);
+      filterSummary.textContent = active
+        ? `${matches.toLocaleString()} of ${total.toLocaleString()} MSTs match ${active} active filter${active === 1 ? '' : 's'}.`
+        : total
+          ? `Showing all ${total.toLocaleString()} MSTs.`
+          : 'Upload an MST download to enable filters.';
+      filterSummary.classList.toggle('filter-summary-empty', active > 0 && matches === 0);
+    };
+
     const updateFilterButtonState = () => {
       const active = getActiveFilterCount();
       if (openFilterBtn) {
@@ -106,6 +135,7 @@
         openFilterBtn.classList.toggle('has-active-filters', active > 0);
       }
       updateFilterFieldIndicators();
+      updateFilterSummary();
     };
 
     function applyFilters() {
@@ -142,6 +172,7 @@
     function resetFilters() {
       if (filterWorkGroup) filterWorkGroup.value = '';
       if (filterJobDesc)   filterJobDesc.value   = '';
+      if (filterStdJobNo)  filterStdJobNo.value  = '';
       if (filterDesc1)     filterDesc1.value     = '';
       if (filterDesc2)     filterDesc2.value     = '';
       if (filterProtType)  filterProtType.value  = '';
@@ -178,7 +209,10 @@
       filterOverlay.classList.remove('active');
     });
 
-    filterSelects.forEach((selectEl) => selectEl?.addEventListener('change', updateFilterButtonState));
+    filterSelects.forEach((selectEl) => selectEl?.addEventListener('change', () => {
+      updateFilterButtonState();
+      applyFilters();
+    }));
 
     updateFilterButtonState();
 

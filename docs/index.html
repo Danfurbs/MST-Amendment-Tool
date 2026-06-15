@@ -604,6 +604,40 @@
       overflow-y: auto;
       flex: 1;
     }
+    .filter-intro {
+      margin-bottom: 12px;
+      padding: 12px;
+      border-radius: 12px;
+      background: #e0f2fe;
+      color: #0c4a6e;
+      font-size: 13px;
+      line-height: 1.45;
+      border: 1px solid #bae6fd;
+    }
+    .filter-summary {
+      margin-bottom: 14px;
+      padding: 9px 11px;
+      border-radius: 999px;
+      background: #ecfdf5;
+      color: #065f46;
+      font-size: 12px;
+      font-weight: 800;
+      text-align: center;
+      border: 1px solid #bbf7d0;
+    }
+    .filter-summary.filter-summary-empty {
+      background: #fef2f2;
+      color: #991b1b;
+      border-color: #fecaca;
+    }
+    .filter-section-title {
+      margin: 16px 0 8px;
+      color: #334155;
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
     .filter-field {
       margin-bottom: 12px;
       padding: 10px;
@@ -613,11 +647,20 @@
       box-shadow: 0 2px 8px rgba(37, 99, 235, 0.06);
     }
     .filter-field label {
-      display: block;
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
       font-size: 12px;
       font-weight: 700;
       color: #1e3a8a;
       margin-bottom: 6px;
+    }
+    .filter-field label span {
+      color: #64748b;
+      font-size: 11px;
+      font-weight: 600;
+      text-align: right;
     }
     .filter-field select {
       width: 100%;
@@ -1132,20 +1175,31 @@
       </div>
 	  
       <div id="filterPanelBody">
-<div class="muted-helper" style="margin-bottom:10px;">Narrow down the calendar using one or more fields.</div>
-       <!-- Work Group -->
+<div class="filter-intro">
+          <strong>Find the MSTs you need to amend.</strong> Pick the operational context first, then narrow by asset, route, task, or Standard Job. Filters combine together and preview the matching MST count before you apply.
+        </div>
+        <div id="filterSummary" class="filter-summary" aria-live="polite">No filters selected.</div>
+       <div class="filter-section-title">Operational ownership</div>
 <div class="filter-field">
-  <label for="filterWorkGroup"><strong>Work Group Code</strong></label>
+  <label for="filterWorkGroup"><strong>Work Group Code</strong><span>Who owns the work</span></label>
   <select id="filterWorkGroup"><option value="">(All)</option></select>
 </div>
 
+<!-- Standard Job Number -->
+<div class="filter-field">
+  <label for="filterStdJobNo"><strong>Standard Job Number</strong><span>From the MST download Standard Job no column</span></label>
+  <select id="filterStdJobNo"><option value="">(All Standard Jobs)</option></select>
+</div>
+
+<div class="filter-section-title">Asset and location</div>
 <!-- Asset Description 1 -->
 <div class="filter-field">
-  <label for="filterEquipDesc1"><strong>Asset Description 1</strong></label>
+  <label for="filterEquipDesc1"><strong>Asset Description 1</strong><span>Asset type or family</span></label>
   <select id="filterEquipDesc1"><option value="">(All)</option></select>
 </div>
 
 <!-- Job Description -->
+<div class="filter-section-title">Task details</div>
 <div class="filter-field">
   <label for="filterJobDesc"><strong>Job Description Code</strong></label>
   <select id="filterJobDesc"><option value="">(All)</option></select>
@@ -1175,9 +1229,10 @@
   <select id="filterProtMethod"><option value="">(All)</option></select>
 </div>
 
+<div class="filter-section-title">Route and protection</div>
 <!-- ELR -->
 <div class="filter-field">
-  <label for="filterElr"><strong>ELR</strong></label>
+  <label for="filterElr"><strong>ELR</strong><span>Engineer's Line Reference</span></label>
   <select id="filterElr"><option value="">(All)</option></select>
 </div>
 
