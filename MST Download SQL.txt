@@ -29,9 +29,21 @@ SELECT
     MSTs.sched_ind_700                                           AS "Scheduling Indicator Code",
     schind.table_desc                                            AS "Scheduling Indicator Desc",
 
-    MSTs.last_sch_date                                           AS "Last Scheduled Date",
-    MSTs.last_perf_date                                          AS "Last Performed Date",
-    MSTs.next_sch_date                                           AS "Next Scheduled Date",
+    CASE
+        WHEN REGEXP_LIKE(TRIM(MSTs.last_sch_date), '^[[:digit:]]{8}$')
+        THEN TO_CHAR(TO_DATE(TRIM(MSTs.last_sch_date), 'YYYYMMDD'), 'DD/MM/YYYY')
+        ELSE NULL
+    END                                                          AS "Last Scheduled Date",
+    CASE
+        WHEN REGEXP_LIKE(TRIM(MSTs.last_perf_date), '^[[:digit:]]{8}$')
+        THEN TO_CHAR(TO_DATE(TRIM(MSTs.last_perf_date), 'YYYYMMDD'), 'DD/MM/YYYY')
+        ELSE NULL
+    END                                                          AS "Last Performed Date",
+    CASE
+        WHEN REGEXP_LIKE(TRIM(MSTs.next_sch_date), '^[[:digit:]]{8}$')
+        THEN TO_CHAR(TO_DATE(TRIM(MSTs.next_sch_date), 'YYYYMMDD'), 'DD/MM/YYYY')
+        ELSE NULL
+    END                                                          AS "Next Scheduled Date",
 
     MSTs.std_job_no                                              AS "Standard Job Number",
     MSTs.next_sch_ind                                            AS "Next Scheduled Date Indicator",
@@ -63,8 +75,11 @@ SELECT
     protmethds.table_desc                                        AS "Protection Method Description",
 
     tvref.property_value                                         AS "Temp Var Reference Number",
-    TO_CHAR(TO_DATE(tvdate.property_value, 'YYYYMMDD'), 'DD/MM/YYYY')
-                                                                 AS "Temp Var Expiry Date",
+    CASE
+        WHEN REGEXP_LIKE(TRIM(tvdate.property_value), '^[[:digit:]]{8}$')
+        THEN TO_CHAR(TO_DATE(TRIM(tvdate.property_value), 'YYYYMMDD'), 'DD/MM/YYYY')
+        ELSE NULL
+    END                                                          AS "Temp Var Expiry Date",
 
     TRIM(MSTs.equip_no) || TRIM(MSTs.comp_code) || TRIM(MSTs.comp_mod_code) || TRIM(MSTs.maint_sch_task)
                                                                  AS "CONCAT",

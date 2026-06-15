@@ -107,30 +107,15 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function parseDownloadDate(value) {
+    const parsedByUtils = window.MST?.Utils?.parseDate?.(value);
+    if (parsedByUtils) return parsedByUtils;
+
     if (!value) return null;
-    if (value instanceof Date) return value;
-    if (typeof value === "number") {
-      const excelEpoch = new Date(Date.UTC(1899, 11, 30));
-      return new Date(excelEpoch.getTime() + value * 86400000);
-    }
     if (typeof value === "string") {
-      const trimmed = value.trim();
-      const numeric = Number(trimmed);
-
-      if (!Number.isNaN(numeric) && /^\d+(\.\d+)?$/.test(trimmed)) {
-        const excelEpoch = new Date(Date.UTC(1899, 11, 30));
-        return new Date(excelEpoch.getTime() + numeric * 86400000);
-      }
-
-      if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) {
-        const [dd, mm, yyyy] = trimmed.split("/").map(part => Number(part));
-        const parsed = new Date(yyyy, mm - 1, dd);
-        return isNaN(parsed) ? null : parsed;
-      }
-
-      const parsed = new Date(trimmed);
+      const parsed = new Date(value.trim());
       return isNaN(parsed) ? null : parsed;
     }
+
     return null;
   }
 
@@ -340,7 +325,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (baseEvent) {
         const iso = window.MST?.Utils?.dateToInputYYYYMMDD?.(baseEvent.start) || "";
         if (iso) {
-          rows[idx]["Last Scheduled Date"] = iso.replace(/-/g, "");
+          rows[idx]["Last Scheduled Date"] = window.MST?.Utils?.formatDateDMY?.(iso) || iso;
         }
 
         rows[idx]["Units Required"] = baseEvent.extendedProps.unitsRequired ?? rows[idx]["Units Required"];
@@ -832,7 +817,7 @@ ${preview}${suffix}`
 
       if (downloadDateDisplay) {
         if (downloadDate) {
-          downloadDateDisplay.textContent = `Download Date: ${downloadDate.toLocaleDateString()}`;
+          downloadDateDisplay.textContent = `Download Date: ${window.MST?.Utils?.formatDateDMY?.(downloadDate) || downloadDate.toLocaleDateString()}`;
         } else {
           downloadDateDisplay.textContent = "Download Date: Not found";
         }

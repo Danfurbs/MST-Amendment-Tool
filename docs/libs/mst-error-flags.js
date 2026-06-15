@@ -17,16 +17,11 @@ window.MST.ErrorFlags = (function() {
 
   // ----- Helpers ---------------------------------------------------------
   function toDate(value) {
-    // Try utilities first (supports yyyymmdd strings)
-    if (typeof U.yyyymmddToDate === "function") {
-      const normalized = (value ?? "").toString();
-      if (/^\d{8}$/.test(normalized)) {
-        const parsed = U.yyyymmddToDate(normalized);
-        if (parsed) return parsed;
-      }
+    if (typeof U.parseDate === "function") {
+      const parsed = U.parseDate(value);
+      if (parsed) return parsed;
     }
 
-    // Fallback to native Date parsing
     const d = value instanceof Date ? value : new Date(value);
     return isNaN(d) ? null : d;
   }
