@@ -9,25 +9,90 @@ window.MST.Utils = {
   TV_COLOR: "#60a5fa",        // Blue for MSTs with TV reference
   FUTURE_COLOR: "#a78bfa",    // Light purple for future instances
 
+  datePartsToDate(year, month, day, hour = 12) {
+    const y = Number(year);
+    const m = Number(month);
+    const d = Number(day);
+    if (!Number.isInteger(y) || !Number.isInteger(m) || !Number.isInteger(d)) return null;
+    if (y < 1900 || y > 2200 || m < 1 || m > 12 || d < 1 || d > 31) return null;
+
+    const date = new Date(y, m - 1, d, hour); // noon avoids TZ rollover unless caller requests another hour
+    if (isNaN(date)) return null;
+    if (date.getFullYear() !== y || date.getMonth() !== m - 1 || date.getDate() !== d) return null;
+    return date;
+  },
+
   yyyymmddToDate(str) {
-    const normalized = (str ?? "").toString();
+    const normalized = (str ?? "").toString().trim();
     if (!/^[0-9]{8}$/.test(normalized)) return null;
-    const y = +normalized.slice(0, 4);
-    const m = +normalized.slice(4, 6) - 1;
-    const d = +normalized.slice(6, 8);
-    const date = new Date(y, m, d, 12);   // noon avoids TZ rollover
-    return isNaN(date) ? null : date;
+    return window.MST.Utils.datePartsToDate(
+      normalized.slice(0, 4),
+      normalized.slice(4, 6),
+      normalized.slice(6, 8)
+    );
+  },
+
+  ddmmyyyyToDate(str) {
+    const normalized = (str ?? "").toString().trim();
+    const match = normalized.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (!match) return null;
+    return window.MST.Utils.datePartsToDate(match[3], match[2], match[1]);
+  },
+
+  isoDateToDate(str) {
+    const normalized = (str ?? "").toString().trim();
+    const match = normalized.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) return null;
+    return window.MST.Utils.datePartsToDate(match[1], match[2], match[3]);
+  },
+
+  excelSerialToDate(num) {
+    const serial = Number(num);
+    if (!Number.isFinite(serial) || serial < 30000 || serial > 80000) return null;
+    const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+    const date = new Date(excelEpoch.getTime() + serial * 86400000);
+    if (isNaN(date)) return null;
+    return window.MST.Utils.datePartsToDate(
+      date.getUTCFullYear(),
+      date.getUTCMonth() + 1,
+      date.getUTCDate()
+    );
+  },
+
+  parseDate(value) {
+    const U = window.MST.Utils;
+    if (value instanceof Date && !isNaN(value)) {
+      return U.datePartsToDate(value.getFullYear(), value.getMonth() + 1, value.getDate());
+    }
+
+    if (typeof value === "number") {
+      return U.excelSerialToDate(value);
+    }
+
+    const str = (value ?? "").toString().trim();
+    if (!str) return null;
+
+    if (/^\d+(\.\d+)?$/.test(str)) {
+      const excelDate = U.excelSerialToDate(Number(str));
+      if (excelDate) return excelDate;
+    }
+
+    if (/^\d{8}$/.test(str)) return U.yyyymmddToDate(str);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return U.isoDateToDate(str);
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(str)) return U.ddmmyyyyToDate(str);
+
+    const parsed = new Date(str);
+    if (isNaN(parsed)) return null;
+    return U.datePartsToDate(parsed.getFullYear(), parsed.getMonth() + 1, parsed.getDate());
   },
 
   dateToInputYYYYMMDD(dateObj) {
-    if (!(dateObj instanceof Date) || isNaN(dateObj)) return "";
-    return dateObj.toISOString().slice(0, 10);
-  },
-
-  addDays(base, n) {
-    const d = new Date(base);
-    d.setDate(d.getDate() + n);
-    return d;
+    const date = window.MST.Utils.parseDate(dateObj);
+    if (!date) return "";
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
   },
 
   normalizeEquip(value) {
@@ -35,50 +100,8 @@ window.MST.Utils = {
   },
 
   normalizeDateInput(value) {
-    if (value instanceof Date && !isNaN(value)) {
-      return value.toISOString().slice(0, 10); // yyyy-mm-dd
-    }
-
-    const excelSerialToIso = (num) => {
-      if (Number.isNaN(num)) return "";
-      if (num < 30000 || num > 80000) return ""; // sanity range for Excel serial dates
-      const excelEpoch = new Date(Date.UTC(1899, 11, 30));
-      const date = new Date(excelEpoch.getTime() + num * 86400000);
-      return isNaN(date) ? "" : date.toISOString().slice(0, 10);
-    };
-
-    if (typeof value === "number") {
-      const iso = excelSerialToIso(value);
-      if (iso) return iso;
-      return value.toString().trim();
-    }
-
-    const str = (value ?? "").toString().trim();
-    if (!str) return "";
-
-    const numeric = Number(str);
-    if (!Number.isNaN(numeric)) {
-      const iso = excelSerialToIso(numeric);
-      if (iso) return iso;
-    }
-
-    // Already yyyy-mm-dd
-    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
-
-    // yyyymmdd → yyyy-mm-dd
-    if (/^\d{8}$/.test(str)) {
-      const d = window.MST.Utils.yyyymmddToDate(str);
-      return d ? d.toISOString().slice(0, 10) : str;
-    }
-
-    // dd/mm/yyyy → yyyy-mm-dd
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(str)) {
-      const [dd, mm, yyyy] = str.split("/");
-      const d = new Date(+yyyy, +mm - 1, +dd);
-      return isNaN(d) ? str : d.toISOString().slice(0, 10);
-    }
-
-    return str;
+    const date = window.MST.Utils.parseDate(value);
+    return date ? window.MST.Utils.dateToInputYYYYMMDD(date) : "";
   },
 
   normalizeNumericField(value) {
@@ -91,71 +114,17 @@ window.MST.Utils = {
   },
 
   formatDateDMY(value) {
-    const U = window.MST.Utils;
-    if (!value) return "";
+    const date = window.MST.Utils.parseDate(value);
+    if (!date) return value || "";
 
-    // Already dd/mm/yyyy
-    if (typeof value === "string" && /^\d{2}\/\d{2}\/\d{4}$/.test(value)) {
-      return value;
-    }
-
-    // yyyy-mm-dd
-    if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-      const [y, m, d] = value.split("-");
-      return `${d}/${m}/${y}`;
-    }
-
-    // yyyymmdd
-    if (typeof value === "string" && /^\d{8}$/.test(value)) {
-      const dObj = U.yyyymmddToDate(value);
-      if (dObj) {
-        const dd = String(dObj.getDate()).padStart(2, "0");
-        const mm = String(dObj.getMonth() + 1).padStart(2, "0");
-        const yy = dObj.getFullYear();
-        return `${dd}/${mm}/${yy}`;
-      }
-    }
-
-    // Excel Serial or numeric yyyymmdd
-    if (!isNaN(value)) {
-      const n = Number(value);
-      const numericString = Number.isFinite(n) ? String(Math.trunc(n)) : "";
-      if (/^\d{8}$/.test(numericString)) {
-        const dObj = U.yyyymmddToDate(numericString);
-        if (dObj) {
-          const dd = String(dObj.getDate()).padStart(2, "0");
-          const mm = String(dObj.getMonth() + 1).padStart(2, "0");
-          const yy = dObj.getFullYear();
-          return `${dd}/${mm}/${yy}`;
-        }
-      }
-
-      if (n > 30000 && n < 80000) {
-        const date = new Date((n - 25569) * 86400 * 1000);
-        const dd = String(date.getUTCDate()).padStart(2, "0");
-        const mm = String(date.getUTCMonth() + 1).padStart(2, "0");
-        const yy = date.getUTCFullYear();
-        return `${dd}/${mm}/${yy}`;
-      }
-    }
-
-    // JS Date
-    if (value instanceof Date && !isNaN(value)) {
-      const dd = String(value.getDate()).padStart(2, "0");
-      const mm = String(value.getMonth() + 1).padStart(2, "0");
-      const yy = value.getFullYear();
-      return `${dd}/${mm}/${yy}`;
-    }
-
-    return value;
+    const dd = String(date.getDate()).padStart(2, "0");
+    const mm = String(date.getMonth() + 1).padStart(2, "0");
+    const yy = date.getFullYear();
+    return `${dd}/${mm}/${yy}`;
   },
 
   formatDateForExport(dateObj) {
-    if (!dateObj || isNaN(dateObj)) return "";
-    const d = String(dateObj.getDate()).padStart(2, "0");
-    const m = String(dateObj.getMonth() + 1).padStart(2, "0");
-    const y = dateObj.getFullYear();
-    return `${d}/${m}/${y}`;
+    return window.MST.Utils.formatDateDMY(dateObj);
   }
 };
 

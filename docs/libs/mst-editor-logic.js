@@ -2347,15 +2347,7 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     window.desc1Display.value = isNew ? (orig.desc1        || "") : (orig["MST Description 1"] || "");
 
     // Last performed date
-    const rawLPD = orig["Last Performed Date"];
-    let lpdObj = null;
-
-    if (/^\d{8}$/.test(rawLPD)) {
-      lpdObj = U.yyyymmddToDate(rawLPD);
-    } else {
-      lpdObj = new Date(rawLPD);
-    }
-
+    const lpdObj = U.parseDate(orig["Last Performed Date"]);
     window.lastDatePerf.value = U.dateToInputYYYYMMDD(lpdObj) || "";
 
     /* ----- EDITABLE FIELDS ----- */
@@ -2611,12 +2603,10 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
       }
 
       const freq = clampFrequency(r["MST Frequency"]);
-      const rawLastDate = safeText(r["Last Scheduled Date"]);
+      const rawLastDate = r["Last Scheduled Date"];
       const stdJobNo = safeText(r["Std Job No"] || r["Standard Job Number"]);
       const stdJobUom = resolveStdJobUom(stdJobNo, null, r);
-      if (!/^[0-9]{8}$/.test(rawLastDate)) return;
-
-      const baseDate = MST.Utils.yyyymmddToDate(rawLastDate);
+      const baseDate = MST.Utils.parseDate(rawLastDate);
       if (!baseDate || !isFinite(baseDate.getTime())) return;
 
       // Force consistent 09:00 time to avoid DST shifts
@@ -2988,10 +2978,9 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
       .forEach(ev => ev.remove());
 
     const freq = parseInt(orig["MST Frequency"]) || 0;
-    const rawLast = String(orig["Last Scheduled Date"] || "");
-    const baseDate = U.yyyymmddToDate(rawLast);
-        baseDate.setHours(9,0,0,0);
+    const baseDate = U.parseDate(orig["Last Scheduled Date"]);
     if (!baseDate) return;
+    baseDate.setHours(9, 0, 0, 0);
 
     const tvReference = normalizeTvReference(
       orig["Temp Var Reference Number"] ||

@@ -34,6 +34,10 @@ const normalizeDateInput = (value) => {
   if (!raw) return "";
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
   if (/^\d{8}$/.test(raw)) return `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`;
+  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(raw)) {
+    const [dd, mm, yyyy] = raw.split("/").map(Number);
+    return `${yyyy}-${String(mm).padStart(2, "0")}-${String(dd).padStart(2, "0")}`;
+  }
   return "";
 };
 
