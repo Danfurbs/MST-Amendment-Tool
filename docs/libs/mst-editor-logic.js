@@ -110,6 +110,14 @@ const triggerResourceChartRefresh = () => {
   }
 };
 
+const refreshActiveCalendarFilters = () => {
+  if (typeof window.MST?.Views?.applyFilters === "function") {
+    window.MST.Views.applyFilters();
+  } else if (typeof window.MST?.Views?.refreshFilterSummary === "function") {
+    window.MST.Views.refreshFilterSummary();
+  }
+};
+
 const REMOVED_TV_REFERENCE = "NULL";
 const REMOVED_TV_EXPIRY = "2001-01-01";
 
@@ -1099,7 +1107,7 @@ window.MST.Editor.resetAllChanges = function() {
   const newMstCountEl = document.getElementById("newMstCount");
   if (newMstCountEl) newMstCountEl.textContent = "";
 
-  MST.Editor.loadMSTs(window.originalRows || []);
+  MST.Editor.loadMSTs(window.loadedMstRows || window.originalRows || []);
   if (window.detailsIntro) window.detailsIntro.style.display = "block";
   if (window.editForm) window.editForm.style.display = "none";
   if (window.sidebarEl?.classList) window.sidebarEl.classList.remove("has-tv-reference");
@@ -1880,6 +1888,8 @@ eventContent: function(arg) {
       MST.Editor.markMSTAsChanged(mstId);
     }
 
+    refreshActiveCalendarFilters();
+
     // If editor panel is currently showing the same MST
     if (window.mstIdDisplay && window.mstIdDisplay.value === mstId) {
       if (window.lastDateInput && typeof MST?.Utils?.dateToInputYYYYMMDD === "function") {
@@ -2577,6 +2587,7 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
   };
 
   const sourceRows = Array.isArray(rows) ? rows : [];
+  window.loadedMstRows = sourceRows.map(row => ({ ...row }));
   const trimmedRows = sourceRows.slice(0, MAX_RENDERED_MSTS);
   if (sourceRows.length > MAX_RENDERED_MSTS) {
     console.warn(`⚠️ Only rendering first ${MAX_RENDERED_MSTS} MSTs to protect browser stability.`);
@@ -2866,6 +2877,8 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     if (typeof window.MST?.ErrorUI?.recheckSingleMst === "function") {
       window.MST.ErrorUI.recheckSingleMst(mstId);
     }
+
+    refreshActiveCalendarFilters();
 
     return {
       baseEvent,
