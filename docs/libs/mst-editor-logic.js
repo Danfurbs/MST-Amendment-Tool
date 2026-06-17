@@ -1841,29 +1841,44 @@ eventContent: function(arg) {
     const mstId = ev.extendedProps.mstId;
     const instanceIndex = Number(ev.extendedProps.instance || 0);
     const deltaDays = Math.round((ev.start - info.oldEvent.start) / (1000 * 60 * 60 * 24));
-    const futArr = window.futureEventsMap[mstId] || [];
     const baseEvent = window.calendar?.getEventById(`${mstId}_0`);
 
-    if (instanceIndex === 1 && baseEvent) {
-      const newBaseDate = new Date(baseEvent.start);
-      newBaseDate.setDate(newBaseDate.getDate() + deltaDays);
-      newBaseDate.setHours(9, 0, 0, 0);
-      baseEvent.setDates(newBaseDate);
+    if (!mstId || !baseEvent || !Number.isFinite(deltaDays)) {
+      info.revert();
+      return;
     }
 
-    futArr.forEach(futureEv => {
-      if (instanceIndex === 1 && futureEv.id === ev.id) return;
-      const d = new Date(futureEv.start);
-      d.setDate(d.getDate() + deltaDays);
-      d.setHours(9,0,0,0);
-      futureEv.setDates(d);
-    });
+    const effectiveBaseDate = new Date(baseEvent.start);
+    if (instanceIndex === 0) {
+      effectiveBaseDate.setTime(ev.start.getTime());
+    } else if (instanceIndex === 1) {
+      effectiveBaseDate.setDate(effectiveBaseDate.getDate() + deltaDays);
+    }
+    effectiveBaseDate.setHours(9, 0, 0, 0);
+
+    if (instanceIndex === 0) {
+      ev.setDates(effectiveBaseDate);
+    } else if (instanceIndex === 1) {
+      baseEvent.setDates(effectiveBaseDate);
+    }
+
+    // Rebuild all future instances from the amended base date rather than
+    // mutating the currently-rendered subset. This keeps the lazy virtual store
+    // in sync, removes the dragged NSD event before recreating it in the right
+    // position, and avoids stale event references moving the wrong MST chain.
+    if (typeof E.rebuildFutureInstances === "function") {
+      E.rebuildFutureInstances(
+        mstId,
+        effectiveBaseDate,
+        Number(baseEvent.extendedProps.frequency || ev.extendedProps.frequency || 0),
+        baseEvent.extendedProps.desc1 || ev.extendedProps.desc1 || "",
+        baseEvent.extendedProps.desc2 || ev.extendedProps.desc2 || ""
+      );
+    }
 
     if (typeof MST?.Editor?.markMSTAsChanged === "function") {
       MST.Editor.markMSTAsChanged(mstId);
     }
-
-    const effectiveBaseDate = instanceIndex === 1 && baseEvent ? baseEvent.start : ev.start;
 
     // If editor panel is currently showing the same MST
     if (window.mstIdDisplay && window.mstIdDisplay.value === mstId) {
