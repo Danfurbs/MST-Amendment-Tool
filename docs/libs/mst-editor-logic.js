@@ -1810,9 +1810,15 @@ eventContent: function(arg) {
 
       // Clean up listeners
       const cleanup = () => {
-        confirmBtn.removeEventListener("click", handleConfirm);
-        cancelBtn.removeEventListener("click", handleCancel);
+        confirmBtn?.removeEventListener("click", handleConfirm);
+        cancelBtn?.removeEventListener("click", handleCancel);
       };
+
+      if (!confirmBtn || !cancelBtn) {
+        applyEventDrop(info);
+        cleanup();
+        return;
+      }
 
       confirmBtn.addEventListener("click", handleConfirm);
       cancelBtn.addEventListener("click", handleCancel);
@@ -1824,16 +1830,24 @@ eventContent: function(arg) {
     const ev = info.event;
     const mstId = ev.extendedProps.mstId;
     const instanceIndex = Number(ev.extendedProps.instance || 0);
-    const deltaDays = Math.round((ev.start - info.oldEvent.start) / (1000 * 60 * 60 * 24));
     const baseEvent = window.calendar?.getEventById(`${mstId}_0`);
 
-    if (!mstId || !baseEvent || !Number.isFinite(deltaDays)) {
+    const normalizeCalendarDate = (date) => {
+      if (!(date instanceof Date) || Number.isNaN(date.getTime())) return null;
+      const normalized = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 9, 0, 0, 0);
+      return Number.isNaN(normalized.getTime()) ? null : normalized;
+    };
+
+    const droppedDate = normalizeCalendarDate(ev.start);
+    const oldDate = normalizeCalendarDate(info.oldEvent?.start);
+
+    if (!mstId || !baseEvent || !Number.isFinite(instanceIndex) || instanceIndex < 0 || !droppedDate || !oldDate) {
       info.revert();
       return;
     }
 
     const frequencyDays = Number(baseEvent.extendedProps.frequency || ev.extendedProps.frequency || 0);
-    const effectiveBaseDate = new Date(ev.start);
+    const effectiveBaseDate = new Date(droppedDate);
     if (instanceIndex > 0) {
       if (!Number.isFinite(frequencyDays) || frequencyDays <= 0) {
         info.revert();
@@ -1843,10 +1857,22 @@ eventContent: function(arg) {
     }
     effectiveBaseDate.setHours(9, 0, 0, 0);
 
-    if (instanceIndex === 0) {
-      ev.setDates(effectiveBaseDate);
-    } else {
-      baseEvent.setDates(effectiveBaseDate);
+    baseEvent.setDates(effectiveBaseDate, null, { allDay: false });
+    if (instanceIndex === 0 && ev.id !== baseEvent.id) {
+      ev.setDates(effectiveBaseDate, null, { allDay: false });
+    }
+
+    const effectiveBaseDateStr = U.dateToInputYYYYMMDD(effectiveBaseDate);
+    if (effectiveBaseDateStr) {
+      baseEvent.setExtendedProp("lastScheduledDate", effectiveBaseDateStr);
+      baseEvent.setExtendedProp("LastScheduledDate", effectiveBaseDateStr);
+      baseEvent.setExtendedProp("LSD", effectiveBaseDateStr);
+
+      if (baseEvent.extendedProps?.isNew && window.createdMSTs?.[mstId]) {
+        window.createdMSTs[mstId]["Last Scheduled Date"] = effectiveBaseDateStr;
+        window.createdMSTs[mstId].LastScheduledDate = effectiveBaseDateStr;
+        window.createdMSTs[mstId].LSD = effectiveBaseDateStr;
+      }
     }
 
     // Rebuild all future instances from the amended base date rather than
