@@ -1744,31 +1744,9 @@ eventContent: function(arg) {
         weekday: "short", day: "numeric", month: "short", year: "numeric"
       });
 
-      if (![0, 1].includes(instanceIndex)) {
-        // Only the base instance or next immediate instance can be dragged directly
-        const mstId = ev.extendedProps.mstId;
-        const baseEvent = window.calendar?.getEventById(`${mstId}_0`);
-        const deltaDays = Math.round((ev.start - info.oldEvent.start) / (1000 * 60 * 60 * 24));
-
+      if (!Number.isFinite(instanceIndex) || instanceIndex < 0) {
         info.revert();
-
-        const attemptedFrom = formatDate(info.oldEvent.start);
-        const attemptedTo = formatDate(ev.start);
-        const lastScheduledFrom = baseEvent?.start ? formatDate(baseEvent.start) : "Unknown";
-
-        let lastScheduledTo = "Unknown";
-        if (baseEvent?.start && Number.isFinite(deltaDays)) {
-          const previewLastScheduledTo = new Date(baseEvent.start);
-          previewLastScheduledTo.setDate(previewLastScheduledTo.getDate() + deltaDays);
-          lastScheduledTo = formatDate(previewLastScheduledTo);
-        }
-
-        alert(
-          "To amend this date, drag the 1st (green) instance or the next immediate instance only.\n\n"
-          + `Attempted move: ${attemptedFrom} → ${attemptedTo}\n`
-          + `Last Scheduled Date (if applied): ${lastScheduledFrom} → ${lastScheduledTo}\n\n`
-          + "All future instances will automatically update when you move one of those eligible dates."
-        );
+        alert("Unable to amend this MST date because the scheduled instance could not be identified.");
         return;
       }
 
@@ -1801,10 +1779,8 @@ eventContent: function(arg) {
         const oldNext = new Date(info.oldEvent.start);
         const newNext = new Date(ev.start);
 
-        if (instanceIndex === 0) {
-          oldNext.setDate(oldNext.getDate() + frequencyDays);
-          newNext.setDate(newNext.getDate() + frequencyDays);
-        }
+        oldNext.setDate(oldNext.getDate() + frequencyDays * (1 - instanceIndex));
+        newNext.setDate(newNext.getDate() + frequencyDays * (1 - instanceIndex));
 
         oldNextDateEl.textContent = formatDate(oldNext);
         newNextDateEl.textContent = formatDate(newNext);
@@ -1856,17 +1832,20 @@ eventContent: function(arg) {
       return;
     }
 
-    const effectiveBaseDate = new Date(baseEvent.start);
-    if (instanceIndex === 0) {
-      effectiveBaseDate.setTime(ev.start.getTime());
-    } else if (instanceIndex === 1) {
-      effectiveBaseDate.setDate(effectiveBaseDate.getDate() + deltaDays);
+    const frequencyDays = Number(baseEvent.extendedProps.frequency || ev.extendedProps.frequency || 0);
+    const effectiveBaseDate = new Date(ev.start);
+    if (instanceIndex > 0) {
+      if (!Number.isFinite(frequencyDays) || frequencyDays <= 0) {
+        info.revert();
+        return;
+      }
+      effectiveBaseDate.setDate(effectiveBaseDate.getDate() - (frequencyDays * instanceIndex));
     }
     effectiveBaseDate.setHours(9, 0, 0, 0);
 
     if (instanceIndex === 0) {
       ev.setDates(effectiveBaseDate);
-    } else if (instanceIndex === 1) {
+    } else {
       baseEvent.setDates(effectiveBaseDate);
     }
 
@@ -1878,7 +1857,7 @@ eventContent: function(arg) {
       E.rebuildFutureInstances(
         mstId,
         effectiveBaseDate,
-        Number(baseEvent.extendedProps.frequency || ev.extendedProps.frequency || 0),
+        frequencyDays,
         baseEvent.extendedProps.desc1 || ev.extendedProps.desc1 || "",
         baseEvent.extendedProps.desc2 || ev.extendedProps.desc2 || ""
       );
