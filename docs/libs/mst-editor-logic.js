@@ -2425,8 +2425,10 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
       jdSelect.appendChild(opt);
     });
 
-    if (![...jdSelect.options].some(o => o.value === currentJD)) {
-      jdSelect.value = "";
+    if (currentJD && ![...jdSelect.options].some(o => o.value === currentJD)) {
+      jdSelect.appendChild(new Option(`${currentJD} — not in lookup table`, currentJD, true, true));
+    } else {
+      jdSelect.value = currentJD;
     }
 
     /* Protection Type */
@@ -2449,8 +2451,10 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
       ptSelect.appendChild(opt);
     });
 
-    if (![...ptSelect.options].some(o => o.value === currentPT)) {
-      ptSelect.value = "";
+    if (currentPT && ![...ptSelect.options].some(o => o.value === currentPT)) {
+      ptSelect.appendChild(new Option(`${currentPT} — not in lookup table`, currentPT, true, true));
+    } else {
+      ptSelect.value = currentPT;
     }
 
     /* Protection Method */
@@ -2473,8 +2477,10 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
       pmSelect.appendChild(opt);
     });
 
-    if (![...pmSelect.options].some(o => o.value === currentPM)) {
-      pmSelect.value = "";
+    if (currentPM && ![...pmSelect.options].some(o => o.value === currentPM)) {
+      pmSelect.appendChild(new Option(`${currentPM} — not in lookup table`, currentPM, true, true));
+    } else {
+      pmSelect.value = currentPM;
     }
 
     if (typeof MST?.Editor?.refreshNextScheduledDisplay === "function") {
