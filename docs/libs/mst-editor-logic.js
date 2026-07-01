@@ -2051,11 +2051,15 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
   if (!window.virtualInstanceStore) window.virtualInstanceStore = {};
   if (!window.renderedInstanceIds) window.renderedInstanceIds = new Set();
 
-  // Remove old rendered future events for this MST
+  // Remove old rendered future events for this MST. FullCalendar EventApi
+  // references can become stale after an event is removed; reading event.id on
+  // a stale object may throw inside FullCalendar's publicId getter. Read the
+  // internal id defensively and remove only live EventApi objects.
   if (window.futureEventsMap[mstId]) {
     window.futureEventsMap[mstId].forEach(e => {
-      if (e && typeof e.remove === 'function') {
-        window.renderedInstanceIds.delete(e.id);
+      const eventId = e?._def?.publicId || e?._def?.defId || null;
+      if (eventId) window.renderedInstanceIds.delete(eventId);
+      if (e && e._def && typeof e.remove === 'function') {
         e.remove();
       }
     });
