@@ -48,6 +48,8 @@
       .filter((v) => (v || '').toString().trim()).length;
 
     const normalizeFilterText = (value) => (value || '').toString().toLowerCase().trim();
+    const normalizeFilterValue = (value) => normalizeFilterText(value);
+    const valuesEqual = (actual, expected) => normalizeFilterValue(actual) === normalizeFilterValue(expected);
 
     const getSearchableText = (p = {}) => [
       p.mstId,
@@ -69,16 +71,16 @@
 
     const propsMatchFilters = (p = {}, filters = readActiveFilters(), skipKey = '') => (
       (skipKey === 'q'   || !filters.q   || getSearchableText(p).includes(normalizeFilterText(filters.q))) &&
-      (skipKey === 'wg'  || !filters.wg  || (p.workGroup      || '').trim() === filters.wg) &&
-      (skipKey === 'jd'  || !filters.jd  || (p.jobDescCode    || '').trim() === filters.jd) &&
-      (skipKey === 'sj'  || !filters.sj  || (p.stdJobNo       || '').trim() === filters.sj) &&
-      (skipKey === 'd1'  || !filters.d1  || (p.desc1          || '').trim() === filters.d1) &&
-      (skipKey === 'd2'  || !filters.d2  || (p.desc2          || '').trim() === filters.d2) &&
-      (skipKey === 'pt'  || !filters.pt  || (p.protType       || '').trim() === filters.pt) &&
-      (skipKey === 'pm'  || !filters.pm  || (p.protMethod     || '').trim() === filters.pm) &&
-      (skipKey === 'ad1' || !filters.ad1 || (p.equipmentDesc1 || '').trim() === filters.ad1) &&
-      (skipKey === 'elr' || !filters.elr || (p.elr            || '').trim() === filters.elr) &&
-      (skipKey === 'trk' || !filters.trk || (p.trackId        || '').trim() === filters.trk)
+      (skipKey === 'wg'  || !filters.wg  || valuesEqual(p.workGroup, filters.wg)) &&
+      (skipKey === 'jd'  || !filters.jd  || valuesEqual(p.jobDescCode, filters.jd)) &&
+      (skipKey === 'sj'  || !filters.sj  || valuesEqual(p.stdJobNo, filters.sj)) &&
+      (skipKey === 'd1'  || !filters.d1  || valuesEqual(p.desc1, filters.d1)) &&
+      (skipKey === 'd2'  || !filters.d2  || valuesEqual(p.desc2, filters.d2)) &&
+      (skipKey === 'pt'  || !filters.pt  || valuesEqual(p.protType, filters.pt)) &&
+      (skipKey === 'pm'  || !filters.pm  || valuesEqual(p.protMethod, filters.pm)) &&
+      (skipKey === 'ad1' || !filters.ad1 || valuesEqual(p.equipmentDesc1, filters.ad1)) &&
+      (skipKey === 'elr' || !filters.elr || valuesEqual(p.elr, filters.elr)) &&
+      (skipKey === 'trk' || !filters.trk || valuesEqual(p.trackId, filters.trk))
     );
 
     const buildVisibilityByMstId = (events, filters = readActiveFilters()) => {
@@ -163,13 +165,14 @@
             if (!propsMatchFilters(props, filters, key)) return;
             const value = (props[prop] || '').toString().trim();
             if (!value) return;
-            counts.set(value, (counts.get(value) || 0) + 1);
+            const keyValue = normalizeFilterValue(value);
+            counts.set(keyValue, (counts.get(keyValue) || 0) + 1);
           });
 
           Array.from(el.options || []).forEach((option) => {
             if (!option.value) return;
             if (!option.dataset.baseLabel) option.dataset.baseLabel = option.textContent || option.value;
-            const count = counts.get(option.value) || 0;
+            const count = counts.get(normalizeFilterValue(option.value)) || 0;
             option.textContent = `${option.dataset.baseLabel} (${count})`;
             option.disabled = count === 0 && el.value !== option.value;
           });
@@ -463,7 +466,8 @@
               window.MST.Editor.openEditorForMST(mstId, ev);
             }
 
-            const el = calendar.getEventById(`${mstId}_0`)?.el;
+            const baseForScroll = calendar.getEventById(`${mstId}_0`);
+            const el = baseForScroll?.el || ev.el;
             if (el) {
               el.scrollIntoView({ behavior: 'smooth', block: 'center' });
               el.classList.add('goto-flash');
