@@ -589,21 +589,32 @@ const updateChangedMstTooltipPosition = (jsEvent) => {
 
 const hideChangedMstTooltip = () => removeFloatingLabel("mstChangeTooltip");
 
-const getDragImpactDates = (eventApi, proposedStart, oldStart = null) => {
+const normalizeDragDate = (date) => {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return null;
+  const normalized = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 9, 0, 0, 0);
+  return Number.isNaN(normalized.getTime()) ? null : normalized;
+};
+
+const getEffectiveBaseDateForDrop = (eventApi, proposedStart) => {
+  const droppedDate = normalizeDragDate(proposedStart);
+  if (!droppedDate) return null;
+
   const instanceIndex = Number(eventApi?.extendedProps?.instance || 0);
+  if (!Number.isFinite(instanceIndex) || instanceIndex < 0) return null;
+  if (instanceIndex === 0) return droppedDate;
+
   const frequencyDays = Number(eventApi?.extendedProps?.frequency || 0);
-  let newLsd = proposedStart ? new Date(proposedStart) : null;
+  if (!Number.isFinite(frequencyDays) || frequencyDays <= 0) return null;
 
-  if (instanceIndex === 1) {
-    const baseEvent = window.calendar?.getEventById(`${eventApi.extendedProps.mstId}_0`);
-    if (baseEvent?.start && oldStart && proposedStart) {
-      const deltaDays = Math.round((proposedStart - oldStart) / (1000 * 60 * 60 * 24));
-      newLsd = new Date(baseEvent.start);
-      newLsd.setDate(newLsd.getDate() + deltaDays);
-    }
-  }
+  const effectiveBaseDate = new Date(droppedDate);
+  effectiveBaseDate.setDate(effectiveBaseDate.getDate() - (frequencyDays * instanceIndex));
+  effectiveBaseDate.setHours(9, 0, 0, 0);
+  return effectiveBaseDate;
+};
 
-  if (newLsd) newLsd.setHours(9, 0, 0, 0);
+const getDragImpactDates = (eventApi, proposedStart) => {
+  const frequencyDays = Number(eventApi?.extendedProps?.frequency || 0);
+  const newLsd = getEffectiveBaseDateForDrop(eventApi, proposedStart);
 
   let nextDue = null;
   if (newLsd && Number.isFinite(frequencyDays) && frequencyDays > 0) {
@@ -616,7 +627,7 @@ const getDragImpactDates = (eventApi, proposedStart, oldStart = null) => {
 
 const showDragPreview = (eventApi, proposedStart, oldStart, jsEvent) => {
   const preview = getOrCreateFloatingLabel("mstDragPreview", "mst-drag-preview");
-  const { newLsd, nextDue } = getDragImpactDates(eventApi, proposedStart, oldStart);
+  const { newLsd, nextDue } = getDragImpactDates(eventApi, proposedStart);
   preview.innerHTML = `
     <div class="mst-drag-preview__title">Move preview</div>
     <div class="mst-drag-preview__dates">New LSD: ${escapeHtml(formatMstDateShort(newLsd))} → Next due: ${escapeHtml(formatMstDateShort(nextDue))}</div>
@@ -1774,19 +1785,11 @@ eventContent: function(arg) {
       oldDateEl.textContent = formatDate(info.oldEvent.start);
       newDateEl.textContent = formatDate(ev.start);
 
-      const frequencyDays = Number(ev.extendedProps.frequency);
-      if (Number.isFinite(frequencyDays) && frequencyDays > 0 && oldNextDateEl && newNextDateEl) {
-        const oldNext = new Date(info.oldEvent.start);
-        const newNext = new Date(ev.start);
-
-        oldNext.setDate(oldNext.getDate() + frequencyDays * (1 - instanceIndex));
-        newNext.setDate(newNext.getDate() + frequencyDays * (1 - instanceIndex));
-
-        oldNextDateEl.textContent = formatDate(oldNext);
-        newNextDateEl.textContent = formatDate(newNext);
-      } else if (oldNextDateEl && newNextDateEl) {
-        oldNextDateEl.textContent = "Not scheduled";
-        newNextDateEl.textContent = "Not scheduled";
+      const oldImpact = getDragImpactDates(info.oldEvent, info.oldEvent.start);
+      const newImpact = getDragImpactDates(ev, ev.start);
+      if (oldNextDateEl && newNextDateEl) {
+        oldNextDateEl.textContent = oldImpact.nextDue ? formatDate(oldImpact.nextDue) : "Not scheduled";
+        newNextDateEl.textContent = newImpact.nextDue ? formatDate(newImpact.nextDue) : "Not scheduled";
       }
 
       modal.classList.add("active");
@@ -1832,30 +1835,17 @@ eventContent: function(arg) {
     const instanceIndex = Number(ev.extendedProps.instance || 0);
     const baseEvent = window.calendar?.getEventById(`${mstId}_0`);
 
-    const normalizeCalendarDate = (date) => {
-      if (!(date instanceof Date) || Number.isNaN(date.getTime())) return null;
-      const normalized = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 9, 0, 0, 0);
-      return Number.isNaN(normalized.getTime()) ? null : normalized;
-    };
+    const oldDate = normalizeDragDate(info.oldEvent?.start);
+    const frequencyDays = Number(baseEvent?.extendedProps?.frequency || ev.extendedProps.frequency || 0);
+    const effectiveBaseDate = getEffectiveBaseDateForDrop(
+      { extendedProps: { ...ev.extendedProps, frequency: frequencyDays } },
+      ev.start
+    );
 
-    const droppedDate = normalizeCalendarDate(ev.start);
-    const oldDate = normalizeCalendarDate(info.oldEvent?.start);
-
-    if (!mstId || !baseEvent || !Number.isFinite(instanceIndex) || instanceIndex < 0 || !droppedDate || !oldDate) {
+    if (!mstId || !baseEvent || !Number.isFinite(instanceIndex) || instanceIndex < 0 || !effectiveBaseDate || !oldDate) {
       info.revert();
       return;
     }
-
-    const frequencyDays = Number(baseEvent.extendedProps.frequency || ev.extendedProps.frequency || 0);
-    const effectiveBaseDate = new Date(droppedDate);
-    if (instanceIndex > 0) {
-      if (!Number.isFinite(frequencyDays) || frequencyDays <= 0) {
-        info.revert();
-        return;
-      }
-      effectiveBaseDate.setDate(effectiveBaseDate.getDate() - (frequencyDays * instanceIndex));
-    }
-    effectiveBaseDate.setHours(9, 0, 0, 0);
 
     baseEvent.setDates(effectiveBaseDate, null, { allDay: false });
     if (instanceIndex === 0 && ev.id !== baseEvent.id) {
