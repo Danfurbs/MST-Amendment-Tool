@@ -812,6 +812,19 @@
         return select;
       };
 
+      const preserveUnknownSelectValue = (select, value) => {
+        const currentValue = (value ?? '').toString();
+        if (!select || !currentValue) {
+          if (select) select.value = '';
+          return;
+        }
+        if (![...select.options].some((opt) => opt.value === currentValue)) {
+          select.appendChild(new Option(`${currentValue} — not in lookup table`, currentValue, true, true));
+        } else {
+          select.value = currentValue;
+        }
+      };
+
       const events = Array.from(selected)
         .map((mstId) => calendar.getEventById(`${mstId}_0`))
         .filter(Boolean)
@@ -852,7 +865,7 @@
           window.MST_VARIABLES?.jobDescCodes || [],
           (item) => `${item.code} — ${item.desc}`
         );
-        jobSelect.value = props.jobDescCode || '';
+        preserveUnknownSelectValue(jobSelect, props.jobDescCode || '');
 
         const unitsInput = document.createElement('input');
         unitsInput.type = 'number';
@@ -877,7 +890,7 @@
           (item) => item.desc
         );
         const protTypeValue = (props.protType ?? '').toString();
-        protTypeSelect.value = protTypeValue ? protTypeValue.padStart(2, '0') : '';
+        preserveUnknownSelectValue(protTypeSelect, protTypeValue ? protTypeValue.padStart(2, '0') : '');
 
         const protMethodSelect = cloneSelectOptions(
           sourceProtMethod,
@@ -885,7 +898,7 @@
           (item) => item.desc
         );
         const protMethodValue = (props.protMethod ?? '').toString();
-        protMethodSelect.value = protMethodValue ? protMethodValue.padStart(2, '0') : '';
+        preserveUnknownSelectValue(protMethodSelect, protMethodValue ? protMethodValue.padStart(2, '0') : '');
 
         const allowMultipleInput = document.createElement('input');
         allowMultipleInput.type = 'checkbox';
