@@ -130,6 +130,7 @@ protectionMethods: [
   { code: "22", desc: "Possession With Disconnection (T3-D)" },
   { code: "23", desc: "Published Line Blockage - Simple" },
   { code: "24", desc: "Published Line Blockage - Additional Protection" },
+  { code: "25", desc: "Sidings Possession With Engineering Controls" },
   { code: "NR", desc: "No Block Required" }
 ],
 
