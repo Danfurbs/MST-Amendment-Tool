@@ -10,6 +10,8 @@ window.STANDARD_JOBS = {
   "10256": { desc1: "ZKL 3000 RC TCOD INSTALLATION", uom: "EA" },
   "10257": { desc1: "ZKL 3000 RC TCOD DEFIT FOR FAULT", uom: "EA" },
   "10258": { desc1: "ZKL 3000 RC TCOD DEFIT FOR CALIBRATION", uom: "EA" },
+  "21460": { desc1: "TELECOMS RECTIFIER BREAKER INSPECTION", uom: "EA" },
+  "10307": { desc1: "WIRERUN - HIGH LEVEL TENSION CHECKS", uom: "EA" },
   "10265": { desc1: "I EXAM", uom: "EA" },
   "10270": { desc1: "HV AC SWITCHGEAR MTCE [5Y]", uom: "EA" },
   "10271": { desc1: "HV AC SWITCHGEAR MTCE [10Y]", uom: "EA" },
