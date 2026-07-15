@@ -2454,6 +2454,7 @@ window.STANDARD_JOBS = {
   "31016": { desc1: "Technical Staff - Measure S&C", uom: "HR" },
   "31017": { desc1: "Technical Staff - Install Geometry Plate", uom: "HR" },
   "31018": { desc1: "Technical Staff - Tight Clearance Site", uom: "HR" },
+  "9314": { desc1: "MOD11 COMPREHENSIVE REVIEW OF TRACES", uom: "EA" },
   "9696": { desc1: "URFD PLAIN LINE - PEDESTRIAN DIAGRAM", uom: "RM" },
   "9697": { desc1: "URFD S&C PEDESTRIAN DIAGRAM", uom: "RY" },
   "9698": { desc1: "URFD RAIL HOLES – PEDESTRIAN DIAGRAM", uom: "RY" },
