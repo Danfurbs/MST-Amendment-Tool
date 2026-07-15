@@ -360,6 +360,42 @@ const formatPeriodVolumes = (periodVolumes = {}) => {
             alignment: { vertical: "middle", horizontal: "center" },
         };
 
+
+        const firstPresentValue = (...values) => {
+            for (const value of values) {
+                if (value !== undefined && value !== null && value !== "") return value;
+            }
+            return "";
+        };
+
+        const originalValueForExportHeader = (orig, header) => {
+            if (!orig || typeof orig !== "object") return "";
+
+            const aliases = {
+                "Equipment": ["Equipment Number"],
+                "Task No": ["MST Task Number"],
+                "Job Desc Code": ["Job Description Code"],
+                "MST Desc 1": ["MST Description 1"],
+                "MST Desc 2": ["MST Description 2"],
+                "Freq": ["MST Frequency"],
+                "Unit Required": ["Units Required", "Unit Required"],
+                "Unit of Work": ["Unit of Work", "Unit Measure", "UOM"],
+                "Sched Ind": ["Scheduling Indicator Code"],
+                "Work Group": ["Work Group Code"],
+                "Std Job No": ["Standard Job Number", "Std Job No"],
+                "LSD": ["Last Scheduled Date"],
+                "Segment From": ["MST Segment Mileage From", "Segment From"],
+                "Segment To": ["MST Segment Mileage To", "Segment To"],
+                "Segment UOM": ["MST Segment UOM", "Segment UOM"],
+                "ProtectionType": ["Protection Type Code"],
+                "ProtectionMethod": ["Protection Method Code"],
+                "TV Reference": ["Temp Var Reference Number", "TV Reference"],
+                "TV Expiry Date": ["TV Expiry Date", "Temp Var Expiry Date"]
+            };
+
+            return firstPresentValue(orig[header], ...(aliases[header] || []).map(key => orig[key]));
+        };
+
         const mstHeaders = [
             "Equipment", "Task No", "Comp Code", "Mod Code", "Job Desc Code",
             "MST Type", "StatutoryMST", "Allow Multiple workorders",
@@ -486,22 +522,24 @@ const formatPeriodVolumes = (periodVolumes = {}) => {
 
                 mstHeaders.forEach(h => {
 
-                      let val =
-                          (h === "Equipment"       && (row.Equipment || orig["Equipment Number"] || "")) ||
-                          (h === "Task No"        && (row["Task No"] || orig["MST Task Number"] || "")) ||
-                          (h === "MST Desc 1"     && (row["MST Desc 1"] || orig["MST Description 1"] || "")) ||
-                          (h === "MST Desc 2"     && (row.New_Desc2 || row.Old_Desc2 || orig["MST Description 2"] || "")) ||
-                          (h === "Freq"           && (row.New_Frequency || row.Old_Frequency || orig["MST Frequency"] || "")) ||
-                          (h === "Work Group"     && (row.New_Work_Group_Code || row.Old_Work_Group_Code || orig["Work Group Code"] || "")) ||
-                          (h === "Job Desc Code"  && (row.New_Job_Desc_Code || row.Old_Job_Desc_Code || orig["Job Description Code"] || "")) ||
-                          (h === "Sched Ind"      && (row.New_Scheduling_Indicator_Code || row.Old_Scheduling_Indicator_Code || orig["Scheduling Indicator Code"] || "")) ||
-                          (h === "LSD"            && (row.New_Last_Scheduled_Date || row.Old_Last_Scheduled_Date || orig["Last Scheduled Date"] || "")) ||
-                          (h === "ProtectionType" && (row.New_Protection_Type_Code || row.Old_Protection_Type_Code || orig["Protection Type Code"] || "")) ||
-                          (h === "Allow Multiple workorders" && (row.New_Allow_Multiple_Workorders || row.Old_Allow_Multiple_Workorders || orig["Allow Multiple workorders"] || "")) ||
-                          (h === "ProtectionMethod" && (row.New_Protection_Method_Code || row.Old_Protection_Method_Code || orig["Protection Method Code"] || "")) ||
-                          (h === "TV Reference" && (row.New_TV_Reference || row.Old_TV_Reference || orig["TV Reference"] || orig["Temp Var Reference Number"] || "")) ||
-                          (h === "TV Expiry Date" && (row.New_TV_Expiry_Date || row.Old_TV_Expiry_Date || orig["TV Expiry Date"] || "")) ||
-                          orig[h] || "";
+                      let val = "";
+
+                      if (h === "Equipment") val = firstPresentValue(row.Equipment, originalValueForExportHeader(orig, h));
+                      else if (h === "Task No") val = firstPresentValue(row["Task No"], originalValueForExportHeader(orig, h));
+                      else if (h === "MST Desc 1") val = firstPresentValue(row["MST Desc 1"], originalValueForExportHeader(orig, h));
+                      else if (h === "MST Desc 2") val = firstPresentValue(row.New_Desc2, row.Old_Desc2, originalValueForExportHeader(orig, h));
+                      else if (h === "Freq") val = firstPresentValue(row.New_Frequency, row.Old_Frequency, originalValueForExportHeader(orig, h));
+                      else if (h === "Work Group") val = firstPresentValue(row.New_Work_Group_Code, row.Old_Work_Group_Code, originalValueForExportHeader(orig, h));
+                      else if (h === "Job Desc Code") val = firstPresentValue(row.New_Job_Desc_Code, row.Old_Job_Desc_Code, originalValueForExportHeader(orig, h));
+                      else if (h === "Unit Required") val = firstPresentValue(row.New_Units_Required, row.Old_Units_Required, originalValueForExportHeader(orig, h));
+                      else if (h === "Sched Ind") val = firstPresentValue(row.New_Scheduling_Indicator_Code, row.Old_Scheduling_Indicator_Code, originalValueForExportHeader(orig, h));
+                      else if (h === "LSD") val = firstPresentValue(row.New_Last_Scheduled_Date, row.Old_Last_Scheduled_Date, originalValueForExportHeader(orig, h));
+                      else if (h === "ProtectionType") val = firstPresentValue(row.New_Protection_Type_Code, row.Old_Protection_Type_Code, originalValueForExportHeader(orig, h));
+                      else if (h === "Allow Multiple workorders") val = firstPresentValue(row.New_Allow_Multiple_Workorders, row.Old_Allow_Multiple_Workorders, originalValueForExportHeader(orig, h));
+                      else if (h === "ProtectionMethod") val = firstPresentValue(row.New_Protection_Method_Code, row.Old_Protection_Method_Code, originalValueForExportHeader(orig, h));
+                      else if (h === "TV Reference") val = firstPresentValue(row.New_TV_Reference, row.Old_TV_Reference, originalValueForExportHeader(orig, h));
+                      else if (h === "TV Expiry Date") val = firstPresentValue(row.New_TV_Expiry_Date, row.Old_TV_Expiry_Date, originalValueForExportHeader(orig, h));
+                      else val = originalValueForExportHeader(orig, h);
 
                     if (h === "NSD") {
                         val = "";
