@@ -3985,6 +3985,7 @@ MST.Editor.addNewMST = function () {
       tvReference: baseEvent.extendedProps.tvReference,
       tvExpiry: normalizeTvExpiry(baseEvent.extendedProps.tvExpiryDate),
       stdJobNo: getStdJobNoForMst(baseEvent, orig),
+      unitOfWork: resolveStdJobUom(getStdJobNoForMst(baseEvent, orig), baseEvent, orig),
       abpCommentary: (baseEvent.extendedProps.abpCommentary || "").toString().trim()
     };
 
@@ -4055,6 +4056,7 @@ MST.Editor.addNewMST = function () {
       New_TV_Expiry_Date: cur.tvExpiry,
 
       Std_Job_No: cur.stdJobNo,
+      Unit_of_Work: cur.unitOfWork,
       ABP_Commentary: cur.abpCommentary
     };
   };
