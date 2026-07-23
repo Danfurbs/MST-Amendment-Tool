@@ -379,7 +379,7 @@ const formatPeriodVolumes = (periodVolumes = {}) => {
                 "MST Desc 2": ["MST Description 2"],
                 "Freq": ["MST Frequency"],
                 "Unit Required": ["Units Required", "Unit Required"],
-                "Unit of Work": ["Unit of Work", "Unit Measure", "UOM"],
+                "Unit of Work": ["Unit of Work", "Unit of work", "Unit of Measure", "Unit Measure", "UOM"],
                 "Sched Ind": ["Scheduling Indicator Code"],
                 "Work Group": ["Work Group Code"],
                 "Std Job No": ["Standard Job Number", "Std Job No"],
@@ -532,6 +532,7 @@ const formatPeriodVolumes = (periodVolumes = {}) => {
                       else if (h === "Work Group") val = firstPresentValue(row.New_Work_Group_Code, row.Old_Work_Group_Code, originalValueForExportHeader(orig, h));
                       else if (h === "Job Desc Code") val = firstPresentValue(row.New_Job_Desc_Code, row.Old_Job_Desc_Code, originalValueForExportHeader(orig, h));
                       else if (h === "Unit Required") val = firstPresentValue(row.New_Units_Required, row.Old_Units_Required, originalValueForExportHeader(orig, h));
+                      else if (h === "Unit of Work") val = firstPresentValue(row.Unit_of_Work, originalValueForExportHeader(orig, h));
                       else if (h === "Sched Ind") val = firstPresentValue(row.New_Scheduling_Indicator_Code, row.Old_Scheduling_Indicator_Code, originalValueForExportHeader(orig, h));
                       else if (h === "LSD") val = firstPresentValue(row.New_Last_Scheduled_Date, row.Old_Last_Scheduled_Date, originalValueForExportHeader(orig, h));
                       else if (h === "ProtectionType") val = firstPresentValue(row.New_Protection_Type_Code, row.Old_Protection_Type_Code, originalValueForExportHeader(orig, h));
