@@ -2051,19 +2051,25 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
   if (!window.virtualInstanceStore) window.virtualInstanceStore = {};
   if (!window.renderedInstanceIds) window.renderedInstanceIds = new Set();
 
-  // Remove old rendered future events for this MST. FullCalendar EventApi
-  // references can become stale after an event is removed; reading event.id on
-  // a stale object may throw inside FullCalendar's publicId getter. Read the
-  // internal id defensively and remove only live EventApi objects.
-  if (window.futureEventsMap[mstId]) {
-    window.futureEventsMap[mstId].forEach(e => {
-      const eventId = e?._def?.publicId || e?._def?.defId || null;
-      if (eventId) window.renderedInstanceIds.delete(eventId);
-      if (e && e._def && typeof e.remove === 'function') {
-        e.remove();
-      }
-    });
-  }
+  // Treat the calendar as the source of truth here. The compatibility map only
+  // contains events rendered in previously visited ranges and can hold stale
+  // EventApi references after FullCalendar navigation. If its cleanup misses an
+  // event, renderedInstanceIds still claims that instance number and prevents
+  // the replacement schedule from being drawn at the amended frequency.
+  window.calendar.getEvents().forEach(event => {
+    const props = event.extendedProps || {};
+    if (props.mstId !== mstId || Number(props.instance || 0) <= 0) return;
+
+    const eventId = event._def?.publicId || event._def?.defId || `${mstId}_${props.instance}`;
+    window.renderedInstanceIds.delete(eventId);
+    event.remove();
+  });
+
+  // Also clear IDs for instances which are no longer mounted in FullCalendar.
+  // They otherwise block the same numbered instances from the new schedule.
+  [...window.renderedInstanceIds].forEach(eventId => {
+    if (eventId.startsWith(`${mstId}_`)) window.renderedInstanceIds.delete(eventId);
+  });
   window.futureEventsMap[mstId] = [];
 
   // Get resource hours and other props from the base event
@@ -2754,7 +2760,9 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     return {
       stdJobNo,
       abpTracked,
-      required: Boolean(abpTracked && hasAbpRelevantChange)
+      required: Boolean(abpTracked && hasAbpRelevantChange),
+      normalizedCurrentDate,
+      effectiveNewDate
     };
   };
 
@@ -2812,13 +2820,13 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
 
     if (abpRequirement.required && !abpCommentary) {
       const impactSummary = buildAbpVolumeImpactMessage({
-        oldLsd: normalizedCurrentDate,
+        oldLsd: abpRequirement.normalizedCurrentDate,
         oldFreq: props.frequency,
         oldUnits: props.unitsRequired,
-        newLsd: effectiveNewDate,
+        newLsd: abpRequirement.effectiveNewDate,
         newFreq: freq,
         newUnits: unitsRequired,
-        anchorDate: normalizedCurrentDate
+        anchorDate: abpRequirement.normalizedCurrentDate
       });
       const captured = captureAbpCommentary(
         `ABP commentary required for Standard Job ${stdJobNo}.\n\nPlease provide a short note explaining this change for annual plan review:${impactSummary}`
