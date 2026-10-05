@@ -3231,11 +3231,7 @@ MST.Editor.replaceMstIdentity = function (mstId, identityUpdates = {}) {
     props.allowMultiple || (orig && orig["Allow Multiple workorders"]) || ""
   );
 
-  let newMstId = `${nextEquip}_${nextStdJob}`;
-  let duplicateCounter = 1;
-  while (window.calendar.getEventById(`${newMstId}_0`)) {
-    newMstId = `${nextEquip}_${nextStdJob}__${duplicateCounter++}`;
-  }
+  const newMstId = MST.Editor.getAvailableNewMstId(nextEquip, nextStdJob);
 
   const equipMeta = window.equipmentDescriptions?.get?.(nextEquip) || {};
   const equipDesc = equipMeta.desc1 || props.equipmentDesc1 || (orig && (orig["Equipment Description 1"] || orig.equipmentDesc1)) || "";
@@ -3406,13 +3402,7 @@ MST.Editor.changeEquipment = function () {
     lastDate.setHours(9, 0, 0, 0);
     const lastDateStr = U.dateToInputYYYYMMDD(lastDate) || "";
 
-    const newMstId = `${newEquipNo}_${stdJobNo}`;
-
-    // Check if this mstId already exists
-    if (window.calendar.getEventById(`${newMstId}_0`)) {
-      alert(`An MST already exists for equipment ${newEquipNo} with standard job ${stdJobNo}. Cannot create duplicate.`);
-      return;
-    }
+    const newMstId = MST.Editor.getAvailableNewMstId(newEquipNo, stdJobNo);
 
     // Add base event (GREEN)
     const newBaseEvent = window.calendar.addEvent({
@@ -3648,13 +3638,7 @@ MST.Editor.changeStandardJob = async function () {
   const lastDateStr = U.dateToInputYYYYMMDD(lastDate) || "";
   const wgCode = preDeactivateWorkGroup;
 
-  const newMstIdBase = `${equipNo}_${newStdJobNo}`;
-  let newMstId = newMstIdBase;
-  let duplicateCounter = 1;
-
-  while (window.calendar.getEventById(`${newMstId}_0`)) {
-    newMstId = `${newMstIdBase}__${duplicateCounter++}`;
-  }
+  const newMstId = MST.Editor.getAvailableNewMstId(equipNo, newStdJobNo);
 
   const newBaseEvent = window.calendar.addEvent({
     id: `${newMstId}_0`,
@@ -3742,6 +3726,20 @@ MST.Editor.changeStandardJob = async function () {
 /* ----------------------------------------
    NEW MST CREATION HELPERS
 ---------------------------------------- */
+MST.Editor.getAvailableNewMstId = function(equipNo, stdJobNo) {
+  const baseId = `${equipNo}_${stdJobNo}`;
+  let mstId = baseId;
+  let counter = 1;
+  while (
+    window.calendar?.getEventById(`${mstId}_0`) ||
+    Object.prototype.hasOwnProperty.call(window.createdMSTs || {}, mstId) ||
+    Object.prototype.hasOwnProperty.call(window.originalProps || {}, mstId)
+  ) {
+    mstId = `${baseId}__${counter++}`;
+  }
+  return mstId;
+};
+
 MST.Editor.buildNewMstPayload = function(input, options = {}) {
   const rowLabel = options.rowLabel || "MST";
 
@@ -3781,13 +3779,7 @@ MST.Editor.buildNewMstPayload = function(input, options = {}) {
   }
 
   lastDate.setHours(9, 0, 0, 0);
-  const mstId = `${equipNo}_${stdJobNo}`;
-  if (window.calendar.getEventById(`${mstId}_0`)) {
-    return {
-      ok: false,
-      error: `${rowLabel}: MST ${mstId} already exists. Duplicates are not allowed.`
-    };
-  }
+  const mstId = MST.Editor.getAvailableNewMstId(equipNo, stdJobNo);
 
   return {
     ok: true,
@@ -3816,7 +3808,6 @@ MST.Editor.buildNewMstPayload = function(input, options = {}) {
 
 MST.Editor.createMstFromPayload = function(payload) {
   const {
-    mstId,
     equipNo,
     stdJobNo,
     stdJobUom,
@@ -3835,6 +3826,9 @@ MST.Editor.createMstFromPayload = function(payload) {
     segTo,
     allowMultiple
   } = payload;
+
+  // Bulk rows are validated together, so allocate the ID when each is created.
+  const mstId = MST.Editor.getAvailableNewMstId(equipNo, stdJobNo);
 
   const baseEvent = window.calendar.addEvent({
     id: `${mstId}_0`,
