@@ -561,14 +561,13 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function hydrateCreatedMstFromSession(createdRows) {
-    if (!window.calendar || !Array.isArray(createdRows)) return;
+    if (!window.calendar || !createdRows || typeof createdRows !== "object") return;
 
-    createdRows.forEach(row => {
+    Object.entries(createdRows).forEach(([mstId, row]) => {
       const equipNo = safeTrim(row["Equipment"]);
       const stdJobNo = safeTrim(row["Std Job No"]);
       if (!equipNo || !stdJobNo) return;
 
-      const mstId = `${equipNo}_${stdJobNo}`;
       if (window.calendar.getEventById(`${mstId}_0`)) return;
 
       const lsd = safeTrim(row["LSD"]);
@@ -705,7 +704,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     Object.assign(window.createdMSTs, sessionCreated);
-    hydrateCreatedMstFromSession(Object.values(sessionCreated));
+    hydrateCreatedMstFromSession(sessionCreated);
 
     if (window.changeCount) {
       window.changeCount.innerText = `Changes: ${Object.keys(window.changes).length}`;
