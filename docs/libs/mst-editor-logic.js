@@ -1362,7 +1362,7 @@ window.MST.Editor.buildBulkCreateRow = function(rowIndex) {
     <td><input data-col="stdJobNo" /></td>
     <td><input data-col="desc1" readonly tabindex="-1" /></td>
     <td><input data-col="desc2" maxlength="45" /></td>
-    <td><input data-col="wgCode" /></td>
+    <td><input data-col="wgCode" required pattern=".{7}" title="Work Group Code must be exactly 7 characters long." /></td>
     <td><select data-col="jobDescCode"></select></td>
     <td><input data-col="freq" type="number" min="1" /></td>
     <td><input data-col="nextDateStr" type="date" min="${todayIso}" /></td>
@@ -2787,6 +2787,11 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     const desc2 = clampDesc2((rawDesc2 ?? "").toString().trimEnd());
 
     const workGroup = (pickValue(updates.workGroup, props.workGroup) ?? "").toString().trim();
+    if (workGroup.length !== 7) {
+      alert("Work Group Code must be exactly 7 characters long.");
+      return null;
+    }
+
     const jobDescCode = (pickValue(updates.jobDescCode, props.jobDescCode) ?? "").toString().trim();
     const unitsRequired = pickValue(updates.unitsRequired, props.unitsRequired) ?? "";
 
@@ -3767,6 +3772,10 @@ MST.Editor.buildNewMstPayload = function(input, options = {}) {
 
   if (!equipNo || !stdJobNo || !desc1 || !jobDescCode || !freq || !nextDateStr || !lastDateStr || !unitsReq || !protType || !wgCode) {
     return { ok: false, error: `${rowLabel}: Please complete all mandatory fields marked with *.` };
+  }
+
+  if (wgCode.length !== 7) {
+    return { ok: false, error: `${rowLabel}: Work Group Code must be exactly 7 characters long.` };
   }
 
   if (isPastDate(nextDateStr)) {

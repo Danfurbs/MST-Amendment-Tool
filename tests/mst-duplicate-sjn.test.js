@@ -49,10 +49,18 @@ vm.runInContext(editorSource.slice(helperStart, helperEnd), context);
 const input = {
   equipNo: "000017280490", stdJobNo: "9666", desc1: "Inspect", desc2: "First",
   jobDescCode: "1E", freq: "28", nextDateStr: "2026-11-10", unitsReq: "1",
-  protType: "N", wgCode: "WG", stdJobUom: "SM"
+  protType: "N", wgCode: "WG12345", stdJobUom: "SM"
 };
 assert.equal(Editor.buildNewMstPayload({ ...input, equipNo: "" }).ok, false, "mandatory fields remain required");
 assert.equal(Editor.buildNewMstPayload({ ...input, nextDateStr: "2026-01-01" }).ok, false, "past dates remain invalid");
+
+for (const wgCode of ["", "WG1234", "WG123456", "       "]) {
+  const result = Editor.buildNewMstPayload({ ...input, wgCode }, { rowLabel: "Row 2" });
+  assert.equal(result.ok, false, `reject workgroup ${JSON.stringify(wgCode)}`);
+  assert.ok(result.error.startsWith("Row 2:"));
+}
+assert.match(Editor.buildNewMstPayload({ ...input, wgCode: "WG1234" }).error, /exactly 7 characters/);
+assert.equal(Editor.buildNewMstPayload({ ...input, wgCode: " WG12345 " }).data.wgCode, "WG12345");
 
 // Bulk creation validates all rows before adding any calendar events.
 const firstPayload = Editor.buildNewMstPayload(input);
