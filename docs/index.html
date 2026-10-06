@@ -1099,7 +1099,7 @@
 
       <div class="field-block">
         <label for="wgInput">Work Group Code</label>
-        <input type="text" id="wgInput" />
+        <input type="text" id="wgInput" required pattern=".{7}" title="Work Group Code must be exactly 7 characters long." />
       </div>
 
       <div class="field-block">
@@ -1886,7 +1886,7 @@ WHERE
   <span class="label-title">
     WorkGroup <span class="required-star">*</span>
   </span>
-    <input id="newWorkGroup" required />
+    <input id="newWorkGroup" required pattern=".{7}" title="Work Group Code must be exactly 7 characters long." />
         </label>
   <!-- Row 3 -->
    <label>

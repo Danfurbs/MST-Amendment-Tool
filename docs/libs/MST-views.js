@@ -858,6 +858,9 @@
 
         const wgInput = document.createElement('input');
         wgInput.type = 'text';
+        wgInput.required = true;
+        wgInput.pattern = '.{7}';
+        wgInput.title = 'Work Group Code must be exactly 7 characters long.';
         wgInput.value = props.workGroup || '';
 
         const jobSelect = cloneSelectOptions(
@@ -1053,6 +1056,13 @@
 
       if (pendingChanges.length === 0) {
         alert('No changes detected. Please modify at least one field.');
+        return;
+      }
+
+      const invalidWorkGroups = pendingChanges.filter(item => String(item.updates.workGroup).trim().length !== 7);
+      if (invalidWorkGroups.length) {
+        alert(`Work Group Code must be exactly 7 characters long. Please correct MST(s): ${invalidWorkGroups.map(item => item.mstId).join(', ')}.`);
+        pendingChanges = [];
         return;
       }
 
