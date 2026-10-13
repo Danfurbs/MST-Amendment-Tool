@@ -26,6 +26,11 @@ const context = vm.createContext({
   triggerResourceChartRefresh() {}, refreshActiveCalendarFilters() {}
 });
 vm.runInContext(source.slice(start, end), context);
+for (const frequency of [0, '0', -1, 1.5, '14days', '', NaN]) {
+  assert.equal(Editor.applyBulkEdits('MST_1', {frequency}), false);
+  assert.equal(mutations, 0);
+  assert.match(alerts.at(-1), /whole number greater than zero/);
+}
 for (const workGroup of ['', 'WG1234', 'WG123456', '       ']) {
   assert.equal(Editor.applyBulkEdits('MST_1', { workGroup, frequency: 14 }), false);
   assert.equal(mutations, 0, 'invalid amendments must not mutate any fields');

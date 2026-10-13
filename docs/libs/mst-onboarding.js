@@ -3,7 +3,7 @@
     onboardingSeen: "mst.onboarding.versionSeen",
     whatsNewSeen: "mst.onboarding.whatsNew.v1"
   };
-  const ONBOARDING_VERSION = "1.0.0";
+  const ONBOARDING_VERSION = "1.1.0";
 
   const selectors = {
     banner: document.getElementById("onboardingBanner"),
@@ -35,9 +35,13 @@
     const tvActions = document.getElementById("tvActions");
 
     if (detailsIntro) detailsIntro.style.display = spoofEditorSnapshot.detailsIntroDisplay;
-    if (editForm) editForm.style.display = spoofEditorSnapshot.editFormDisplay;
+    if (editForm) { editForm.style.display = spoofEditorSnapshot.editFormDisplay; editForm.inert = spoofEditorSnapshot.editFormInert; }
     if (tvActions) tvActions.style.display = spoofEditorSnapshot.tvActionsDisplay;
 
+    spoofEditorSnapshot.fields.forEach(([el, value, checked]) => { el.value = value; el.checked = checked; });
+    spoofEditorSnapshot.labels.forEach(([el, text]) => { el.textContent = text; });
+    const tvLabel = document.getElementById('tvAppliedLabel');
+    if (tvLabel) tvLabel.className = spoofEditorSnapshot.tvClass;
     spoofEditorActive = false;
     spoofEditorSnapshot = null;
   }
@@ -55,11 +59,16 @@
     spoofEditorSnapshot = {
       detailsIntroDisplay: readDisplay(detailsIntro),
       editFormDisplay: readDisplay(editForm),
-      tvActionsDisplay: readDisplay(tvActions)
+      editFormInert: editForm.inert,
+      tvActionsDisplay: readDisplay(tvActions),
+      fields: Array.from(editForm.querySelectorAll('input, select, textarea')).map(el => [el, el.value, el.checked]),
+      labels: ['equipDesc1Display', 'equipDesc2Display'].map(id => document.getElementById(id)).filter(Boolean).map(el => [el, el.textContent]),
+      tvClass: tvAppliedLabel?.className || ''
     };
 
     if (detailsIntro) detailsIntro.style.display = "none";
     editForm.style.display = "block";
+    editForm.inert = true;
     if (tvActions) tvActions.style.display = "block";
     if (tvAppliedLabel?.classList) tvAppliedLabel.classList.remove("visible");
 
@@ -76,7 +85,7 @@
     setValue("lastDateInput", "2026-01-15");
     setValue("nextDateCalc", "2026-02-14");
     setValue("freqInput", "30");
-    setValue("wgInput", "WGDEMO");
+    setValue("wgInput", "WGDEMO1");
     setValue("unitsRequiredInput", "1");
     setValue("mileageFromInput", "12.125");
     setValue("mileageToInput", "12.875");
@@ -97,12 +106,6 @@
   async function ensureEditorFormVisible() {
     const editForm = document.getElementById("editForm");
     if (isVisible(editForm)) return;
-
-    const firstEvent = document.querySelector("#calendarEl .fc-event");
-    if (firstEvent) {
-      firstEvent.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
-      await delay(220);
-    }
 
     if (!isVisible(editForm)) {
       activateSpoofEditor();
@@ -126,8 +129,14 @@
     {
       selectors: ["#deactivateBtn", "#editForm", "#detailsIntro"],
       title: "Deactivate MST",
-      body: "Use Deactivate MST when the MST should no longer generate future work.",
+      body: "Use Deactivate MST when the MST should no longer generate future work. If the download recorded open work orders, a warning explains that they remain active after deactivation. Check Ellipse and arrange to close each work order, or cancel it if the work is not complete.",
       beforeShow: ensureEditorFormVisible
+    },
+    {
+      selector: '#sidebar',
+      title: 'Example: an MST with open work orders',
+      body: 'WO: 2 means the download recorded two open work orders. The red border and pale rose editor flag a review; TV colours and badges still apply. The weekly snapshot may be out of date. Check the current status in Ellipse before changing dates or frequency.',
+      workOrderExample: true
     },
     {
       selectors: ["#applyTvBtn", "#tvActions"],
@@ -193,6 +202,7 @@
   }
 
   function closeTour(markSeen = true) {
+    document.getElementById('tourWorkOrderExample')?.remove();
     clearHighlight();
     restoreSpoofEditor();
     if (selectors.tourOverlay) selectors.tourOverlay.style.display = "none";
@@ -239,6 +249,20 @@
 
     selectors.tourTitle.textContent = step.title;
     selectors.tourBody.textContent = step.body;
+    document.getElementById('tourWorkOrderExample')?.remove();
+    if (step.workOrderExample) {
+      const example = document.createElement('div');
+      example.id = 'tourWorkOrderExample';
+      example.className = 'tour-work-order-example';
+      example.innerHTML = '<strong>DEMO-0001 / 010 — example only</strong><p><span class="mst-wo-badge">WO: 2</span> Open work orders: 2 — at download.</p><p>Proposed frequency: 30 → 28 days. A review is required each time you save a date/frequency change, drag an event, or apply a bulk amendment.</p><label class="mst-work-order-ack"><input type="checkbox"><span>I have reviewed the current work-order status in Ellipse, understand the risks of changing dates or frequency, and am satisfied these changes will not cause an issue.</span></label><button type="button" disabled>Try example confirmation</button><p role="status">This example changes no MST data. Cancelling a real confirmation leaves the amendment unapplied.</p>';
+      const checkbox = example.querySelector('input');
+      const button = example.querySelector('button');
+      checkbox.addEventListener('change', () => { button.disabled = !checkbox.checked; });
+      button.addEventListener('click', () => {
+        example.querySelector('[role="status"]').textContent = 'Example acknowledged. In a real amendment, only the reviewed changes would be applied. The snapshot warning stays visible; your next amendment requires a fresh confirmation.';
+      });
+      selectors.tourBody.after(example);
+    }
     selectors.tourMeta.textContent = `Step ${idx + 1} of ${tourSteps.length}`;
     selectors.tourNextBtn.textContent = idx === tourSteps.length - 1 ? "Finish" : "Next";
 
@@ -311,7 +335,6 @@
 
   function init() {
     selectors.startTourBtn?.addEventListener("click", startTour);
-    selectors.bannerPrimary?.addEventListener("click", startTour);
     selectors.bannerSecondary?.addEventListener("click", hideBanner);
 
     selectors.tourNextBtn?.addEventListener("click", async () => {

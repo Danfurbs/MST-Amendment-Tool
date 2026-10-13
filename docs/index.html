@@ -9,7 +9,7 @@
   
     <!-- Local libs (keep order) -->
   <!-- use version 0.20.3 -->
-<script type="text/javascript" src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script src="libs/xlsx.full.min.js"></script>
   <script src="libs/FileSaver.min.js"></script>
   <script src="libs/index.global.min.js"></script>
   <script src="libs/exceljs.min.js"></script>
@@ -19,6 +19,9 @@
   <script src="libs/mst-variables.js"></script>
   <script src="libs/mst-stdjobs.js"></script>
   <script src="libs/mst-core-utils.js"></script>
+  <script src="libs/mst-session-guard.js"></script>
+  <script src="libs/mst-advisory-rules.js"></script>
+  <script src="libs/mst-advisory-ui.js"></script>
   <script src="libs/mst-error-flags.js"></script>
   <script src="libs/mst-editor-logic.js"></script>
   <script src="libs/FileUpload.js"></script>
@@ -762,224 +765,6 @@
       white-space: pre;
     }
 
-    .possession-entry {
-      margin-top: 16px;
-      display: flex;
-      justify-content: flex-end;
-    }
-    .possession-entry button {
-      border: 1px solid #93c5fd;
-      background: #eff6ff;
-      border-radius: 8px;
-      padding: 8px 10px;
-      font-weight: 700;
-      color: #1d4ed8;
-      cursor: pointer;
-    }
-    .possession-callout {
-      margin-top: 16px;
-      background: #f8fafc;
-      border: 1px solid #dbeafe;
-      border-radius: 10px;
-      padding: 12px 14px;
-      box-shadow: 0 3px 12px rgba(2, 6, 23, 0.05);
-    }
-    .possession-callout[hidden] {
-      display: none;
-    }
-    .possession-layout {
-      display: grid;
-      grid-template-columns: 230px 1fr 1.1fr 1fr;
-      gap: 12px;
-      margin-top: 10px;
-    }
-    .possession-pane {
-      background: #ffffff;
-      border: 1px solid #e2e8f0;
-      border-radius: 10px;
-      padding: 10px;
-      min-height: 230px;
-    }
-    .possession-pane h4 {
-      margin: 0 0 8px;
-      font-size: 13px;
-      color: #0f172a;
-    }
-    .possession-toolbar {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 8px;
-      flex-wrap: wrap;
-    }
-    .possession-toolbar button,
-    .possession-actions-row button {
-      border: 1px solid #cbd5e1;
-      background: #eff6ff;
-      border-radius: 8px;
-      padding: 6px 9px;
-      font-weight: 700;
-      cursor: pointer;
-    }
-    .possession-actions-row .danger {
-      background: #fee2e2;
-      border-color: #fca5a5;
-      color: #991b1b;
-    }
-    .possession-item {
-      width: 100%;
-      text-align: left;
-      border: 1px solid #cbd5e1;
-      background: #fff;
-      border-radius: 8px;
-      padding: 8px;
-      margin-bottom: 6px;
-      cursor: pointer;
-    }
-    .possession-item.active {
-      border-color: #2563eb;
-      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
-      background: #eff6ff;
-    }
-    .possession-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 8px;
-      margin-bottom: 8px;
-    }
-    .possession-grid label {
-      display: flex;
-      flex-direction: column;
-      font-size: 12px;
-      font-weight: 700;
-      color: #334155;
-      gap: 4px;
-    }
-    .possession-grid input,
-    .possession-grid select,
-    #possessionMstSearch {
-      width: 100%;
-      border: 1px solid #cbd5e1;
-      border-radius: 8px;
-      padding: 6px;
-      box-sizing: border-box;
-      font-size: 12px;
-    }
-    .possession-actions-row {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 8px;
-      flex-wrap: wrap;
-    }
-    .possession-calendar {
-      border: 1px solid #dbeafe;
-      border-radius: 10px;
-      background: #fff;
-      padding: 8px;
-      min-height: 320px;
-    }
-    .possession-calendar .fc .fc-toolbar-title {
-      font-size: 14px;
-    }
-    .possession-calendar-controls {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      margin-bottom: 8px;
-    }
-    .possession-modal-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(15, 23, 42, 0.55);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 2500;
-      padding: 16px;
-    }
-    .possession-modal-overlay.active {
-      display: flex;
-    }
-    .possession-modal {
-      width: min(560px, 100%);
-      background: #fff;
-      border-radius: 12px;
-      padding: 16px;
-      box-shadow: 0 12px 30px rgba(2, 6, 23, 0.28);
-    }
-    .possession-modal h3 {
-      margin: 0 0 10px;
-    }
-    .possession-modal-actions {
-      margin-top: 10px;
-      display: flex;
-      justify-content: flex-end;
-      gap: 8px;
-    }
-    .possession-drop-zone {
-      border: 2px dashed #93c5fd;
-      border-radius: 10px;
-      text-align: center;
-      padding: 14px;
-      color: #1e3a8a;
-      font-weight: 700;
-      background: #eff6ff;
-      margin-bottom: 8px;
-    }
-    .possession-drop-zone.is-over {
-      background: #dbeafe;
-    }
-    .possession-mst-chip,
-    .possession-group-chip {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 8px;
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
-      padding: 7px;
-      margin-bottom: 6px;
-      background: #fff;
-      font-size: 12px;
-    }
-    .possession-mst-chip {
-      cursor: grab;
-      flex-direction: column;
-      align-items: flex-start;
-    }
-    .possession-mst-chip.muted {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-    .possession-mst-list,
-    #unassignedMstList,
-    #possessionList {
-      max-height: 300px;
-      overflow: auto;
-    }
-    .possession-group-chip button {
-      border: 1px solid #fecaca;
-      background: #fff1f2;
-      color: #9f1239;
-      border-radius: 6px;
-      padding: 4px 8px;
-      cursor: pointer;
-      font-size: 11px;
-      font-weight: 700;
-    }
-    .possession-helper-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 8px;
-      gap: 8px;
-      font-size: 12px;
-      color: #475569;
-    }
-    @media (max-width: 1200px) {
-      .possession-layout {
-        grid-template-columns: 1fr;
-      }
-    }
     .obsolete-record-indicator {
       display: none;
       margin: 10px 0 2px;
@@ -996,6 +781,7 @@
       display: block;
     }
   </style>
+  <link href="libs/mst-professional.css" rel="stylesheet" />
 </head>
 <body>
   <!-- =========================
@@ -1005,6 +791,7 @@
     <h2>MST Details</h2>
     <div id="tvActions" class="tv-actions">
       <div id="tvAppliedLabel" class="tv-applied-label">TV Applied</div>
+      <div id="mstWorkOrderStatus" class="mst-work-order-status" role="status" aria-live="polite" hidden></div>
       <div class="tv-buttons">
         <button id="applyTvBtn" class="tv-btn" type="button">Apply TV</button>
         <button id="editTvBtn" class="tv-btn" type="button">Edit TV</button>
@@ -1086,7 +873,7 @@
 	  
         <div class="field-block">
           <label for="freqInput">Frequency (days)</label>
-          <input type="number" id="freqInput" min="0" />
+          <input type="number" id="freqInput" min="1" step="1" />
         </div>
 
         <div class="field-block">
@@ -1099,13 +886,15 @@
 
       <div class="field-block">
         <label for="wgInput">Work Group Code</label>
-        <input type="text" id="wgInput" required pattern=".{7}" title="Work Group Code must be exactly 7 characters long." />
+        <input type="text" id="wgInput" maxlength="7" required pattern=".{7}" title="Work Group Code must be exactly 7 characters long." />
       </div>
 
       <div class="field-block">
         <label for="jobDescCodeInput">Job Description Code</label>
         <select id="jobDescCodeInput" style="width:100%;"></select>
       </div>
+
+      <div id="mstSchedulingAdvisory" class="mst-scheduling-advisory" role="status" aria-live="polite" hidden></div>
 
       <div class="section-title">Requirements</div>
 
@@ -1251,7 +1040,7 @@
 		
       </div>
       <div id="filterPanelFooter">
-        <button id="applyFiltersBtn">Apply</button>
+        <button id="applyFiltersBtn">Done</button>
         <button id="resetFiltersBtn">Reset</button>
       </div>
     </aside>
@@ -1295,6 +1084,7 @@
               <li>📤 <strong>Upload</strong> the MST download using the file picker below.</li>
             <li><span style="color:#10b981;font-weight:bold;">🟩 Green</span> = current MST — click to view or edit details.</li>
             <li><span style="color:#60a5fa;font-weight:bold;">🟦 Blue</span> = MST with a Temporary Variation (TV) applied.</li>
+            <li><span class="mst-wo-badge">WO: 2</span> and a muted red border = open work orders recorded in the download. Check current status in Ellipse before changing dates or frequency.</li>
             <li><span style="color:#a78bfa;font-weight:bold;">🟪 Purple</span> = future scheduled instances (based on frequency).</li>
             <li>➡️ <strong>Drag</strong> the green MST to reschedule — all purple future instances will update automatically.</li>
             <li>💾 When finished, click <strong>Export MST Changes</strong> to save your amendments.</li>
@@ -1334,12 +1124,11 @@
 
     <div id="controls" class="action-bar">
       <div class="action-buttons">
-        <button id="resetAllBtn" style="background:#ef4444; color:white;">Reset All Changes</button>
+        <button id="newMSTBtn" class="primary-action-btn">+ New MST</button>
         <button id="openFilterBtn">⚙️ Filters</button>
         <button id="openGotoBtn" class="primary-action-btn">Go to MST</button>
         <button id="openBulkUpdateBtn" class="primary-action-btn">Bulk Update</button>
         <button id="openResourceBtn" class="primary-action-btn">Planned Hours Graph</button>
-        <button id="newMSTBtn" class="primary-action-btn">+ New MST</button>
       </div>
       <div class="action-meta">
         <div class="event-row-config">
@@ -1368,6 +1157,9 @@
     </div>
 
     <div id="calendarEl"></div>
+    <div class="calendar-footer-actions">
+      <button id="resetAllBtn" type="button">Reset All Changes</button>
+    </div>
     <div id="mstErrorSummary" class="error-summary">
       <div><strong>MST error checks:</strong></div>
       <div>Upload your MST file and choose a Work Group set to see flagged counts.</div>
@@ -1578,66 +1370,6 @@ WHERE
       </details>
     </div>
 
-    <div class="possession-entry">
-      <button id="openPossessionPageBtn" type="button">Open possession page</button>
-    </div>
-
-    <div class="possession-callout" id="possessionAlignment" hidden>
-      <h3>Possession page</h3>
-      <p>Manage possessions separately from SQL, assign MSTs, and review each possession on its own calendar.</p>
-      <div class="possession-layout">
-        <div class="possession-pane">
-          <h4>Possessions</h4>
-          <div class="possession-toolbar">
-            <button id="addPossessionBtn" type="button">+ Create possession</button>
-            <button id="refreshPossessionBtn" type="button">↻ Refresh</button>
-            <button id="closePossessionPageBtn" type="button">Close page</button>
-          </div>
-          <div id="possessionList"></div>
-        </div>
-        <div class="possession-pane">
-          <h4>Selected possession</h4>
-          <div id="possessionEditor"></div>
-        </div>
-        <div class="possession-pane">
-          <h4>Possession calendar</h4>
-          <div class="possession-calendar-controls">
-            <label for="possessionCalendarSelect">Choose possession</label>
-            <select id="possessionCalendarSelect"></select>
-          </div>
-          <div id="possessionCalendar" class="possession-calendar"></div>
-        </div>
-        <div class="possession-pane">
-          <h4>Ungrouped MSTs (drag onto possession)</h4>
-          <div class="possession-helper-row">
-            <input id="possessionMstSearch" type="text" placeholder="Filter MSTs" />
-            <span id="unassignedMstCount">0 unassigned MSTs</span>
-          </div>
-          <div id="unassignedMstList"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div id="possessionModalOverlay" class="possession-modal-overlay" role="dialog" aria-modal="true" aria-label="Create possession">
-    <div class="possession-modal">
-      <h3>Create possession</h3>
-      <div class="possession-grid">
-        <label>Possession ID<input id="newPossessionIdInput" type="text" placeholder="e.g. POS-001" /></label>
-        <label>Possession description<input id="newPossessionDescriptionInput" type="text" placeholder="e.g. Weekend North Section" /></label>
-        <label>Type
-          <select id="newPossessionTypeInput">
-            <option value="weekend">Weekend (Saturday night)</option>
-            <option value="midweek">Midweek (4 nights)</option>
-            <option value="custom">Custom</option>
-          </select>
-        </label>
-      </div>
-      <div class="possession-modal-actions">
-        <button id="cancelCreatePossessionBtn" type="button">Cancel</button>
-        <button id="confirmCreatePossessionBtn" type="button">Create</button>
-      </div>
-    </div>
   </div>
 
 <div id="tourOverlay" class="tour-overlay"></div>
@@ -1662,6 +1394,8 @@ WHERE
       <tbody id="exportReviewBody"></tbody>
     </table>
     <div class="review-footer">
+      <button id="exportReviewPrevious" type="button">Previous page</button>
+      <button id="exportReviewNext" type="button">Next page</button>
       <button id="closeExportReviewBtn" class="onboarding-btn" type="button">Cancel</button>
       <button id="proceedExportReviewBtn" type="button">Proceed to Export</button>
     </div>
@@ -1704,6 +1438,7 @@ WHERE
                 <th>MST Description 2</th>
                 <th>Frequency</th>
                 <th>Last Scheduled Date</th>
+                <th>Open work orders (snapshot)</th>
               </tr>
             </thead>
             <tbody id="bulkListBody"></tbody>
@@ -1751,6 +1486,7 @@ WHERE
                 <th>Protection Type</th>
                 <th>Protection Method</th>
                 <th>Allow Multiple</th>
+                <th>Open work orders (snapshot)</th>
               </tr>
             </thead>
             <tbody id="bulkEditBody"></tbody>
@@ -1886,7 +1622,7 @@ WHERE
   <span class="label-title">
     WorkGroup <span class="required-star">*</span>
   </span>
-    <input id="newWorkGroup" required pattern=".{7}" title="Work Group Code must be exactly 7 characters long." />
+    <input id="newWorkGroup" maxlength="7" required pattern=".{7}" title="Work Group Code must be exactly 7 characters long." />
         </label>
   <!-- Row 3 -->
    <label>
@@ -2163,7 +1899,7 @@ WHERE
 ======================================================= -->
 <div id="wgSelectModal" style="
   display:none; position:fixed; inset:0;
-  background:rgba(0,0,0,0.55); z-index:99999;
+  background:var(--mst-import-backdrop); z-index:99999;
   justify-content:center; align-items:center; pointer-events:auto;">
   
   <div style="
@@ -2199,7 +1935,7 @@ Hold <strong>Ctrl</strong> (or <strong>Cmd</strong> on Mac) to select multiple
 ======================================================= -->
 <div id="initialFilterModal" style="
   display:none; position:fixed; inset:0;
-  background:rgba(0,0,0,0.55); z-index:99999;
+  background:var(--mst-import-backdrop); z-index:99999;
   justify-content:center; align-items:center; pointer-events:auto;">
 
   <div style="
@@ -2266,7 +2002,7 @@ Hold <strong>Ctrl</strong> (or <strong>Cmd</strong> on Mac) to select multiple
   display:none;
   position:fixed;
   inset:0;
-  background:rgba(15,23,42,0.6);
+  background:var(--mst-import-backdrop);
   z-index:10020;
   align-items:center;
   justify-content:center;
@@ -2374,7 +2110,6 @@ Hold <strong>Ctrl</strong> (or <strong>Cmd</strong> on Mac) to select multiple
   <script src="libs/Resources.js"></script>
   <script src="libs/MST-views.js"></script>
   <script src="libs/mst-onboarding.js"></script>
-  <script src="libs/mst-possession.js"></script>
   <script>
     /******************************************************************
      * STATE

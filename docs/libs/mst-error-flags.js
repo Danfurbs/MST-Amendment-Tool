@@ -33,6 +33,14 @@ window.MST.ErrorFlags = (function() {
   // ----- Core rule registry ---------------------------------------------
   const rules = [
     {
+      id: "InvalidFrequency",
+      description: "Frequency must be a whole number greater than zero.",
+      evaluate(row) {
+        const value = Number(row?.["MST Frequency"] ?? row?.Frequency ?? row?.frequency);
+        return !Number.isSafeInteger(value) || value <= 0;
+      }
+    },
+    {
       id: "FutureLSD",
       description: "Last Scheduled Date falls in the future.",
       evaluate(row) {

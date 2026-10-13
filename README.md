@@ -21,3 +21,11 @@ Static client for viewing and editing MST calendars. The site is now prepared fo
 ## Planner how-to
 
 See [MST Amendment Tool: Planner How-To](HOW_TO_PLANNERS.md) for a concise guide to using the calendar, exporting amendments, and troubleshooting common issues.
+
+## Checks
+
+Run `node --test tests/*.test.js` from the repository root. Tests cover advisory date boundaries, editor confirmation, export review and workbook round-trip, unsaved-work protection, frequency rebuilding and MST validation. UI tests use a simulated DOM; a browser check is still required to validate appearance and interaction on supported browsers.
+
+## Bundled spreadsheet reader
+
+The application loads the local SheetJS 0.20.3 bundle at `docs/libs/xlsx.full.min.js`, replacing the runtime CDN request. Source: https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js. The downloaded file's SHA-256 is `CC015130AA8521E7F088F88898EBA949CCDCBFB38DF0BD129B44B7273C3A6F41` (before any Git line-ending conversion).

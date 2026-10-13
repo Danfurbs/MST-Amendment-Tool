@@ -1,0 +1,28 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const elements = new Map();
+const get = id => {
+  if (!elements.has(id)) elements.set(id, { style: {}, classList: { add() {}, remove() {}, contains: () => true }, addEventListener(name, fn) { this[name] = fn; }, getContext: () => ({}) });
+  return elements.get(id);
+};
+const now = new Date(); now.setHours(9,0,0,0);
+const base = { id: 'M1_0', start: now, extendedProps: { mstId: 'M1', instance: 0, resourceHours: 99, unitsRequired: 3 } };
+const future = { id: 'M1_1', start: now };
+let chart;
+const window = { calendar: { getEvents: () => [base] }, virtualInstanceStore: { M1: [future] }, originalProps: { M1: { 'Norm Time': 2 } }, MST: { Utils: { addDays(d, n) { const out = new Date(d); out.setDate(out.getDate()+n); return out; } } } };
+const context = { window, MST: window.MST, document: { getElementById: get, addEventListener() {} }, console, Date, Chart: class { constructor(ctx, config) { Object.assign(this, config); chart = this; } update() {} } };
+vm.runInNewContext(fs.readFileSync('docs/libs/Resources.js', 'utf8'), context);
+get('openResourceBtn').click();
+assert.equal(chart.data.datasets[0].data.reduce((a,b)=>a+b,0), 12, 'include unmounted future instance and current units');
+window.calendar.getEvents = () => [base, { ...future, extendedProps: base.extendedProps }];
+window.MST.Resources.refreshChart();
+assert.equal(chart.data.datasets[0].data.reduce((a,b)=>a+b,0), 12, 'do not double count mounted instances');
+const before = chart.options.plugins.tooltip.callbacks.title([{dataIndex:0}]);
+get('nextWindowBtn').click();
+assert.notEqual(chart.options.plugins.tooltip.callbacks.title([{dataIndex:0}]), before, 'tooltip follows navigation');
+get('prevWindowBtn').click();
+base.extendedProps.isDeactivated = true;
+window.MST.Resources.refreshChart();
+assert.equal(chart.data.datasets[0].data.reduce((a,b)=>a+b,0), 0, 'exclude deactivated work');
+console.log('Resource graph lazy instances, hours, deactivation and navigation passed');

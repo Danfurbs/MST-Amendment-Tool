@@ -2,12 +2,55 @@
 /*                             GLOBAL BASE STYLING                            */
 /* ========================================================================== */
 
+:root { --mst-import-backdrop: rgba(0, 0, 0, 0.55); }
+
 body {
   font-family: Arial, sans-serif;
   margin: 0;
   padding: 0;
   display: flex;
 }
+
+/* Scheduling advisories stay within the existing editor layout. */
+.mst-scheduling-advisory {
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid #d6ad58;
+  border-radius: 6px;
+  background: #fff8e6;
+  color: #624514;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.mst-scheduling-advisory[hidden] { display: none; }
+.mst-scheduling-advisory p { margin: 8px 0 0; }
+.mst-advisory-dialog {
+  width: min(680px, calc(100vw - 32px));
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+  padding: 22px;
+  border: 1px solid #a7b0ba;
+  border-radius: 9px;
+  color: #243447;
+  background: #fff;
+  font: 14px/1.45 Arial, sans-serif;
+}
+.mst-advisory-dialog::backdrop { background: rgb(15 23 42 / 48%); }
+.mst-advisory-dialog h2 { font-size: 20px; margin-top: 0; }
+.mst-advisory-copy { padding: 12px; background: #fff8e6; color: #624514; border-left: 3px solid #d6ad58; }
+.mst-advisory-copy p { margin: 8px 0 0; }
+.mst-advisory-caption { min-height: 40px; }
+.mst-advisory-timeline svg { display: block; width: 100%; }
+.mst-advisory-timeline text { font: 12px Arial, sans-serif; fill: #243447; }
+.mst-timeline-track { stroke: #ccd2d9; stroke-width: 1; }
+.mst-timeline-today { stroke: #536475; stroke-width: 1; stroke-dasharray: 4 4; }
+.mst-timeline-base { fill: #536475; }
+.mst-timeline-due { fill: #25638e; }
+.mst-timeline-limit { fill: #a96613; }
+.mst-advisory-animation-controls, .mst-advisory-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.mst-advisory-dialog button { margin: 0; border: 1px solid #9eabb8; border-radius: 5px; background: #fff; color: #243447; }
+.mst-advisory-dialog button:focus-visible { outline: 3px solid #25638e; outline-offset: 2px; }
+.mst-advisory-actions [data-proceed] { background: #243e55; color: #fff; }
 
 /* General input/button styles */
 input, button {
@@ -1148,7 +1191,7 @@ input, button {
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.75);
+  background: var(--mst-import-backdrop);
   z-index: 200000;
   justify-content: center;
   align-items: center;

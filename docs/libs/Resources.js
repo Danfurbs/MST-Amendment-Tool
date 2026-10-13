@@ -110,17 +110,34 @@
     return weekStartDate.getTime() < currentWeekStart.getTime();
   }
 
+  const dateKey = d => [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-');
+
+  // Include lazy instances even when their dates are outside the calendar view.
+  function graphEvents() {
+    const mounted = window.calendar ? window.calendar.getEvents() : [];
+    const events = new Map(mounted.map(ev => [ev.id, ev]));
+    const bases = new Map(mounted.filter(ev => Number(ev.extendedProps?.instance) === 0).map(ev => [ev.extendedProps.mstId, ev]));
+    Object.entries(window.virtualInstanceStore || {}).forEach(([mstId, instances]) => {
+      const base = bases.get(mstId);
+      if (!base) return;
+      instances.forEach(inst => {
+        if (!events.has(inst.id)) events.set(inst.id, { id: inst.id, start: inst.start, extendedProps: base.extendedProps });
+      });
+    });
+    return [...events.values()];
+  }
+
   // Main data bucketing function
   function bucketResourceHours(windowStart, days = 42) {
     const windowEnd = MST.Utils.addDays(windowStart, days);
-    const events = window.calendar ? window.calendar.getEvents() : [];
+    const events = graphEvents();
     const hoursByWeekKey = new Map(); // key: ISO date of Monday
     const eventsByWeekKey = new Map(); // track event count per week
 
     // Initialize 6 weeks
     for (let k = 0; k < 6; k++) {
       const wkStart = MST.Utils.addDays(startOfWeek(windowStart), k * 7);
-      const key = wkStart.toISOString().slice(0, 10);
+      const key = dateKey(wkStart);
       hoursByWeekKey.set(key, 0);
       eventsByWeekKey.set(key, 0);
     }
@@ -128,14 +145,19 @@
     // Aggregate hours from events
     events.forEach((ev) => {
       const p = ev.extendedProps || {};
-      const h = parseFloat(p.resourceHours || 0);
-      if (!h || !ev.start) return;
+      if (p.isDeactivated || String(p.schedIndicator) === '9') return;
+      const original = window.originalProps?.[p.mstId] || {};
+      const norm = original['Norm Time'];
+      const h = norm !== undefined && norm !== '' && norm !== null
+        ? Number(norm) * Number(p.unitsRequired ?? original['Units Required'] ?? 1)
+        : Number(p.resourceHours || 0);
+      if (!Number.isFinite(h) || h <= 0 || !ev.start) return;
 
       const d = startOfDay(ev.start);
       if (d < windowStart || d >= windowEnd) return;
 
       const wkStart = startOfWeek(d);
-      const key = wkStart.toISOString().slice(0, 10);
+      const key = dateKey(wkStart);
       if (hoursByWeekKey.has(key)) {
         hoursByWeekKey.set(key, hoursByWeekKey.get(key) + h);
         eventsByWeekKey.set(key, eventsByWeekKey.get(key) + 1);
@@ -154,7 +176,7 @@
     const eventCounts = keys.map((k) => eventsByWeekKey.get(k));
 
     // Determine colors based on week status
-    const currentWeekKey = startOfWeek(new Date()).toISOString().slice(0, 10);
+    const currentWeekKey = dateKey(startOfWeek(new Date()));
     const backgroundColors = keys.map((k) => {
       if (k === currentWeekKey) return 'rgba(34, 197, 94, 0.85)'; // Current week - green
       if (k < currentWeekKey) return 'rgba(148, 163, 184, 0.6)'; // Past weeks - muted gray
@@ -246,6 +268,11 @@
         const idx = ctx.dataIndex;
         const count = eventCounts[idx] || 0;
         return `${count} MST event${count !== 1 ? 's' : ''}`;
+      };
+      resourceChart.options.plugins.tooltip.callbacks.title = items => {
+        if (!items.length) return '';
+        const d = new Date(result.weekKeys[items[0].dataIndex] + 'T00:00:00');
+        return 'Week: ' + formatShort(d) + ' - ' + formatShort(MST.Utils.addDays(d, 6));
       };
       resourceChart.update();
       return;

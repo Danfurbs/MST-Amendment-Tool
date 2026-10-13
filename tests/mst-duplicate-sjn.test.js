@@ -3,8 +3,8 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 
-const editorSource = fs.readFileSync(path.join(__dirname, "../docs/libs/mst-editor-logic.js"), "utf8");
-const uploadSource = fs.readFileSync(path.join(__dirname, "../docs/libs/FileUpload.js"), "utf8");
+const editorSource = fs.readFileSync(path.join(__dirname, "../docs/libs/mst-editor-logic.js"), "utf8").replace(/\r\n/g, "\n");
+const uploadSource = fs.readFileSync(path.join(__dirname, "../docs/libs/FileUpload.js"), "utf8").replace(/\r\n/g, "\n");
 const events = new Map();
 const schedules = {};
 const original = { id: "000017280490_9666_0", extendedProps: { mstId: "000017280490_9666", instance: 0 } };
@@ -64,7 +64,7 @@ assert.equal(Editor.buildNewMstPayload({ ...input, wgCode: " WG12345 " }).data.w
 
 // Bulk creation validates all rows before adding any calendar events.
 const firstPayload = Editor.buildNewMstPayload(input);
-const secondPayload = Editor.buildNewMstPayload({ ...input, desc2: "Second", freq: "14" });
+const secondPayload = Editor.buildNewMstPayload({ ...input, desc2: "Second", freq: "14", segFrom: 0, segTo: '' });
 assert.equal(firstPayload.ok, true, "an existing equipment/SJN must not block creation");
 assert.equal(secondPayload.ok, true);
 assert.equal(firstPayload.data.mstId, secondPayload.data.mstId);
@@ -83,6 +83,9 @@ assert.equal(exported[0]["Std Job No"], input.stdJobNo);
 assert.equal(exported[1]["Std Job No"], input.stdJobNo);
 assert.equal(exported[0]["MST Desc 2"], "First");
 assert.equal(exported[1]["MST Desc 2"], "Second");
+assert.equal(exported[0]['Segment From'], '');
+assert.equal(exported[1]['Segment From'], '0');
+assert.equal(exported[1]['Segment To'], '');
 
 // Session export already stores created MSTs by ID. Restore those keys verbatim.
 const saved = JSON.parse(JSON.stringify(windowMock.createdMSTs));
@@ -98,6 +101,8 @@ assert.equal(events.size, 3, "reopening must restore both MSTs alongside the ori
 assert.equal(events.get(`${first.mstId}_0`).extendedProps.desc2, "First");
 assert.equal(events.get(`${second.mstId}_0`).extendedProps.desc2, "Second");
 assert.equal(events.get(`${second.mstId}_0`).extendedProps.frequency, 14);
+assert.equal(events.get(`${second.mstId}_0`).extendedProps.segFrom, '0');
+assert.equal(events.get(`${second.mstId}_0`).extendedProps.segTo, '');
 vm.runInContext("hydrateCreatedMstFromSession(saved)", context);
 assert.equal(events.size, 3, "reapplying the same batch must not duplicate its rows");
 

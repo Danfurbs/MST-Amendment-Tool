@@ -1,0 +1,4 @@
+CONCAT,Equipment Number,MST Task Number,MST Frequency,Last Scheduled Date,Last Performed Date,MST Description 1,MST Description 2,Equipment Description 1,Standard Job Number,Work Group Code,Job Description Code,Units Required,Download Date,Open Work Order Count,TV Reference,TV Expiry Date,Work Group Set Code,Work Group Set Description
+DEMO_010,DEMO,010,14,2026-10-09,2026-10-09,Inspect,Example,Demo asset,123456,WGDEMO1,R1,1,2026-10-09,2,TV-DEMO,2026-12-31,DEMO,Demo Work Group Set
+CLEAR_020,CLEAR,020,14,2026-10-10,2026-10-09,Inspect,Clear snapshot,Clear asset,123456,WGDEMO1,R1,1,2026-10-09,0,,,DEMO,Demo Work Group Set
+UNKNOWN_030,UNKNOWN,030,14,2026-10-11,2026-10-09,Inspect,Unknown snapshot,Unknown asset,123456,WGDEMO1,R1,1,2026-10-09,,,,DEMO,Demo Work Group Set

@@ -4,6 +4,7 @@
    =========================================================== */
 const U = MST.Utils;
 
+let pendingCalendarDrop = false;
 const MAX_DESC2_LENGTH = 45;
 const clampDesc2 = (value = "") => value.toString().slice(0, MAX_DESC2_LENGTH);
 const EVENT_ROW_LAYOUT_STORAGE_KEY = "mstEventRowLayout";
@@ -353,9 +354,7 @@ const normalizeMileageForTransfer = (val) => {
   const str = val.toString().trim();
   if (!str) return "";
 
-  // During identity swaps, preserve blank mileage fields instead of injecting zeros.
-  if ((typeof val === "number" && val === 0) || str === "0.0000") return "";
-
+  // Zero is a valid mileage; only an absent or empty value is blank.
   return formatMileageValue(str);
 };
 
@@ -1113,6 +1112,7 @@ window.MST.Editor.resetAllChanges = function() {
   window.virtualInstanceStore = {};
   window.renderedInstanceIds = new Set();
   window.selectedMstId = null;
+  MST.WorkOrders?.refresh(null);
   // Clear new MST tracking
   window.createdMSTs = {};
   const newMstCountEl = document.getElementById("newMstCount");
@@ -1362,7 +1362,7 @@ window.MST.Editor.buildBulkCreateRow = function(rowIndex) {
     <td><input data-col="stdJobNo" /></td>
     <td><input data-col="desc1" readonly tabindex="-1" /></td>
     <td><input data-col="desc2" maxlength="45" /></td>
-    <td><input data-col="wgCode" required pattern=".{7}" title="Work Group Code must be exactly 7 characters long." /></td>
+    <td><input data-col="wgCode" maxlength="7" required pattern=".{7}" title="Work Group Code must be exactly 7 characters long." /></td>
     <td><select data-col="jobDescCode"></select></td>
     <td><input data-col="freq" type="number" min="1" /></td>
     <td><input data-col="nextDateStr" type="date" min="${todayIso}" /></td>
@@ -1624,6 +1624,9 @@ window.MST.Editor.applyBulkCreateMSTs = function() {
       }
     },
 
+eventClassNames: function(arg) {
+  return MST.WorkOrders?.count(arg.event.extendedProps.mstId, arg.event.extendedProps) > 0 ? ['has-open-work-orders'] : [];
+},
 eventContent: function(arg) {
   const ev = arg.event;
   const props = ev.extendedProps;
@@ -1646,6 +1649,7 @@ eventContent: function(arg) {
   return {
     html: `
       <div class="event-icon ${statusClass}">${statusIcon}</div>
+      ${MST.WorkOrders?.count(mstId, props) > 0 ? `<span class="mst-wo-badge" title="Open work orders at download">WO: ${MST.WorkOrders.count(mstId, props)}</span>` : ''}
       ${topRowText ? `<div class="event-equip">${topRowText}</div>` : ""}
       ${bottomRowText ? `<div class="event-desc">${bottomRowText}</div>` : ""}
     `
@@ -1697,6 +1701,7 @@ eventContent: function(arg) {
     },
 
     eventAllow(dropInfo, draggedEvent) {
+      if (pendingCalendarDrop) return false;
       showDragPreview(
         draggedEvent,
         dropInfo?.start ? new Date(dropInfo.start) : draggedEvent?.start,
@@ -1748,6 +1753,7 @@ eventContent: function(arg) {
     },
 
     eventDrop(info) {
+      if (pendingCalendarDrop) { info.revert(); return; }
       const ev = info.event;
       const instanceIndex = Number(ev.extendedProps.instance);
 
@@ -1761,70 +1767,79 @@ eventContent: function(arg) {
         return;
       }
 
-      // Show drag confirmation modal
+      const mstId = ev.extendedProps.mstId;
+      const baseEvent = window.calendar?.getEventById(mstId + '_0');
+      const frequency = Number(baseEvent?.extendedProps?.frequency || ev.extendedProps.frequency || 0);
+      const proposedBaseDate = getEffectiveBaseDateForDrop(
+        { extendedProps: { ...ev.extendedProps, frequency } }, ev.start
+      );
+      // FullCalendar has already moved the event. Recover the original base
+      // date from oldEvent when instance zero was dragged.
+      const previousBaseDate = instanceIndex === 0 ? info.oldEvent?.start : baseEvent?.start;
+      if (!baseEvent || !proposedBaseDate || !normalizeDragDate(previousBaseDate)) {
+        info.revert();
+        return;
+      }
+      const proposal = {
+        before: { lastScheduled: U.dateToInputYYYYMMDD(previousBaseDate) },
+        after: { lastScheduled: U.dateToInputYYYYMMDD(proposedBaseDate) }
+      };
+      pendingCalendarDrop = true;
       const modal = document.getElementById("dragConfirmModal");
-      const mstInfo = document.getElementById("dragConfirmMst");
-      const oldDateEl = document.getElementById("dragOldDate");
-      const newDateEl = document.getElementById("dragNewDate");
-      const oldNextDateEl = document.getElementById("dragOldNextDate");
-      const newNextDateEl = document.getElementById("dragNewNextDate");
       const confirmBtn = document.getElementById("dragConfirmOk");
       const cancelBtn = document.getElementById("dragConfirmCancel");
-
-      if (!modal) {
-        // If modal doesn't exist, proceed without confirmation
-        applyEventDrop(info);
-        return;
-      }
-
-      const mstId = ev.extendedProps.mstId;
-      const desc1 = ev.extendedProps.desc1 || "";
-      const equipDesc = ev.extendedProps.equipmentDesc1 || "";
-
-      mstInfo.textContent = `${equipDesc} — ${desc1}`;
-      oldDateEl.textContent = formatDate(info.oldEvent.start);
-      newDateEl.textContent = formatDate(ev.start);
-
-      const oldImpact = getDragImpactDates(info.oldEvent, info.oldEvent.start);
-      const newImpact = getDragImpactDates(ev, ev.start);
-      if (oldNextDateEl && newNextDateEl) {
-        oldNextDateEl.textContent = oldImpact.nextDue ? formatDate(oldImpact.nextDue) : "Not scheduled";
-        newNextDateEl.textContent = newImpact.nextDue ? formatDate(newImpact.nextDue) : "Not scheduled";
-      }
-
-      modal.classList.add("active");
-      modal.setAttribute("aria-hidden", "false");
-
-      // Handle confirm
-      const handleConfirm = () => {
-        modal.classList.remove("active");
-        modal.setAttribute("aria-hidden", "true");
-        applyEventDrop(info);
-        cleanup();
-      };
-
-      // Handle cancel
-      const handleCancel = () => {
-        modal.classList.remove("active");
-        modal.setAttribute("aria-hidden", "true");
-        info.revert(); // Revert the drag
-        cleanup();
-      };
-
-      // Clean up listeners
+      let answered = false;
       const cleanup = () => {
+        modal?.classList.remove("active");
+        modal?.setAttribute("aria-hidden", "true");
         confirmBtn?.removeEventListener("click", handleConfirm);
         cancelBtn?.removeEventListener("click", handleCancel);
+        document.removeEventListener("keydown", handleKey);
       };
-
-      if (!confirmBtn || !cancelBtn) {
-        applyEventDrop(info);
+      const finish = async (accepted) => {
+        if (answered) return;
+        answered = true;
         cleanup();
+        try {
+          if (!accepted || !await MST.Advisory.confirmChange(mstId, proposal)) {
+            info.revert();
+            return;
+          }
+          applyEventDrop(info);
+        } catch (error) {
+          info.revert();
+          console.error("Unable to confirm MST drag", error);
+          alert("The MST move could not be confirmed. Please retry.");
+        } finally {
+          pendingCalendarDrop = false;
+        }
+      };
+      const handleConfirm = () => { void finish(true); };
+      const handleCancel = () => { void finish(false); };
+      const handleKey = event => {
+        if (event.key === "Escape") { event.preventDefault(); handleCancel(); }
+      };
+      if (!modal || !confirmBtn || !cancelBtn) {
+        handleConfirm();
         return;
       }
-
+      const setText = (id, text) => {
+        const element = document.getElementById(id);
+        if (element) element.textContent = text;
+      };
+      setText("dragConfirmMst", (ev.extendedProps.equipmentDesc1 || "") + " — " + (ev.extendedProps.desc1 || ""));
+      setText("dragOldDate", formatDate(info.oldEvent.start));
+      setText("dragNewDate", formatDate(ev.start));
+      const oldImpact = getDragImpactDates(info.oldEvent, info.oldEvent.start);
+      const newImpact = getDragImpactDates(ev, ev.start);
+      setText("dragOldNextDate", oldImpact.nextDue ? formatDate(oldImpact.nextDue) : "Not scheduled");
+      setText("dragNewNextDate", newImpact.nextDue ? formatDate(newImpact.nextDue) : "Not scheduled");
+      modal.classList.add("active");
+      modal.setAttribute("aria-hidden", "false");
       confirmBtn.addEventListener("click", handleConfirm);
       cancelBtn.addEventListener("click", handleCancel);
+      document.addEventListener("keydown", handleKey);
+      cancelBtn.focus();
     }
   });
 
@@ -1894,6 +1909,9 @@ eventContent: function(arg) {
       if (typeof MST?.Editor?.refreshNextScheduledDisplay === "function") {
         MST.Editor.refreshNextScheduledDisplay();
       }
+      // Programmatic date updates do not fire the editor's input/change events.
+      // Reassess the draft so completion warnings remain even if backlog clears.
+      MST.Advisory?.refresh(mstId);
     }
 
     triggerResourceChartRefresh();
@@ -1946,7 +1964,7 @@ E.storeVirtualInstances = function(mstId, baseDate, freqDays, desc1, desc2, extr
  * Render only the future instances that fall within the visible date range.
  * This is called by FullCalendar's datesSet event.
  */
-E.renderVisibleInstances = function(visibleStart, visibleEnd) {
+E.renderVisibleInstances = function(visibleStart, visibleEnd, initialLoad = false) {
   if (!window.calendar || !window.virtualInstanceStore) return;
 
   const bufferDays = window.MST_VARIABLES?.lazyLoading?.bufferDays || 60;
@@ -1958,6 +1976,10 @@ E.renderVisibleInstances = function(visibleStart, visibleEnd) {
 
   // Track which instances should be visible
   const shouldBeRendered = new Set();
+  const initialEvents = [];
+  // Reuse one filter snapshot instead of rescanning every base event per instance.
+  const displayForEvent = window.MST?.Views?.createEventDisplayResolver?.()
+    || window.MST?.Views?.getFilterDisplayForEvent;
 
   // Iterate through all MSTs' virtual instances
   Object.keys(window.virtualInstanceStore).forEach(mstId => {
@@ -1977,7 +1999,7 @@ E.renderVisibleInstances = function(visibleStart, visibleEnd) {
           const classNames = ["future-event"];
           if (isSelected) classNames.push("mst-selected");
 
-          const ev = window.calendar.addEvent({
+          const eventInput = {
             id: instId,
             title: inst.title,
             start: inst.start,
@@ -1995,9 +2017,17 @@ E.renderVisibleInstances = function(visibleStart, visibleEnd) {
               resourceHours: inst.resourceHours || 0,
               equipmentDesc1: inst.equipmentDesc1 || ""
             }
-          });
+          };
 
-          const filteredDisplay = window.MST?.Views?.getFilterDisplayForEvent?.(ev);
+          if (initialLoad) {
+            const display = displayForEvent?.(eventInput);
+            if (display) eventInput.display = display;
+            initialEvents.push(eventInput);
+            return;
+          }
+          const ev = window.calendar.addEvent(eventInput);
+
+          const filteredDisplay = displayForEvent?.(ev);
           if (filteredDisplay && ev.display !== filteredDisplay) {
             ev.setProp("display", filteredDisplay);
           }
@@ -2013,6 +2043,18 @@ E.renderVisibleInstances = function(visibleStart, visibleEnd) {
       }
     });
   });
+
+  // Import the visible future events in one calendar-store update. Individual
+  // addEvent calls copy FullCalendar's growing event store even inside a render batch.
+  if (initialEvents.length) {
+    window.calendar.addEventSource({ id: 'mst-initial-future-events', events: initialEvents });
+    window.calendar.getEvents().forEach(event => {
+      const props = event.extendedProps;
+      if (!(props.instance > 0) || !shouldBeRendered.has(event.id)) return;
+      window.renderedInstanceIds.add(event.id);
+      (window.futureEventsMap[props.mstId] ||= []).push(event);
+    });
+  }
 
   // Remove instances that are no longer visible
   window.renderedInstanceIds.forEach(instId => {
@@ -2041,10 +2083,29 @@ E.renderVisibleInstances = function(visibleStart, visibleEnd) {
   }
 };
 
-/**
- * Rebuild future instances - updates virtual store and triggers re-render.
- * Uses maxInstances from config instead of hardcoded value.
- */
+// Shared preparation: initial import already has the base event and needs no cleanup.
+E.prepareVirtualInstances = function(mstId, baseDate, freqDays, desc1, desc2, baseEvent) {
+  if (!Number.isSafeInteger(Number(freqDays)) || Number(freqDays) <= 0 || baseEvent?.extendedProps?.isDeactivated) {
+    window.virtualInstanceStore = window.virtualInstanceStore || {};
+    window.virtualInstanceStore[mstId] = [];
+    return;
+  }
+  // Get resource hours and other props from the base event
+  const resourceHours = baseEvent?.extendedProps?.resourceHours || 0;
+  const isNew = !!baseEvent?.extendedProps?.isNew;
+  const equipmentDesc1 = baseEvent?.extendedProps?.equipmentDesc1 || "";
+  const baseExtendedProps = { ...(baseEvent?.extendedProps || {}) };
+
+  // Store all instances in virtual store (memory only)
+  E.storeVirtualInstances(mstId, baseDate, freqDays, desc1, desc2, {
+    resourceHours,
+    isNew,
+    equipmentDesc1,
+    baseExtendedProps
+  });
+};
+
+/** Rebuild an amended schedule, removing stale mounted and unmounted instances. */
 E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
   if (!window.calendar) return;
   if (!window.futureEventsMap) window.futureEventsMap = {};
@@ -2072,20 +2133,8 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
   });
   window.futureEventsMap[mstId] = [];
 
-  // Get resource hours and other props from the base event
-  const baseEvent = window.calendar.getEventById(`${mstId}_0`);
-  const resourceHours = baseEvent?.extendedProps?.resourceHours || 0;
-  const isNew = !!baseEvent?.extendedProps?.isNew;
-  const equipmentDesc1 = baseEvent?.extendedProps?.equipmentDesc1 || "";
-  const baseExtendedProps = { ...(baseEvent?.extendedProps || {}) };
-
-  // Store all instances in virtual store (memory only)
-  E.storeVirtualInstances(mstId, baseDate, freqDays, desc1, desc2, {
-    resourceHours,
-    isNew,
-    equipmentDesc1,
-    baseExtendedProps
-  });
+  E.prepareVirtualInstances(mstId, baseDate, freqDays, desc1, desc2,
+    window.calendar.getEventById(`${mstId}_0`));
 
   // Render only visible instances based on current calendar view
   const view = window.calendar.view;
@@ -2209,6 +2258,7 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
   // Clear selection
   function clearMstSelection() {
     window.selectedMstId = null;
+  MST.WorkOrders?.refresh(null);
     const selectedDayClass = "mst-selected-day";
     if (window.calendar) {
       window.calendar.getEvents().forEach(ev => {
@@ -2400,7 +2450,7 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     updateCharCounter(window.desc2Input, window.desc2Counter);
 
     window.wgInput.value = baseEvent.extendedProps.workGroup || orig["Work Group Code"] || "";
-    window.unitsRequiredInput.value = baseEvent.extendedProps.unitsRequired || orig["Units Required"] || "";
+    window.unitsRequiredInput.value = baseEvent.extendedProps.unitsRequired ?? orig["Units Required"] ?? "";
     const segFromVal = baseEvent.extendedProps.segFrom ?? orig["MST Segment Mileage From"] ?? "";
     const segToVal   = baseEvent.extendedProps.segTo   ?? orig["MST Segment Mileage To"]   ?? "";
 
@@ -2419,9 +2469,9 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     jdSelect.appendChild(new Option("", "", true, false));
 
     const currentJD =
-      baseEvent.extendedProps.jobDescCode ||
-      orig["Job Description Code"] ||
-      orig.jobDescCode || "";
+      baseEvent.extendedProps.jobDescCode ??
+      orig["Job Description Code"] ??
+      orig.jobDescCode ?? "";
 
     JD.forEach(j => {
       const opt = document.createElement("option");
@@ -2442,9 +2492,9 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     ptSelect.innerHTML = "";
     ptSelect.appendChild(new Option("", "", true, false));
     const currentPTRaw =
-      (baseEvent.extendedProps.protType ||
-       orig["Protection Type Code"] ||
-       orig.protType || "");
+      (baseEvent.extendedProps.protType ??
+       orig["Protection Type Code"] ??
+       orig.protType ?? "");
     const currentPT = currentPTRaw
       ? currentPTRaw.toString().padStart(2,"0")
       : "";
@@ -2468,9 +2518,9 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     pmSelect.innerHTML = "";
     pmSelect.appendChild(new Option("", "", true, false));
     const currentPMRaw =
-      (baseEvent.extendedProps.protMethod ||
-       orig["Protection Method Code"] ||
-       orig.protMethod || "");
+      (baseEvent.extendedProps.protMethod ??
+       orig["Protection Method Code"] ??
+       orig.protMethod ?? "");
     const currentPM = currentPMRaw
       ? currentPMRaw.toString().padStart(2,"0")
       : "";
@@ -2499,6 +2549,8 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     window.saveBtn.onclick = () => MST.Editor.saveMSTEdits(mstId);
     window.revertBtn.onclick = () => MST.Editor.revertMST(mstId);
     window.deactivateBtn.onclick = () => MST.Editor.deactivateMST(mstId);
+    MST.SessionGuard?.captureEditor();
+    MST.Advisory?.refresh(mstId);
   };
 
   MST.Editor.applyTvToMst = function(mstId) {
@@ -2614,6 +2666,7 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
   window.virtualInstanceStore = {};
   window.renderedInstanceIds = new Set();
   window.selectedMstId = null;
+  MST.WorkOrders?.refresh(null);
   // Clear new MST tracking
   window.createdMSTs = {};
   const newMstCountEl = document.getElementById("newMstCount");
@@ -2623,7 +2676,10 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
   if (window.loading) window.loading.style.display = "block";
 
   window.calendar.batchRendering(() => {
-    window.calendar.getEvents().forEach(e => e.remove());
+    window.calendar.removeAllEventSources();
+    window.calendar.removeAllEvents();
+    const baseEvents = [];
+    const firstBaseById = new Map();
 
     trimmedRows.forEach(r => {
       let mstId = safeText(r["CONCAT"]);
@@ -2668,8 +2724,9 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
       const hasTvReference = isActiveTv(tvReference, tvExpiryDate);
       const baseColor = hasTvReference ? MST.Utils.TV_COLOR : MST.Utils.BASE_COLOR;
 
+      let baseEvent;
       try {
-        window.calendar.addEvent({
+        baseEvent = {
           id: `${mstId}_0`,
           title: `${desc1} — ${desc2}`,
           start: eventStart,     // ← Correct placement
@@ -2680,6 +2737,7 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
           extendedProps: {
             mstId,
             instance: 0,
+            openWorkOrderCount: MST.WorkOrders?.parseCount(r['Open Work Order Count']) ?? null,
             frequency: freq,
             desc1,
             desc2,
@@ -2707,22 +2765,29 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
             tvExpiryDate,
             hasTvReference
           }
-        });
+        };
+        baseEvents.push(baseEvent);
+        if (!firstBaseById.has(mstId)) firstBaseById.set(mstId, baseEvent);
       } catch (err) {
         console.error("❌ Failed to add MST event; skipping", mstId, err);
         return;
       }
 
-      if (typeof MST.Editor.rebuildFutureInstances === "function") {
-        MST.Editor.rebuildFutureInstances(
+      if (typeof MST.Editor.prepareVirtualInstances === "function") {
+        window.futureEventsMap[mstId] = [];
+        MST.Editor.prepareVirtualInstances(
           mstId,
           baseDate,
           freq,
           desc1,
-          desc2
+          desc2,
+          firstBaseById.get(mstId)
         );
       }
     });
+    if (baseEvents.length) window.calendar.addEventSource({ id: 'mst-base-events', events: baseEvents });
+    const view = window.calendar.view;
+    if (view) MST.Editor.renderVisibleInstances(view.activeStart, view.activeEnd, true);
   });
 
   if (window.loading) window.loading.style.display = "none";
@@ -2781,7 +2846,11 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     const pickValue = (value, fallback) => (value === undefined ? fallback : value);
 
     const rawFreq = pickValue(updates.frequency, props.frequency);
-    const freq = parseInt(rawFreq || "0", 10);
+    const freq = Number(rawFreq);
+    if (!Number.isSafeInteger(freq) || freq <= 0) {
+      alert("Frequency must be a whole number greater than zero.");
+      return null;
+    }
 
     const rawDesc2 = pickValue(updates.desc2, props.desc2);
     const desc2 = clampDesc2((rawDesc2 ?? "").toString().trimEnd());
@@ -2931,47 +3000,10 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     });
   };
 
-  const parseInputDateAtBusinessHour = (value) => {
-    const normalized = U.normalizeDateInput(value || "");
-    if (!normalized) return null;
-
-    const [y, m, d] = normalized.split("-").map(Number);
-    const parsed = new Date(y, m - 1, d);
-    parsed.setHours(9, 0, 0, 0);
-    return parsed;
-  };
-
-  const requiresOverdueSchedulingConfirmation = ({ lastScheduledDate, lastPerformedDate, frequency }) => {
-    const freqDays = Number.parseInt(frequency || "0", 10);
-    if (freqDays <= 0) return true;
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const scheduledBase = parseInputDateAtBusinessHour(lastScheduledDate);
-    if (scheduledBase) {
-      const scheduledDue = U.addDays(scheduledBase, freqDays);
-      scheduledDue.setHours(0, 0, 0, 0);
-      if (scheduledDue < today) {
-        const shouldContinue = confirm("Once this MST is loaded, it will fall straight into backlog. Do you wish to continue?");
-        if (!shouldContinue) return false;
-      }
-    }
-
-    const performedBase = parseInputDateAtBusinessHour(lastPerformedDate);
-    if (performedBase) {
-      const performedDue = U.addDays(performedBase, freqDays);
-      performedDue.setHours(0, 0, 0, 0);
-      if (performedDue < today) {
-        const shouldContinue = confirm("Once this MST is loaded, if this is measured by compliance there may be a compliance issue (Last Performed Date + Frequency). Do you wish to continue?");
-        if (!shouldContinue) return false;
-      }
-    }
-
-    return true;
-  };
-
-  MST.Editor.saveMSTEdits = function(mstId) {
+  MST.Editor.saveMSTEdits = async function(mstId) {
+    if (MST.Editor.savePending) return;
+    MST.Editor.savePending = true;
+    try {
     const segFromInput = window.mileageFromInput;
     const segToInput = window.mileageToInput;
     const readMileageValue = (inputEl) => {
@@ -2982,14 +3014,7 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
     const segFromValue = readMileageValue(segFromInput);
     const segToValue = readMileageValue(segToInput);
 
-    const shouldSave = requiresOverdueSchedulingConfirmation({
-      lastScheduledDate: window.lastDateInput?.value,
-      lastPerformedDate: window.lastDatePerf?.value,
-      frequency: window.freqInput?.value
-    });
-    if (!shouldSave) return;
-
-    const result = applyMstUpdates(mstId, {
+    const updates = {
       lastDate: window.lastDateInput.value,
       frequency: window.freqInput.value,
       desc2: window.desc2Input.value,
@@ -3001,14 +3026,24 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
       protType: window.protTypeInput.value,
       protMethod: window.protMethodInput.value,
       allowMultiple: window.allowMultipleInput?.checked
-    });
+    };
+    const shouldSave = await MST.Advisory.confirmChange(mstId, { after: {
+      lastScheduled: MST.Utils.normalizeDateInput(updates.lastDate), frequency: updates.frequency, jobCode: updates.jobDescCode
+    } });
+    if (!shouldSave) return;
+    const result = applyMstUpdates(mstId, updates);
 
     if (!result) return;
 
     window.mileageFromInput.value = result.formattedSegFrom;
     window.mileageToInput.value = result.formattedSegTo;
+    MST.SessionGuard?.captureEditor();
+    MST.Advisory?.refresh(mstId);
 
     window.MST.Utils.showToast(`Saved ${window.MST.Utils.formatMstToastSubject(result.baseEvent)}.`);
+    } finally {
+      MST.Editor.savePending = false;
+    }
   };
 
 
@@ -3049,6 +3084,7 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
       extendedProps: {
         mstId,
         instance: 0,
+        openWorkOrderCount: MST.WorkOrders?.parseCount(orig['Open Work Order Count']) ?? null,
         frequency: freq,
         equipmentNo: orig["Equipment Number"] || "",
         equipmentDesc1: orig["Equipment Description 1"] || "",
@@ -3088,9 +3124,55 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
   /* ----------------------------------------
      DEACTIVATE MST
      ---------------------------------------- */
-  MST.Editor.deactivateMST = function(mstId) {
-    if (!confirm("Deactivate this MST?")) return;
+  // Used by direct deactivation, identity replacements and batch resume.
+  MST.Editor.stopMstSchedule = function(mstId, baseEvent) {
+    baseEvent.setExtendedProp('workGroup', 'DNXXXXX');
+    baseEvent.setExtendedProp('schedIndicator', '9');
+    baseEvent.setExtendedProp('isDeactivated', true);
+    baseEvent.setProp('editable', false);
+    baseEvent.setProp('backgroundColor', '#000');
+    baseEvent.setProp('borderColor', '#000');
+    baseEvent.setProp('textColor', '#fff');
+    baseEvent.setProp('classNames', ['deactivated-mst']);
+    window.calendar.getEvents().forEach(event => {
+      if (event.extendedProps?.mstId === mstId && Number(event.extendedProps.instance) > 0) event.remove();
+    });
+    if (window.virtualInstanceStore) window.virtualInstanceStore[mstId] = [];
+    if (window.futureEventsMap) window.futureEventsMap[mstId] = [];
+    if (window.renderedInstanceIds) [...window.renderedInstanceIds].forEach(id => {
+      if (id.startsWith(`${mstId}_`)) window.renderedInstanceIds.delete(id);
+    });
+    triggerResourceChartRefresh();
+  };
 
+  MST.Editor.recordDeactivation = function(mstId, baseEvent, orig = {}, extra = {}) {
+    const props = baseEvent.extendedProps;
+    const prior = window.changes[mstId] || E.buildChangeExportRow?.(mstId) || {};
+    E.stopMstSchedule(mstId, baseEvent);
+    if (props.isNew) {
+      // A queued creation has no existing MST to deactivate in Ellipse.
+      delete window.createdMSTs[mstId];
+      delete window.changes[mstId];
+      baseEvent.remove();
+      E.updateNewMstCount();
+    } else {
+      window.changes[mstId] = {
+        ...prior,
+        MST_ID: mstId,
+        Equipment: orig['Equipment Number'] || props.equipmentNo || '',
+        'Task No': orig['MST Task Number'] || props.taskNo || '',
+        'MST Desc 1': orig['MST Description 1'] || props.desc1 || '',
+        Old_Work_Group_Code: orig['Work Group Code'] || '',
+        New_Work_Group_Code: 'DNXXXXX',
+        Old_Scheduling_Indicator_Code: orig['Scheduling Indicator Code'] || '',
+        New_Scheduling_Indicator_Code: '9',
+        ...extra
+      };
+    }
+    window.changeCount.innerText = `Changes: ${Object.keys(window.changes).length}`;
+  };
+
+  MST.Editor.deactivateMST = function(mstId) {
     const baseEvent = window.calendar.getEventById(`${mstId}_0`);
     if (!baseEvent) return;
 
@@ -3099,13 +3181,18 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
       return;
     }
 
-    const orig = window.originalProps[mstId];
+    const isNew = baseEvent.extendedProps.isNew;
+    const question = isNew ? 'Remove this newly created MST from the batch? It has not been created in Ellipse, so no deactivation will be exported.'
+      : MST.WorkOrders?.deactivationMessage(mstId) || 'Deactivate this MST?';
+    if (!confirm(question)) return;
+
+    const orig = window.originalProps[mstId] || {};
     const props = baseEvent.extendedProps;
     const stdJobNo = getStdJobNoForMst(baseEvent, orig || {});
     const abpTracked = isAbpStdJob(stdJobNo);
     let abpCommentary = "";
 
-    if (abpTracked) {
+    if (abpTracked && !isNew) {
       const oldLsd = U.normalizeDateInput(orig?.["Last Scheduled Date"] || orig?.["LSD"] || U.dateToInputYYYYMMDD(baseEvent.start));
       const impactSummary = buildAbpVolumeImpactMessage({
         oldLsd,
@@ -3123,39 +3210,16 @@ E.rebuildFutureInstances = function(mstId, baseDate, freqDays, desc1, desc2) {
       abpCommentary = captured;
     }
 
-    props.workGroup = "DNXXXXX";
-    props.schedIndicator = "9";
-    baseEvent.setExtendedProp("isDeactivated", true);
-    baseEvent.setProp("backgroundColor", "#000");
-    baseEvent.setProp("borderColor", "#000");
-    baseEvent.setProp("textColor", "#fff");
-    baseEvent.setProp("classNames", ["deactivated-mst"]);
+    E.recordDeactivation(mstId, baseEvent, orig, {
+      Std_Job_No: stdJobNo, ABP_Commentary: abpCommentary || props.abpCommentary || '',
+      ABP_Deactivated_On: U.dateToInputYYYYMMDD(new Date())
+    });
+    if (window.editForm) window.editForm.style.display = 'none';
+    if (window.detailsIntro) window.detailsIntro.style.display = 'block';
+    MST.SessionGuard?.clearEditor();
+    MST.Advisory?.refresh(null);
 
-    // Add to changes if not already
-    if (!window.changes[mstId]) {
-      window.changes[mstId] = {
-        MST_ID: mstId,
-        Equipment: orig["Equipment Number"] || props.equipmentNo || "",
-        "Task No": orig["MST Task Number"] || props.taskNo || "",
-        "MST Desc 1": orig["MST Description 1"] || props.desc1 || "",
-        "MST Desc 2": orig["MST Description 2"] || props.desc2 || "",
-        Old_Work_Group_Code: orig["Work Group Code"] || "",
-        New_Work_Group_Code: "DNXXXXX",
-        Old_Scheduling_Indicator_Code: orig["Scheduling Indicator Code"] || "",
-        New_Scheduling_Indicator_Code: "9",
-        Std_Job_No: stdJobNo,
-        ABP_Commentary: abpCommentary,
-        ABP_Deactivated_On: U.dateToInputYYYYMMDD(new Date())
-      };
-    } else if (abpTracked) {
-      window.changes[mstId].ABP_Commentary = abpCommentary;
-      window.changes[mstId].Std_Job_No = stdJobNo;
-      window.changes[mstId].ABP_Deactivated_On = U.dateToInputYYYYMMDD(new Date());
-    }
-
-    window.changeCount.innerText = `Changes: ${Object.keys(window.changes).length}`;
-
-    window.MST.Utils.showToast(`Deactivated ${window.MST.Utils.formatMstToastSubject(baseEvent)}.`);
+    window.MST.Utils.showToast(`${isNew ? "Removed new MST" : "Deactivated"} ${window.MST.Utils.formatMstToastSubject(baseEvent)}.`);
   };
 
 /* ----------------------------------------
@@ -3199,26 +3263,7 @@ MST.Editor.replaceMstIdentity = function (mstId, identityUpdates = {}) {
 
   const preDeactivateWorkGroup = props.workGroup || (orig && orig["Work Group Code"]) || "";
 
-  props.workGroup = "DNXXXXX";
-  props.schedIndicator = "9";
-  baseEvent.setProp("backgroundColor", "#000");
-  baseEvent.setProp("borderColor", "#000");
-  baseEvent.setProp("textColor", "#fff");
-  baseEvent.setProp("classNames", ["deactivated-mst"]);
-
-  if (!window.changes[mstId]) {
-    window.changes[mstId] = {
-      MST_ID: mstId,
-      Equipment: (orig && (orig["Equipment Number"] || orig.equipmentNo)) || props.equipmentNo || "",
-      "Task No": (orig && (orig["MST Task Number"] || orig.taskNo)) || props.taskNo || "",
-      "MST Desc 1": (orig && (orig["MST Description 1"] || orig.desc1)) || props.desc1 || "",
-      "MST Desc 2": (orig && (orig["MST Description 2"] || orig.desc2)) || props.desc2 || "",
-      Old_Work_Group_Code: (orig && orig["Work Group Code"]) || "",
-      New_Work_Group_Code: "DNXXXXX",
-      Old_Scheduling_Indicator_Code: (orig && orig["Scheduling Indicator Code"]) || "",
-      New_Scheduling_Indicator_Code: "9"
-    };
-  }
+  E.recordDeactivation(mstId, baseEvent, orig || {});
 
   const lastDate = new Date(baseEvent.start);
   lastDate.setHours(9, 0, 0, 0);
@@ -3250,7 +3295,7 @@ MST.Editor.replaceMstIdentity = function (mstId, identityUpdates = {}) {
     extendedProps: {
       mstId: newMstId, equipmentNo: nextEquip, equipmentDesc1: equipDesc, taskNo: "", stdJobNo: nextStdJob,
       desc1: newDesc1, desc2, frequency: freq, workGroup: preDeactivateWorkGroup, jobDescCode, unitsRequired: unitsReq,
-      stdJobUom, segFrom, segTo, protType, protMethod, allowMultiple, unitMeasure: stdJobUom, instance: 0, isNew: true,
+      stdJobUom, segFrom, segTo, protType, protMethod, allowMultiple, unitMeasure: stdJobUom, instance: 0, isNew: true, openWorkOrderCount: null,
       tvReference: "", tvExpiryDate: "", hasTvReference: false
     }
   });
@@ -3363,28 +3408,7 @@ MST.Editor.changeEquipment = function () {
     // Capture the current work group before we overwrite it for deactivation
     const preDeactivateWorkGroup = props.workGroup || (orig && orig["Work Group Code"]) || "";
 
-    props.workGroup = "DNXXXXX";
-    props.schedIndicator = "9";
-    baseEvent.setProp("backgroundColor", "#000");
-    baseEvent.setProp("borderColor", "#000");
-    baseEvent.setProp("textColor", "#fff");
-    baseEvent.setProp("classNames", ["deactivated-mst"]);
-
-    if (!window.changes[mstId]) {
-      window.changes[mstId] = {
-        MST_ID: mstId,
-        Equipment: (orig && (orig["Equipment Number"] || orig.equipmentNo)) || props.equipmentNo || "",
-        "Task No": (orig && (orig["MST Task Number"] || orig.taskNo)) || props.taskNo || "",
-        "MST Desc 1": (orig && (orig["MST Description 1"] || orig.desc1)) || props.desc1 || "",
-        "MST Desc 2": (orig && (orig["MST Description 2"] || orig.desc2)) || props.desc2 || "",
-        Old_Work_Group_Code: (orig && orig["Work Group Code"]) || "",
-        New_Work_Group_Code: "DNXXXXX",
-        Old_Scheduling_Indicator_Code: (orig && orig["Scheduling Indicator Code"]) || "",
-        New_Scheduling_Indicator_Code: "9"
-      };
-    }
-    window.changeCount.innerText = `Changes: ${Object.keys(window.changes).length}`;
-
+    E.recordDeactivation(mstId, baseEvent, orig || {});
     // ---- 2. CREATE a new MST on the new equipment with same details ----
     const stdJobNo   = props.stdJobNo || (orig && (orig["Std Job No"] || orig["Standard Job Number"])) || "";
     const desc1      = props.desc1 || (orig && orig["MST Description 1"]) || "";
@@ -3438,7 +3462,7 @@ MST.Editor.changeEquipment = function () {
         allowMultiple,
         unitMeasure: stdJobUom,
         instance: 0,
-        isNew: true,
+        isNew: true, openWorkOrderCount: null,
         tvReference: "",
         tvExpiryDate: "",
         hasTvReference: false
@@ -3615,28 +3639,7 @@ MST.Editor.changeStandardJob = async function () {
   // ---- 1. DEACTIVATE the current MST (same logic as deactivateMST but silent) ----
   const preDeactivateWorkGroup = props.workGroup || (orig && orig["Work Group Code"]) || "";
 
-  props.workGroup = "DNXXXXX";
-  props.schedIndicator = "9";
-  baseEvent.setProp("backgroundColor", "#000");
-  baseEvent.setProp("borderColor", "#000");
-  baseEvent.setProp("textColor", "#fff");
-  baseEvent.setProp("classNames", ["deactivated-mst"]);
-
-  if (!window.changes[mstId]) {
-    window.changes[mstId] = {
-      MST_ID: mstId,
-      Equipment: (orig && (orig["Equipment Number"] || orig.equipmentNo)) || props.equipmentNo || "",
-      "Task No": (orig && (orig["MST Task Number"] || orig.taskNo)) || props.taskNo || "",
-      "MST Desc 1": (orig && (orig["MST Description 1"] || orig.desc1)) || props.desc1 || "",
-      "MST Desc 2": (orig && (orig["MST Description 2"] || orig.desc2)) || props.desc2 || "",
-      Old_Work_Group_Code: (orig && orig["Work Group Code"]) || "",
-      New_Work_Group_Code: "DNXXXXX",
-      Old_Scheduling_Indicator_Code: (orig && orig["Scheduling Indicator Code"]) || "",
-      New_Scheduling_Indicator_Code: "9"
-    };
-  }
-  window.changeCount.innerText = `Changes: ${Object.keys(window.changes).length}`;
-
+  E.recordDeactivation(mstId, baseEvent, orig || {});
   // ---- 2. CREATE a new MST on the same equipment with new Standard Job Number ----
   const lastDate = new Date(baseEvent.start);
   lastDate.setHours(9, 0, 0, 0);
@@ -3671,7 +3674,7 @@ MST.Editor.changeStandardJob = async function () {
       allowMultiple,
       unitMeasure: stdJobUom,
       instance: 0,
-      isNew: true,
+      isNew: true, openWorkOrderCount: null,
       tvReference: "",
       tvExpiryDate: "",
       hasTvReference: false
@@ -3753,15 +3756,18 @@ MST.Editor.buildNewMstPayload = function(input, options = {}) {
   const desc1 = String(input.desc1 || "").trim();
   const desc2 = clampDesc2(String(input.desc2 || "").trim());
   const jobDescCode = String(input.jobDescCode || "").trim();
-  const freq = parseInt(String(input.freq || "").trim(), 10);
+  const freq = Number(input.freq);
+  if (!Number.isSafeInteger(freq) || freq <= 0) {
+    return { ok: false, error: `${rowLabel}: Frequency must be a whole number greater than zero.` };
+  }
   const nextDateStr = String(input.nextDateStr || input.lastDateStr || "").trim();
   const lastDateStr = calculateLastScheduledFromNext(nextDateStr, freq);
   const unitsReq = String(input.unitsReq || "").trim();
   const protType = normalizeProtectionCode(input.protType);
   const protMethod = normalizeProtectionCode(input.protMethod);
   const wgCode = String(input.wgCode || "").trim();
-  const segFrom = String(input.segFrom || "").trim();
-  const segTo = String(input.segTo || "").trim();
+  const segFrom = String(input.segFrom ?? "").trim();
+  const segTo = String(input.segTo ?? "").trim();
   const allowMultiple = normalizeAllowMultipleFlag(input.allowMultiple);
 
   const stdJobUom = (
@@ -3864,7 +3870,7 @@ MST.Editor.createMstFromPayload = function(payload) {
       allowMultiple,
       unitMeasure: stdJobUom,
       instance: 0,
-      isNew: true,
+      isNew: true, openWorkOrderCount: null,
       tvReference: "",
       tvExpiryDate: "",
       hasTvReference: false
@@ -4038,6 +4044,8 @@ MST.Editor.addNewMST = function () {
 
       Old_Work_Group_Code: orig["Work Group Code"] || "",
       New_Work_Group_Code: cur.wg,
+      Old_Scheduling_Indicator_Code: orig["Scheduling Indicator Code"] ?? "",
+      New_Scheduling_Indicator_Code: baseEvent.extendedProps.schedIndicator ?? orig["Scheduling Indicator Code"] ?? "",
 
       Old_Job_Desc_Code: normalizeJobDescCode(orig["Job Description Code"] || ""),
       New_Job_Desc_Code: cur.job,
@@ -4077,14 +4085,15 @@ MST.Editor.addNewMST = function () {
     if (!row) return;
 
     const changed =
+      row.New_Scheduling_Indicator_Code !== row.Old_Scheduling_Indicator_Code ||
       row.New_Frequency != row.Old_Frequency ||
       row.New_Desc2.trimEnd() !== row.Old_Desc2.trimEnd() ||
       row.New_Last_Scheduled_Date !== row.Old_Last_Scheduled_Date ||
       row.New_Work_Group_Code !== row.Old_Work_Group_Code ||
       row.New_Job_Desc_Code !== row.Old_Job_Desc_Code ||
       row.New_Units_Required != row.Old_Units_Required ||
-      row.New_Segment_From != row.Old_Segment_From ||
-      row.New_Segment_To != row.Old_Segment_To ||
+      row.New_Segment_From !== row.Old_Segment_From ||
+      row.New_Segment_To !== row.Old_Segment_To ||
       row.New_Protection_Type_Code !== row.Old_Protection_Type_Code ||
       row.New_Protection_Method_Code !== row.Old_Protection_Method_Code ||
       row.New_Allow_Multiple_Workorders !== row.Old_Allow_Multiple_Workorders ||

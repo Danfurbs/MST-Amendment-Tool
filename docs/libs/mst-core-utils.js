@@ -142,26 +142,6 @@ window.MST.Utils = {
     const U = MST.Utils || {};
     MST.Utils = U;
 
-    U.populateSelectWithUnique = function(selectEl, rows, columnKey, formatter = (v)=>v) {
-        if (!selectEl) return;
-        selectEl.innerHTML = '<option value="">(All)</option>';
-
-        const uniq = new Set();
-
-        rows.forEach(r => {
-            const raw = (r[columnKey] ?? '').toString().trim();
-            if (!raw) return;
-            uniq.add(raw);
-        });
-
-        [...uniq].sort().forEach(v => {
-            const opt = document.createElement("option");
-            opt.value = v;
-            opt.textContent = formatter(v);
-            selectEl.appendChild(opt);
-        });
-    };
-
     U.formatMstToastSubject = function(source = {}) {
         const props = source?.extendedProps || source || {};
         const desc1 = (

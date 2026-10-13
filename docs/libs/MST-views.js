@@ -1,5 +1,36 @@
 (function initMSTViews() {
+  const htmlText = value => String(value ?? '').replace(/[&<>"']/g, character => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[character]));
   const Utils = (window.MST && window.MST.Utils) || {};
+
+  const normalizeText = value => (value || '').toString().toLowerCase().trim();
+
+  // Highlight matching text in a string
+  function highlightMatch(text, term) {
+    if (!term || !text) return escapeHtml(text || '');
+
+    const normalizedText = text.toLowerCase();
+    const normalizedTerm = term.toLowerCase();
+    const index = normalizedText.indexOf(normalizedTerm);
+
+    if (index === -1) return escapeHtml(text);
+
+    const before = text.substring(0, index);
+    const match = text.substring(index, index + term.length);
+    const after = text.substring(index + term.length);
+
+    return escapeHtml(before) +
+           '<span class="equip-picker-highlight">' + escapeHtml(match) + '</span>' +
+           escapeHtml(after);
+  }
+
+  // Escape HTML to prevent XSS
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
 
   function getEl(id) {
     return document.getElementById(id);
@@ -284,9 +315,11 @@
       updateFilterButtonState();
       applyFilters();
     }));
+    let searchFilterTimer;
     filterSearch?.addEventListener('input', () => {
       updateFilterButtonState();
-      applyFilters();
+      clearTimeout(searchFilterTimer);
+      searchFilterTimer = setTimeout(applyFilters, 180);
     });
 
     updateFilterButtonState();
@@ -297,17 +330,18 @@
     window.MST.Views.resetFilters = resetFilters;
     window.MST.Views.refreshFilterSummary = updateFilterButtonState;
     window.MST.Views.hasActiveFilters = () => hasActiveFilters();
-    window.MST.Views.getFilterDisplayForEvent = (ev) => {
+    window.MST.Views.createEventDisplayResolver = () => {
       const calendar = window.calendar;
       const visibleDisplay = calendar?.getOption('eventDisplay') || 'block';
       const filters = readActiveFilters();
 
-      if (!hasActiveFilters(filters)) return visibleDisplay;
+      if (!hasActiveFilters(filters)) return () => visibleDisplay;
 
       const events = calendar?.getEvents?.() || [];
       const visibilityByMstId = buildVisibilityByMstId(events, filters);
-      return eventMatchesActiveFilters(ev, filters, visibilityByMstId) ? visibleDisplay : 'none';
+      return ev => eventMatchesActiveFilters(ev, filters, visibilityByMstId) ? visibleDisplay : 'none';
     };
+    window.MST.Views.getFilterDisplayForEvent = ev => window.MST.Views.createEventDisplayResolver()(ev);
   }
 
   function deriveMstId(row) {
@@ -362,9 +396,9 @@
           const li = document.createElement('li');
           li.className = 'flagged-row';
           li.innerHTML = `
-            <div class="title">${row['MST Description 1'] || ''}</div>
+            <div class="title">${htmlText(row['MST Description 1'])}</div>
             <div class="meta">
-              ${row['Equipment Number'] || ''} · Task ${row['MST Task Number'] || ''} · ${row['Last Scheduled Date'] || ''}
+              ${htmlText(row['Equipment Number'])} · Task ${htmlText(row['MST Task Number'])} · ${htmlText(row['Last Scheduled Date'])}
             </div>
           `;
 
@@ -448,10 +482,10 @@
         const p  = ev.extendedProps || {};
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td>${p.equipmentNo || ''}</td>
-          <td>${p.taskNo || ''}</td>
-          <td>${p.desc1 || ''}${p.desc2 ? ' — ' + p.desc2 : ''}</td>
-          <td>${p.workGroup || ''}</td>
+          <td>${htmlText(p.equipmentNo)}</td>
+          <td>${htmlText(p.taskNo)}</td>
+          <td>${htmlText(p.desc1)}${p.desc2 ? ' — ' + htmlText(p.desc2) : ''}</td>
+          <td>${htmlText(p.workGroup)}</td>
         `;
         tr.style.cursor = 'pointer';
         tr.addEventListener('click', () => {
@@ -736,14 +770,15 @@
 
         tr.innerHTML = `
           <td></td>
-          <td>${props.equipmentNo || ''}</td>
-          <td>${props.equipmentDesc1 || ''}</td>
-          <td>${props.equipmentDesc2 || ''}</td>
-          <td>${props.taskNo || ''}</td>
-          <td>${props.desc1 || ''}</td>
-          <td>${props.desc2 || ''}</td>
-          <td>${props.frequency ?? ''}</td>
-          <td>${dateValue || ''}</td>
+          <td>${htmlText(props.equipmentNo)}</td>
+          <td>${htmlText(props.equipmentDesc1)}</td>
+          <td>${htmlText(props.equipmentDesc2)}</td>
+          <td>${htmlText(props.taskNo)}</td>
+          <td>${htmlText(props.desc1)}</td>
+          <td>${htmlText(props.desc2)}</td>
+          <td>${htmlText(props.frequency)}</td>
+          <td>${htmlText(dateValue)}</td>
+          <td>${htmlText(window.MST.WorkOrders?.label(window.MST.WorkOrders.count(mstId, props)) || 'Work-order status unavailable')}</td>
         `;
         tr.querySelector('td')?.appendChild(checkbox);
         listBody.appendChild(tr);
@@ -849,7 +884,8 @@
 
         const freqInput = document.createElement('input');
         freqInput.type = 'number';
-        freqInput.min = '0';
+        freqInput.min = '1';
+        freqInput.step = '1';
         freqInput.value = props.frequency ?? '';
 
         const dateInput = document.createElement('input');
@@ -858,6 +894,7 @@
 
         const wgInput = document.createElement('input');
         wgInput.type = 'text';
+        wgInput.maxLength = 7;
         wgInput.required = true;
         wgInput.pattern = '.{7}';
         wgInput.title = 'Work Group Code must be exactly 7 characters long.';
@@ -908,9 +945,9 @@
         allowMultipleInput.checked = (props.allowMultiple || '').toString().toUpperCase() === 'YES';
 
         tr.innerHTML = `
-          <td>${props.equipmentNo || ''}</td>
-          <td>${props.taskNo || ''}</td>
-          <td>${props.desc1 || ''}</td>
+          <td>${htmlText(props.equipmentNo)}</td>
+          <td>${htmlText(props.taskNo)}</td>
+          <td>${htmlText(props.desc1)}</td>
         `;
 
         const cells = [
@@ -932,6 +969,10 @@
           td.appendChild(input);
           tr.appendChild(td);
         });
+
+        const workOrderCell = document.createElement('td');
+        workOrderCell.textContent = window.MST.WorkOrders?.label(window.MST.WorkOrders.count(props.mstId, props)) || 'Work-order status unavailable';
+        tr.appendChild(workOrderCell);
 
         editBody.appendChild(tr);
       });
@@ -1059,6 +1100,12 @@
         return;
       }
 
+      const invalidFrequencies = pendingChanges.filter(item => !Number.isSafeInteger(Number(item.updates.frequency)) || Number(item.updates.frequency) <= 0);
+      if (invalidFrequencies.length) {
+        alert(`Frequency must be a whole number greater than zero. Please correct MST(s): ${invalidFrequencies.map(item => item.mstId).join(', ')}.`);
+        pendingChanges = [];
+        return;
+      }
       const invalidWorkGroups = pendingChanges.filter(item => String(item.updates.workGroup).trim().length !== 7);
       if (invalidWorkGroups.length) {
         alert(`Work Group Code must be exactly 7 characters long. Please correct MST(s): ${invalidWorkGroups.map(item => item.mstId).join(', ')}.`);
@@ -1077,10 +1124,10 @@
           item.changes.forEach(change => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
-              <td><strong>${item.equipmentNo}</strong> — ${item.taskNo}<br><small style="color:#64748b;">${item.desc1}</small></td>
-              <td>${fieldLabels[change.field] || change.field}</td>
-              <td><span class="preview-value-old">${formatValue(change.oldValue, change.field)}</span></td>
-              <td><span class="preview-value-new">${formatValue(change.newValue, change.field)}</span></td>
+              <td><strong>${htmlText(item.equipmentNo)}</strong> — ${htmlText(item.taskNo)}<br><small style="color:#64748b;">${htmlText(item.desc1)}</small></td>
+              <td>${htmlText(fieldLabels[change.field] || change.field)}</td>
+              <td><span class="preview-value-old">${htmlText(formatValue(change.oldValue, change.field))}</span></td>
+              <td><span class="preview-value-new">${htmlText(formatValue(change.newValue, change.field))}</span></td>
             `;
             previewBody.appendChild(tr);
           });
@@ -1101,8 +1148,14 @@
       }
     };
 
-    const applyBulkUpdates = () => {
-      const requiresAbpCommentary = pendingChanges.filter((item) => {
+    let bulkApplyPending = false;
+    const applyBulkUpdates = async () => {
+      if (bulkApplyPending) return;
+      bulkApplyPending = true;
+      previewApplyBtn.disabled = true;
+      try {
+      const reviewedChanges = pendingChanges.map(item => ({ ...item, updates: { ...item.updates } }));
+      const requiresAbpCommentary = reviewedChanges.filter((item) => {
         const requirement = window.MST?.Editor?.getAbpCommentaryRequirement?.(item.mstId, item.updates);
         item._abpRequirement = requirement || { required: false, abpTracked: false, stdJobNo: '' };
         return item._abpRequirement.required;
@@ -1126,8 +1179,9 @@
         }
       }
 
+      if (!await window.MST.Advisory.confirmBulk(reviewedChanges)) return;
       let updated = 0;
-      pendingChanges.forEach((item) => {
+      reviewedChanges.forEach((item) => {
         const updates = { ...item.updates };
         if (item._abpRequirement?.required && bulkAbpCommentary) {
           updates.abpCommentary = bulkAbpCommentary;
@@ -1141,6 +1195,10 @@
       closeEditor();
       window.MST.Utils.showToast(`Successfully updated ${updated} MST${updated === 1 ? '' : 's'}.`);
       openOverlay({ resetSelection: true, resetFilter: true });
+      } finally {
+        bulkApplyPending = false;
+        previewApplyBtn.disabled = false;
+      }
     };
 
     // Preview modal event listeners
@@ -1289,9 +1347,6 @@ Failed: ${outcome.failed || 0}`);
     }
 
     // Normalize text for searching
-    function normalizeText(value) {
-      return (value || '').toString().toLowerCase().trim();
-    }
 
     // Build the equipment list from window.equipmentDescriptions
     function buildEquipmentList() {
@@ -1319,32 +1374,6 @@ Failed: ${outcome.failed || 0}`);
       });
 
       return allEquipment;
-    }
-
-    // Highlight matching text in a string
-    function highlightMatch(text, term) {
-      if (!term || !text) return escapeHtml(text || '');
-
-      const normalizedText = text.toLowerCase();
-      const normalizedTerm = term.toLowerCase();
-      const index = normalizedText.indexOf(normalizedTerm);
-
-      if (index === -1) return escapeHtml(text);
-
-      const before = text.substring(0, index);
-      const match = text.substring(index, index + term.length);
-      const after = text.substring(index + term.length);
-
-      return escapeHtml(before) +
-             '<span class="equip-picker-highlight">' + escapeHtml(match) + '</span>' +
-             escapeHtml(after);
-    }
-
-    // Escape HTML to prevent XSS
-    function escapeHtml(str) {
-      const div = document.createElement('div');
-      div.textContent = str;
-      return div.innerHTML;
     }
 
     // Filter equipment based on search term
@@ -1573,31 +1602,6 @@ Failed: ${outcome.failed || 0}`);
     let currentSearchTerm = '';
     let debounceTimer = null;
 
-    function normalizeText(value) {
-      return (value || '').toString().toLowerCase().trim();
-    }
-
-    function escapeHtml(str) {
-      const div = document.createElement('div');
-      div.textContent = str;
-      return div.innerHTML;
-    }
-
-    function highlightMatch(text, term) {
-      if (!term || !text) return escapeHtml(text || '');
-      const normalizedText = text.toLowerCase();
-      const normalizedTerm = term.toLowerCase();
-      const index = normalizedText.indexOf(normalizedTerm);
-      if (index === -1) return escapeHtml(text);
-
-      const before = text.substring(0, index);
-      const match = text.substring(index, index + term.length);
-      const after = text.substring(index + term.length);
-
-      return escapeHtml(before) +
-             '<span class="equip-picker-highlight">' + escapeHtml(match) + '</span>' +
-             escapeHtml(after);
-    }
 
     function buildStdJobList() {
       allStdJobs = [];

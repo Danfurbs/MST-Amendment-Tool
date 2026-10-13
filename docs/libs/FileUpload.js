@@ -10,34 +10,39 @@ document.addEventListener("DOMContentLoaded", function () {
      - Triggering MST.Editor.loadMSTs()
      =========================================================== */
 
-  /** Utility: populate <select> with unique values */
-  function populateUnique(selectEl, rows, field) {
-    if (!selectEl) return;
-    const fields = Array.isArray(field) ? field : [field];
-    const vals = [...new Set(rows.map(r => {
-      const matchingField = fields.find(name => safeTrim(r[name]));
-      return matchingField ? safeTrim(r[matchingField]) : "";
-    }))].sort();
-
-    selectEl.innerHTML = `<option value="">(All)</option>`;
-    vals.forEach(v => {
-      if (!v) return;
-      const opt = document.createElement("option");
-      opt.value = v;
-      opt.textContent = v;
-      selectEl.appendChild(opt);
+  // Collect every dropdown's unique values in one pass through the selected rows.
+  function populateFilters(rows) {
+    const fields = [
+      ['filterWorkGroup', ['Work Group Code']],
+      ['filterStdJobNo', ['Standard Job Number', 'Std Job No', 'Standard Job no']],
+      ['filterJobDesc', ['Job Description Code']],
+      ['filterDesc1', ['MST Description 1']],
+      ['filterDesc2', ['MST Description 2']],
+      ['filterProtType', ['Protection Type Code']],
+      ['filterProtMethod', ['Protection Method Code']],
+      ['filterEquipDesc1', ['Equipment Description 1']],
+      ['filterElr', ['ELR']],
+      ['filterTrackId', ['Track ID']]
+    ].map(([id, keys]) => ({ select: document.getElementById(id), keys, values: new Set() }));
+    rows.forEach(row => {
+      fields.forEach(({ select, keys, values }) => {
+        if (!select) return;
+        for (const key of keys) {
+          const value = safeTrim(row[key]);
+          if (value) { values.add(value); break; }
+        }
+      });
     });
-  }
-
-  function populateSelectValues(selectEl, values) {
-    if (!selectEl) return;
-    selectEl.innerHTML = "";
-    values.forEach(value => {
-      if (!value) return;
-      const opt = document.createElement("option");
-      opt.value = value;
-      opt.textContent = value;
-      selectEl.appendChild(opt);
+    fields.forEach(({ select, values }) => {
+      if (!select) return;
+      select.innerHTML = '<option value="">(All)</option>';
+      const fragment = document.createDocumentFragment();
+      [...values].sort().forEach(value => {
+        const option = document.createElement('option');
+        option.value = option.textContent = value;
+        fragment.appendChild(option);
+      });
+      select.appendChild(fragment);
     });
   }
 
@@ -332,6 +337,7 @@ document.addEventListener("DOMContentLoaded", function () {
           rows[idx]["Last Scheduled Date"] = window.MST?.Utils?.formatDateDMY?.(iso) || iso;
         }
 
+        rows[idx]["MST Frequency"] = baseEvent.extendedProps.frequency ?? rows[idx]["MST Frequency"];
         rows[idx]["Units Required"] = baseEvent.extendedProps.unitsRequired ?? rows[idx]["Units Required"];
         rows[idx]["MST Description 2"] = baseEvent.extendedProps.desc2 ?? rows[idx]["MST Description 2"];
         rows[idx]["Work Group Code"] = baseEvent.extendedProps.workGroup ?? rows[idx]["Work Group Code"];
@@ -554,6 +560,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function applyDeactivatedStyle(baseEvent) {
     if (!baseEvent) return;
+    window.MST.Editor.stopMstSchedule(baseEvent.extendedProps.mstId, baseEvent);
     baseEvent.setProp("backgroundColor", "#000");
     baseEvent.setProp("borderColor", "#000");
     baseEvent.setProp("textColor", "#fff");
@@ -605,7 +612,7 @@ document.addEventListener("DOMContentLoaded", function () {
           protMethod: safeTrim(row["ProtectionMethod"]),
           allowMultiple: safeTrim(row["Allow Multiple workorders"]),
           instance: 0,
-          isNew: true,
+          isNew: true, openWorkOrderCount: null,
           tvReference: safeTrim(row["TV Reference"]),
           tvExpiryDate: safeTrim(row["TV Expiry Date"]),
           hasTvReference: Boolean(safeTrim(row["TV Reference"]))
@@ -662,12 +669,12 @@ document.addEventListener("DOMContentLoaded", function () {
       if (row.New_Frequency !== undefined && row.New_Frequency !== "") props.frequency = row.New_Frequency;
       if (row.New_Desc2 !== undefined) props.desc2 = row.New_Desc2;
       if (row.New_Work_Group_Code !== undefined && row.New_Work_Group_Code !== "") props.workGroup = row.New_Work_Group_Code;
-      if (row.New_Job_Desc_Code !== undefined && row.New_Job_Desc_Code !== "") props.jobDescCode = row.New_Job_Desc_Code;
-      if (row.New_Units_Required !== undefined && row.New_Units_Required !== "") props.unitsRequired = row.New_Units_Required;
-      if (row.New_Segment_From !== undefined && row.New_Segment_From !== "") props.segFrom = row.New_Segment_From;
-      if (row.New_Segment_To !== undefined && row.New_Segment_To !== "") props.segTo = row.New_Segment_To;
-      if (row.New_Protection_Type_Code !== undefined && row.New_Protection_Type_Code !== "") props.protType = row.New_Protection_Type_Code;
-      if (row.New_Protection_Method_Code !== undefined && row.New_Protection_Method_Code !== "") props.protMethod = row.New_Protection_Method_Code;
+      if (row.New_Job_Desc_Code !== undefined) props.jobDescCode = row.New_Job_Desc_Code;
+      if (row.New_Units_Required !== undefined) props.unitsRequired = row.New_Units_Required;
+      if (row.New_Segment_From !== undefined) props.segFrom = row.New_Segment_From ?? "";
+      if (row.New_Segment_To !== undefined) props.segTo = row.New_Segment_To ?? "";
+      if (row.New_Protection_Type_Code !== undefined) props.protType = row.New_Protection_Type_Code;
+      if (row.New_Protection_Method_Code !== undefined) props.protMethod = row.New_Protection_Method_Code;
       if (row.New_Allow_Multiple_Workorders !== undefined) props.allowMultiple = row.New_Allow_Multiple_Workorders;
       if (row.New_TV_Reference !== undefined) props.tvReference = row.New_TV_Reference;
       if (row.New_TV_Expiry_Date !== undefined) props.tvExpiryDate = row.New_TV_Expiry_Date;
@@ -785,7 +792,7 @@ ${preview}${suffix}`
     updateLoadingProgress(20, "Parsing Excel workbook...");
 
     try {
-      const workbook = XLSX.read(rawData, { type: workbookType });
+      const workbook = XLSX.read(rawData, { type: workbookType, raw: true });
       debugStep("Workbook parsed");
       updateLoadingProgress(35, "Reading spreadsheet data...");
 
@@ -802,6 +809,11 @@ ${preview}${suffix}`
       });
 
       debugStep("Sheet converted to JSON");
+      json.forEach(row => {
+        if (row["Allow Multiple workorders"] === undefined) {
+          row["Allow Multiple workorders"] = row["Allow Multiple Work Orders"] ?? "";
+        }
+      });
       updateLoadingProgress(50, `Found ${json.length.toLocaleString()} rows...`);
 
       const fullRows = json;
@@ -891,55 +903,49 @@ ${preview}${suffix}`
         showLoading("Loading Calendar", `Rendering ${rows.length.toLocaleString()} MSTs`, "Validating data...");
         updateLoadingProgress(70, "Running error checks...");
 
-        const annotatedRows = reapplyErrorEvaluation(rows);
+        // Let the shared loading backdrop and progress panel paint first.
+        requestAnimationFrame(() => setTimeout(() => {
+          try {
+            const annotatedRows = reapplyErrorEvaluation(rows);
 
-        debugStep("Error flags applied");
-        updateLoadingProgress(75, "Building filter options...");
+            debugStep("Error flags applied");
+            updateLoadingProgress(75, "Building filter options...");
 
-        populateUnique(document.getElementById("filterWorkGroup"),  annotatedRows, "Work Group Code");
-        populateUnique(document.getElementById("filterStdJobNo"),   annotatedRows, ["Standard Job Number", "Std Job No", "Standard Job no"]);
-        populateUnique(document.getElementById("filterJobDesc"),    annotatedRows, "Job Description Code");
-        populateUnique(document.getElementById("filterDesc1"),      annotatedRows, "MST Description 1");
-        populateUnique(document.getElementById("filterDesc2"),      annotatedRows, "MST Description 2");
-        populateUnique(document.getElementById("filterProtType"),   annotatedRows, "Protection Type Code");
-        populateUnique(document.getElementById("filterProtMethod"), annotatedRows, "Protection Method Code");
-        populateUnique(document.getElementById("filterEquipDesc1"), annotatedRows, "Equipment Description 1");
-        populateUnique(document.getElementById("filterElr"),        annotatedRows, "ELR");
-        populateUnique(document.getElementById("filterTrackId"),    annotatedRows, "Track ID");
-        window.MST?.Views?.refreshFilterSummary?.();
+            populateFilters(annotatedRows);
+            window.MST?.Views?.refreshFilterSummary?.();
 
-        debugStep("Filter dropdowns populated");
-        updateLoadingProgress(80, "Indexing equipment numbers...");
+            debugStep("Filter dropdowns populated");
+            updateLoadingProgress(80, "Indexing equipment numbers...");
 
-        // Keep the equipment number pool unfiltered so description lookups work for
-        // any record contained in the original download
-        window.allEquipNumbers = [...new Set(
-          (window.fullDownloadRows || []).map(r => safeTrim(r["Equipment Number"]))
-        )];
+            // Keep the equipment number pool unfiltered so description lookups work for
+            // any record contained in the original download
+            window.allEquipNumbers = [...new Set(
+              (window.fullDownloadRows || []).map(r => safeTrim(r["Equipment Number"]))
+            )];
 
-        debugStep("Equipment numbers cached");
+            debugStep("Equipment numbers cached");
 
-        lockDataSourceControl();
+            lockDataSourceControl();
 
-        debugStep("Data source control locked");
-        updateLoadingProgress(85, "Rendering calendar events...");
+            debugStep("Data source control locked");
+            updateLoadingProgress(85, "Rendering calendar events...");
 
-        try {
-          debugStep("Requesting MST render");
-          MST.Editor.loadMSTs(annotatedRows);
-          if (pendingSessionPayload) {
-            const payloadToApply = pendingSessionPayload;
-            pendingSessionPayload = null;
-            applySessionPayload(payloadToApply);
+            debugStep("Requesting MST render");
+            MST.Editor.loadMSTs(annotatedRows);
+            if (pendingSessionPayload) {
+              const payloadToApply = pendingSessionPayload;
+              pendingSessionPayload = null;
+              applySessionPayload(payloadToApply);
+            }
+            debugStep("MST render requested successfully");
+            updateLoadingProgress(100, "Complete!");
+            setTimeout(hideLoading, 300);
+          } catch (err) {
+            console.error("❌ Failed to render MSTs", err);
+            hideLoading();
+            alert("The MSTs could not be displayed. Please retry or contact support.");
           }
-          debugStep("MST render requested successfully");
-          updateLoadingProgress(100, "Complete!");
-          setTimeout(hideLoading, 300);
-        } catch (err) {
-          console.error("❌ Failed to render MSTs", err);
-          hideLoading();
-          alert("The MSTs could not be displayed. Please retry or contact support.");
-        }
+        }, 0));
       };
 
       const buildDesc1Options = (rows) => {
@@ -1004,16 +1010,6 @@ ${preview}${suffix}`
           opt.value = value;
           opt.textContent = label;
           initialWorkGroupDropdown.appendChild(opt);
-        });
-
-        const desc1Options = buildDesc1Options(rows);
-
-        initialDesc1Dropdown.innerHTML = "";
-        desc1Options.forEach(({ value, label }) => {
-          const opt = document.createElement("option");
-          opt.value = value;
-          opt.textContent = label;
-          initialDesc1Dropdown.appendChild(opt);
         });
       };
 
@@ -1207,6 +1203,7 @@ ${preview}${suffix}`
   previousBatchInput?.addEventListener("change", e => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (window.MST?.SessionGuard && !MST.SessionGuard.confirmReplace()) { e.target.value = ""; return; }
 
     const reader = new FileReader();
     reader.onload = function(ev) {
@@ -1231,6 +1228,7 @@ ${preview}${suffix}`
 
     const file = e.target.files[0];
     if (!file) return;
+    if (window.MST?.SessionGuard && !MST.SessionGuard.confirmReplace()) { e.target.value = ""; return; }
 
     showLoading("Reading File", "Processing " + file.name, "Parsing Excel data...");
     updateLoadingProgress(10, "Reading file contents...");

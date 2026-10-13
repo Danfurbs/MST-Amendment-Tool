@@ -54,7 +54,7 @@ const Editor = {
   }
 };
 
-new Function("E", "window", "U", source.slice(functionStart, functionEnd))(
+new Function("E", "window", "U", source.slice(source.indexOf("E.prepareVirtualInstances = function"), functionEnd))(
   Editor,
   windowMock,
   {}

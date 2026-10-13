@@ -16,6 +16,34 @@ const chunkString = (value, chunkSize = 30000) => {
   return chunks;
 };
 
+// ExcelJS has no native autofit. Size from displayed text, allowing extra room
+// for proportional fonts, and wrap long descriptions instead of widening endlessly.
+function fitExportColumns(sheet) {
+  sheet.columns.forEach(column => {
+    let width = column.width || 12;
+    column.eachCell({ includeEmpty: false }, cell => {
+      if (cell.isMerged) return;
+      const longestLine = Math.max(...cell.text.split(/\r?\n/).map(line => line.length));
+      width = Math.max(width, Math.ceil(longestLine * 1.15) + 3);
+    });
+    column.width = Math.min(width, 72);
+  });
+  sheet.eachRow(row => {
+    let height = row.height || 20;
+    row.eachCell(cell => {
+      // Cover banners already have deliberate merged widths and row heights.
+      if (cell.isMerged) return;
+      cell.alignment = { ...cell.alignment, vertical: 'middle', wrapText: true };
+      const capacity = Math.max(1, Math.floor((sheet.getColumn(cell.col).width - 3) / 1.15));
+      // Reserve a little more room for word wrapping and explicit line breaks.
+      const lines = cell.text.split(/\r?\n/).reduce((total, line) =>
+        total + Math.max(1, Math.ceil(line.length / Math.max(1, capacity * 0.85))), 0);
+      height = Math.max(height, lines * ((cell.font?.size || 11) + 4) + 6);
+    });
+    row.height = Math.min(height, 409); // Excel's maximum row height.
+  });
+}
+
 function formatDateTimeStamp(date) {
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const d = String(date.getDate()).padStart(2, "0");
@@ -120,6 +148,7 @@ const formatPeriodVolumes = (periodVolumes = {}) => {
     MST.Export = MST.Export || {};
 
     const REVIEW_FIELDS = [
+      ["Scheduling Indicator", "Old_Scheduling_Indicator_Code", "New_Scheduling_Indicator_Code"],
       ["MST Description 2", "Old_Desc2", "New_Desc2"],
       ["Work Group Code", "Old_Work_Group_Code", "New_Work_Group_Code"],
       ["Job Description Code", "Old_Job_Desc_Code", "New_Job_Desc_Code"],
@@ -166,12 +195,22 @@ const formatPeriodVolumes = (periodVolumes = {}) => {
           });
         });
       });
+      Object.values(window.createdMSTs || {}).forEach(row => {
+        Object.entries(row).forEach(([field, value]) => {
+          if (value === undefined || value === null || value === "") return;
+          rows.push({ equipmentNo: row.Equipment || "", taskNo: row["Task No"] || "",
+            mstDesc1: row["MST Desc 1"] || "", field: `New MST — ${field}`, from: "", to: String(value) });
+        });
+      });
       return rows;
     };
+    MST.Export.buildReviewRows = buildReviewRows;
+    let releaseReviewFocus = () => {};
 
     const closeReviewModal = () => {
       const modal = document.getElementById("exportReviewModal");
       if (modal) modal.style.display = "none";
+      releaseReviewFocus();
     };
 
     MST.Export.openReviewAndExport = function () {
@@ -195,7 +234,7 @@ const formatPeriodVolumes = (periodVolumes = {}) => {
 
       const reviewRows = buildReviewRows();
       const maxRows = 150;
-      const renderedRows = reviewRows.slice(0, maxRows);
+      let page = 0;
 
       const validationNotes = [];
       if (!hasAnyExportData) validationNotes.push("No amended or new MSTs are currently queued for export.");
@@ -203,24 +242,28 @@ const formatPeriodVolumes = (periodVolumes = {}) => {
 
       const introSummary =
         `You are preparing to export ${changeKeys.length} amended MST(s) and ${newKeys.length} new MST(s). ` +
-        `Showing ${renderedRows.length} of ${reviewRows.length} field-level changes.`;
-
-      summary.innerHTML = validationNotes.length
-        ? `${introSummary}<br><strong>Before exporting:</strong> ${validationNotes.join(" ")}`
-        : introSummary;
-
-      body.innerHTML = "";
-      renderedRows.forEach((row) => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${row.equipmentNo || ""}</td><td>${row.taskNo || ""}</td><td>${row.mstDesc1 || ""}</td><td>${row.field}</td><td>${row.from}</td><td>${row.to}</td>`;
-        body.appendChild(tr);
-      });
-
-      if (!renderedRows.length) {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `<td colspan="6">No field-level edits detected. New MST creation changes will still be exported.</td>`;
-        body.appendChild(tr);
-      }
+        `${reviewRows.length} field-level entries. `;
+      const previous = document.getElementById("exportReviewPrevious");
+      const next = document.getElementById("exportReviewNext");
+      const renderPage = () => {
+        const renderedRows = reviewRows.slice(page * maxRows, (page + 1) * maxRows);
+        summary.textContent = introSummary + `Page ${page + 1} of ${Math.max(1, Math.ceil(reviewRows.length / maxRows))}. ` + validationNotes.join(" ");
+        body.replaceChildren();
+        renderedRows.forEach(row => {
+          const tr = document.createElement("tr");
+          [row.equipmentNo, row.taskNo, row.mstDesc1, row.field, row.from, row.to].forEach(value => {
+            const td = document.createElement("td");
+            td.textContent = value ?? "";
+            tr.appendChild(td);
+          });
+          body.appendChild(tr);
+        });
+        if (previous) previous.disabled = page === 0;
+        if (next) next.disabled = (page + 1) * maxRows >= reviewRows.length;
+      };
+      if (previous) previous.onclick = () => { page--; renderPage(); };
+      if (next) next.onclick = () => { page++; renderPage(); };
+      renderPage();
 
       close.onclick = closeReviewModal;
       modal.onclick = (event) => {
@@ -237,6 +280,26 @@ const formatPeriodVolumes = (periodVolumes = {}) => {
       };
 
       modal.style.display = "flex";
+      const previousFocus = document.activeElement;
+      const siblings = Array.from(document.body.children).filter(el => !el.contains(modal));
+      const inertStates = siblings.map(el => el.inert);
+      siblings.forEach(el => { el.inert = true; });
+      const keyHandler = event => {
+        if (event.key === 'Escape') { event.preventDefault(); closeReviewModal(); }
+        if (event.key !== 'Tab') return;
+        const controls = Array.from(modal.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), a[href]'));
+        const first = controls[0], last = controls[controls.length - 1];
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+      };
+      modal.addEventListener('keydown', keyHandler);
+      releaseReviewFocus = () => {
+        siblings.forEach((el, i) => { el.inert = inertStates[i]; });
+        modal.removeEventListener('keydown', keyHandler);
+        previousFocus?.focus();
+        releaseReviewFocus = () => {};
+      };
+      close.focus();
     };
 
     MST.Export.exportChanges = async function () {
@@ -262,6 +325,7 @@ const formatPeriodVolumes = (periodVolumes = {}) => {
         }
 
         const workbook = new ExcelJS.Workbook();
+        const exportedSnapshot = window.MST?.SessionGuard?.snapshot();
 
         const sessionSheet = workbook.addWorksheet("_MST_SESSION");
         sessionSheet.state = "veryHidden";
@@ -297,13 +361,13 @@ const formatPeriodVolumes = (periodVolumes = {}) => {
         ];
 
         const bannerStyle = {
-            font: { bold: true, color: { argb: "FFFFFFFF" } },
+            font: { name: "Calibri", size: 12, bold: true, color: { argb: "FFFFFFFF" } },
             fill: { type: "pattern", pattern: "solid", fgColor: { argb: "FF4B5563" } },
-            alignment: { vertical: "middle", horizontal: "left" }
+            alignment: { vertical: "middle", horizontal: "left", wrapText: true, indent: 1 }
         };
 
         const labelStyle = {
-            font: { bold: true, color: { argb: "FFFFFFFF" } },
+            font: { name: "Calibri", size: 11, bold: true, color: { argb: "FFFFFFFF" } },
             fill: { type: "pattern", pattern: "solid", fgColor: { argb: "FF4B5563" } },
             border: {
                 top: { style: "thin", color: { argb: "FF000000" } },
@@ -311,10 +375,11 @@ const formatPeriodVolumes = (periodVolumes = {}) => {
                 bottom: { style: "thin", color: { argb: "FF000000" } },
                 right: { style: "thin", color: { argb: "FF000000" } }
             },
-            alignment: { vertical: "middle" }
+            alignment: { vertical: "middle", wrapText: true, indent: 1 }
         };
 
         const valueStyle = {
+            font: { name: "Calibri", size: 11 },
             fill: { type: "pattern", pattern: "solid", fgColor: { argb: "FFE5E7EB" } },
             border: {
                 top: { style: "thin", color: { argb: "FF000000" } },
@@ -322,11 +387,11 @@ const formatPeriodVolumes = (periodVolumes = {}) => {
                 bottom: { style: "thin", color: { argb: "FF000000" } },
                 right: { style: "thin", color: { argb: "FF000000" } }
             },
-            alignment: { vertical: "middle" }
+            alignment: { vertical: "middle", horizontal: "left", wrapText: true, indent: 1 }
         };
 
         headerSheet.addRow(["This spreadsheet includes MST changes for approval", ""]);
-        headerSheet.addRow(["Note: New and Amended MSTs are recorded on seperate tabs. The Change Log sheet shows all changes made", ""]);
+        headerSheet.addRow(["Note: New and Amended MSTs are recorded on separate tabs.\nThe Change Log sheet shows all changes made.", ""]);
         headerSheet.mergeCells("A1:B1");
         headerSheet.mergeCells("A2:B2");
         headerSheet.getRow(1).eachCell(cell => Object.assign(cell, bannerStyle));
@@ -350,9 +415,10 @@ const formatPeriodVolumes = (periodVolumes = {}) => {
             Object.assign(valueCell, { style: valueStyle });
         });
 
-        headerSheet.eachRow({ includeEmpty: false }, row => {
-            row.height = 20;
-        });
+        headerSheet.eachRow({ includeEmpty: false }, row => { row.height = 30; });
+        headerSheet.getRow(1).height = 36;
+        headerSheet.getRow(2).height = 48;
+        headerSheet.getRow(3).height = 12;
 
         const headerStyle = {
             font: { bold: true, color: { argb: "FFFFFFFF" } },
@@ -367,6 +433,9 @@ const formatPeriodVolumes = (periodVolumes = {}) => {
             }
             return "";
         };
+        // Explicitly cleared fields and numeric zero are amendments, not missing values.
+        const amendmentValue = (newValue, oldValue, original) =>
+            newValue !== undefined && newValue !== null ? newValue : firstPresentValue(oldValue, original);
 
         const originalValueForExportHeader = (orig, header) => {
             if (!orig || typeof orig !== "object") return "";
@@ -380,6 +449,7 @@ const formatPeriodVolumes = (periodVolumes = {}) => {
                 "Freq": ["MST Frequency"],
                 "Unit Required": ["Units Required", "Unit Required"],
                 "Unit of Work": ["Unit of Work", "Unit of work", "Unit of Measure", "Unit Measure", "UOM"],
+                "Allow Multiple workorders": ["Allow Multiple Work Orders"],
                 "Sched Ind": ["Scheduling Indicator Code"],
                 "Work Group": ["Work Group Code"],
                 "Std Job No": ["Standard Job Number", "Std Job No"],
@@ -472,6 +542,7 @@ const formatPeriodVolumes = (periodVolumes = {}) => {
                 const mstDesc1 = row.MST_Description_1 || orig["MST Description 1"] || "";
 
           const fieldsToCheck = [
+              ["Scheduling Indicator", "Old_Scheduling_Indicator_Code", "New_Scheduling_Indicator_Code"],
               ["MST Description 2", "Old_Desc2", "New_Desc2"],
               ["Work Group Code", "Old_Work_Group_Code", "New_Work_Group_Code"],
               ["Job Description Code", "Old_Job_Desc_Code", "New_Job_Desc_Code"],
@@ -527,19 +598,21 @@ const formatPeriodVolumes = (periodVolumes = {}) => {
                       if (h === "Equipment") val = firstPresentValue(row.Equipment, originalValueForExportHeader(orig, h));
                       else if (h === "Task No") val = firstPresentValue(row["Task No"], originalValueForExportHeader(orig, h));
                       else if (h === "MST Desc 1") val = firstPresentValue(row["MST Desc 1"], originalValueForExportHeader(orig, h));
-                      else if (h === "MST Desc 2") val = firstPresentValue(row.New_Desc2, row.Old_Desc2, originalValueForExportHeader(orig, h));
-                      else if (h === "Freq") val = firstPresentValue(row.New_Frequency, row.Old_Frequency, originalValueForExportHeader(orig, h));
-                      else if (h === "Work Group") val = firstPresentValue(row.New_Work_Group_Code, row.Old_Work_Group_Code, originalValueForExportHeader(orig, h));
-                      else if (h === "Job Desc Code") val = firstPresentValue(row.New_Job_Desc_Code, row.Old_Job_Desc_Code, originalValueForExportHeader(orig, h));
-                      else if (h === "Unit Required") val = firstPresentValue(row.New_Units_Required, row.Old_Units_Required, originalValueForExportHeader(orig, h));
+                      else if (h === "MST Desc 2") val = amendmentValue(row.New_Desc2, row.Old_Desc2, originalValueForExportHeader(orig, h));
+                      else if (h === "Freq") val = amendmentValue(row.New_Frequency, row.Old_Frequency, originalValueForExportHeader(orig, h));
+                      else if (h === "Work Group") val = amendmentValue(row.New_Work_Group_Code, row.Old_Work_Group_Code, originalValueForExportHeader(orig, h));
+                      else if (h === "Job Desc Code") val = amendmentValue(row.New_Job_Desc_Code, row.Old_Job_Desc_Code, originalValueForExportHeader(orig, h));
+                      else if (h === "Unit Required") val = amendmentValue(row.New_Units_Required, row.Old_Units_Required, originalValueForExportHeader(orig, h));
                       else if (h === "Unit of Work") val = firstPresentValue(row.Unit_of_Work, originalValueForExportHeader(orig, h));
-                      else if (h === "Sched Ind") val = firstPresentValue(row.New_Scheduling_Indicator_Code, row.Old_Scheduling_Indicator_Code, originalValueForExportHeader(orig, h));
-                      else if (h === "LSD") val = firstPresentValue(row.New_Last_Scheduled_Date, row.Old_Last_Scheduled_Date, originalValueForExportHeader(orig, h));
-                      else if (h === "ProtectionType") val = firstPresentValue(row.New_Protection_Type_Code, row.Old_Protection_Type_Code, originalValueForExportHeader(orig, h));
-                      else if (h === "Allow Multiple workorders") val = firstPresentValue(row.New_Allow_Multiple_Workorders, row.Old_Allow_Multiple_Workorders, originalValueForExportHeader(orig, h));
-                      else if (h === "ProtectionMethod") val = firstPresentValue(row.New_Protection_Method_Code, row.Old_Protection_Method_Code, originalValueForExportHeader(orig, h));
-                      else if (h === "TV Reference") val = firstPresentValue(row.New_TV_Reference, row.Old_TV_Reference, originalValueForExportHeader(orig, h));
-                      else if (h === "TV Expiry Date") val = firstPresentValue(row.New_TV_Expiry_Date, row.Old_TV_Expiry_Date, originalValueForExportHeader(orig, h));
+                      else if (h === "Sched Ind") val = amendmentValue(row.New_Scheduling_Indicator_Code, row.Old_Scheduling_Indicator_Code, originalValueForExportHeader(orig, h));
+                      else if (h === "LSD") val = amendmentValue(row.New_Last_Scheduled_Date, row.Old_Last_Scheduled_Date, originalValueForExportHeader(orig, h));
+                      else if (h === "ProtectionType") val = amendmentValue(row.New_Protection_Type_Code, row.Old_Protection_Type_Code, originalValueForExportHeader(orig, h));
+                      else if (h === "Allow Multiple workorders") val = amendmentValue(row.New_Allow_Multiple_Workorders, row.Old_Allow_Multiple_Workorders, originalValueForExportHeader(orig, h));
+                      else if (h === "ProtectionMethod") val = amendmentValue(row.New_Protection_Method_Code, row.Old_Protection_Method_Code, originalValueForExportHeader(orig, h));
+                      else if (h === "TV Reference") val = amendmentValue(row.New_TV_Reference, row.Old_TV_Reference, originalValueForExportHeader(orig, h));
+                      else if (h === "TV Expiry Date") val = amendmentValue(row.New_TV_Expiry_Date, row.Old_TV_Expiry_Date, originalValueForExportHeader(orig, h));
+                      else if (h === "Segment From") val = amendmentValue(row.New_Segment_From, row.Old_Segment_From, originalValueForExportHeader(orig, h));
+                      else if (h === "Segment To") val = amendmentValue(row.New_Segment_To, row.Old_Segment_To, originalValueForExportHeader(orig, h));
                       else val = originalValueForExportHeader(orig, h);
 
                     if (h === "NSD") {
@@ -738,9 +811,13 @@ const formatPeriodVolumes = (periodVolumes = {}) => {
         // ------------------------------------------------------
         // SAVE FILE
         // ------------------------------------------------------
+        workbook.eachSheet(sheet => {
+            if (sheet.name !== "_MST_SESSION") fitExportColumns(sheet);
+        });
         const buffer = await workbook.xlsx.writeBuffer();
         const safeBatch = batchNumber.replace(/[^a-zA-Z0-9_-]/g, "_");
         saveAs(new Blob([buffer]), `${safeBatch}_MST_Changes.xlsx`);
+        window.MST?.SessionGuard?.markExported(exportedSnapshot);
     };
 
 })();
